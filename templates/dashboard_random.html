@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏数据分析 - 五维框架完整版</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; text-align: center; }
+        .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .dimension-selector { display: flex; justify-content: center; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; }
+        .dimension-btn { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 0.6rem 1.2rem; border-radius: 25px; cursor: pointer; transition: all 0.3s; font-size: 0.9rem; }
+        .dimension-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-2px); }
+        .dimension-btn.active { background: rgba(255,255,255,0.9); color: #667eea; font-weight: bold; }
+        .date-selector { margin: 1rem 0; padding: 0.8rem 1.5rem; background: rgba(255,255,255,0.15); border-radius: 25px; display: inline-flex; align-items: center; gap: 0.8rem; }
+        .date-selector label { font-size: 0.95rem; }
+        .date-selector input[type="date"] { padding: 0.4rem 0.8rem; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; background: rgba(255,255,255,0.9); color: #333; font-size: 0.9rem; cursor: pointer; }
+        .date-selector input[type="date"]:focus { outline: none; border-color: #667eea; }
+        #currentDateDisplay { font-size: 0.85rem; opacity: 0.9; margin-left: 0.5rem; }
+        .refresh-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 0.5rem 1.5rem; border-radius: 20px; cursor: pointer; margin-top: 1rem; transition: all 0.3s; }
+        .refresh-btn:hover { background: rgba(255,255,255,0.3); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .kpi-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+        .kpi-value { font-size: 2rem; font-weight: bold; color: #667eea; }
+        .kpi-label { color: #666; font-size: 0.9rem; margin-top: 0.5rem; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 2rem; }
+        .chart-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .chart-card h3 { margin-bottom: 1rem; color: #333; font-size: 1.1rem; }
+        .chart-container { position: relative; height: 300px; }
+        .chart-selector { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .chart-selector select { padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: white; font-size: 0.9rem; cursor: pointer; }
+        .insight-box { background: #f8f9fa; border-left: 4px solid #667eea; padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+        .insight-box h4 { color: #667eea; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .insight-box ul { margin-left: 1.2rem; font-size: 0.85rem; }
+        .full-width { grid-column: 1 / -1; }
+        .section-title { grid-column: 1 / -1; font-size: 1.3rem; color: #667eea; margin: 1.5rem 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid #667eea; }
+        @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 游戏数据分析仪表盘</h1>
+        <p>五维分析框架 v3.0 | 基于新注册用户全生命周期 | 15个图表</p>
+        <div class="date-selector">
+            <label for="datePicker">📅 选择日期（新注册用户）：</label>
+            <input type="date" id="datePicker" onchange="changeDate()">
+            <span id="currentDateDisplay"></span>
+        </div>
+        <div class="dimension-selector">
+            <button class="dimension-btn active" onclick="switchDimension('all')">📊 全部维度</button>
+            <button class="dimension-btn" onclick="switchDimension('penetration')">📈 渗透维度</button>
+            <button class="dimension-btn" onclick="switchDimension('completion')">🎯 完成与流失</button>
+            <button class="dimension-btn" onclick="switchDimension('strategy')">⚔️ 策略战力</button>
+            <button class="dimension-btn" onclick="switchDimension('iaa')">💰 IAA收益</button>
+        </div>
+        <button class="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
+    </div>
+    
+    <div class="container">
+        <div class="kpi-grid" id="kpiGrid"></div>
+        
+        <div class="chart-grid" id="chartGrid">
+            <div class="section-title">📈 渗透维度</div>
+            
+            <div class="chart-card" data-dimension="penetration">
+                <h3>累计渗透率趋势</h3>
+                <div class="chart-container"><canvas id="penetrationChart"></canvas></div>
+                <div class="insight-box"><h4>关键洞察</h4><ul><li>60日渗透率目标：>80%</li><li>前期增长快，后期趋于平稳</li></ul></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="penetration">
+                <h3>关卡类别占比</h3>
+                <div class="chart-container"><canvas id="categoryShareChart"></canvas></div>
+                <div class="insight-box"><h4>健康标准</h4><ul><li>普通：60%、困难：25%、地狱：10%、副本：5%</li></ul></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="penetration">
+                <h3>解锁转化漏斗</h3>
+                <div class="chart-container"><canvas id="unlockFunnelChart"></canvas></div>
+                <div class="insight-box"><h4>转化目标</h4><ul><li>普通→困难：>40%、困难→地狱：>30%</li></ul></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="penetration">
+                <h3>核心用户贡献</h3>
+                <div class="chart-container"><canvas id="coreUserChart"></canvas></div>
+                <div class="insight-box"><h4>二八定律</h4><ul><li>20%核心用户贡献68%行为</li></ul></div>
+            </div>
+            
+            <div class="section-title">🎯 完成与流失维度</div>
+            
+            <div class="chart-card" data-dimension="completion">
+                <h3>关卡完成率</h3>
+                <div class="chart-selector">
+                    <select id="chapterSelect" onchange="updateCompletionChart()"><option value="all">全部关卡</option><option value="1-3">关卡 1-3</option><option value="4-6">关卡 4-6</option><option value="7-10">关卡 7-10</option></select>
+                    <select id="categorySelect" onchange="updateCompletionChart()"><option value="all">全部类别</option><option value="normal">普通</option><option value="hard">困难</option><option value="hell">地狱</option></select>
+                </div>
+                <div class="chart-container"><canvas id="completionChart"></canvas></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="completion">
+                <h3>尝试次数分布</h3>
+                <div class="chart-container"><canvas id="attemptChart"></canvas></div>
+                <div class="insight-box"><h4>难度评估</h4><ul><li>1-1.5次：偏简单、1.5-2.5次：适中、2.5-4次：偏难</li></ul></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="completion">
+                <h3>难度曲线</h3>
+                <div class="chart-container"><canvas id="difficultyChart"></canvas></div>
+                <div class="insight-box"><h4>趋势分析</h4><ul><li>难度应平滑递增，避免突然跳跃</li></ul></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="completion">
+                <h3>波次失败分布</h3>
+                <div class="chart-selector">
+                    <select id="waveChapterSelect" onchange="updateWaveFailureChart()"><option value="all">全部关卡</option><option value="1-3">关卡 1-3</option><option value="4-6">关卡 4-6</option><option value="7-10">关卡 7-10</option></select>
+                    <select id="waveCategorySelect" onchange="updateWaveFailureChart()"><option value="all">全部类别</option><option value="normal">普通</option><option value="hard">困难</option><option value="hell">地狱</option></select>
+                </div>
+                <div class="chart-container"><canvas id="waveFailureChart"></canvas></div>
+                <div class="insight-box"><h4>关键发现</h4><ul><li>第3波是卡关高峰，失败率平均32%</li></ul></div>
+            </div>
+            
+            <div class="chart-card full-width" data-dimension="completion">
+                <h3>流失点热力图</h3>
+                <div class="chart-container"><canvas id="heatmapChart"></canvas></div>
+                <div class="insight-box"><h4>优化建议</h4><ul><li>颜色越深流失越严重，重点关注第3波</li></ul></div>
+            </div>
+            
+            <div class="section-title">⚔️ 策略战力维度</div>
+            
+            <div class="chart-card" data-dimension="strategy">
+                <h3>策略战力指标</h3>
+                <div class="chart-container"><canvas id="strategyChart"></canvas></div>
+                <div class="insight-box"><h4>健康标准</h4><ul><li>银币周转率：80-120%、囤积率：&lt;20%</li></ul></div>
+            </div>
+            
+            <div class="section-title">💰 IAA收益维度</div>
+            
+            <div class="chart-card" data-dimension="iaa">
+                <h3>类别视频分析</h3>
+                <div class="chart-selector">
+                    <select id="iaaMetricSelect" onchange="updateIAAChart()"><option value="watch_rate">视频观看率</option><option value="avg_videos">人均视频数</option><option value="video_share">视频占比</option></select>
+                </div>
+                <div class="chart-container"><canvas id="iaaChart"></canvas></div>
+                <div class="insight-box"><h4>核心洞察</h4><ul><li>困难类别是核心盈利来源，视频占比40%</li></ul></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="iaa">
+                <h3>视频观看率趋势</h3>
+                <div class="chart-container"><canvas id="videoTrendChart"></canvas></div>
+                <div class="insight-box"><h4>目标</h4><ul><li>日观看率>40%</li></ul></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="iaa">
+                <h3>视频收益结构</h3>
+                <div class="chart-container"><canvas id="revenueChart"></canvas></div>
+                <div class="insight-box"><h4>主要来源</h4><ul><li>卡关复活：45%、奖励翻倍：25%</li></ul></div>
+            </div>
+            
+            <div class="chart-card" data-dimension="iaa">
+                <h3>用户视频行为分层</h3>
+                <div class="chart-container"><canvas id="userSegmentChart"></canvas></div>
+                <div class="insight-box"><h4>用户分布</h4><ul><li>高频用户：15%、中频用户：35%</li></ul></div>
+            </div>
+            
+            <div class="chart-card full-width" data-dimension="iaa">
+                <h3>视频用户 vs 非视频用户对比</h3>
+                <div class="chart-container"><canvas id="videoRetentionChart"></canvas></div>
+                <div class="insight-box"><h4>核心发现</h4><ul><li>视频用户到达关卡高50%，7日留存高20%</li></ul></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let charts = {}, currentDimension = 'all', chartData = {}, currentDate = new Date().toISOString().split('T')[0];
+
+        async function init() {
+            // 设置日期选择器默认值
+            document.getElementById('datePicker').value = currentDate;
+            updateDateDisplay();
+            await loadData(currentDate);
+        }
+
+        function updateDateDisplay() {
+            const date = new Date(currentDate);
+            const formatted = `${date.getFullYear()}年${date.getMonth()+1}月${date.getDate()}日`;
+            document.getElementById('currentDateDisplay').textContent = `当前：${formatted} 新注册用户`;
+        }
+
+        async function changeDate() {
+            const newDate = document.getElementById('datePicker').value;
+            if (newDate && newDate !== currentDate) {
+                currentDate = newDate;
+                updateDateDisplay();
+                await loadData(currentDate);
+            }
+        }
+
+        async function loadData(date) {
+            try {
+                const response = await fetch(`/api/all?date=${date}`);
+                chartData = await response.json();
+                renderAllCharts();
+            } catch (error) { console.error('加载数据失败:', error); }
+        }
+
+        async function refreshData() {
+            try {
+                await fetch(`/api/refresh?date=${currentDate}`);
+                await loadData(currentDate);
+            } catch (error) { console.error('刷新数据失败:', error); }
+        }
+        
+        function switchDimension(dimension) {
+            currentDimension = dimension;
+            document.querySelectorAll('.dimension-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.chart-card, .section-title').forEach(el => {
+                if (el.classList.contains('section-title')) {
+                    el.style.display = dimension === 'all' ? 'block' : 'none';
+                } else {
+                    const elDim = el.getAttribute('data-dimension');
+                    el.style.display = (dimension === 'all' || elDim === dimension) ? 'block' : 'none';
+                }
+            });
+            
+            setTimeout(() => Object.values(charts).forEach(c => c && c.resize()), 100);
+        }
+        
+        function renderAllCharts() {
+            renderKPIs(chartData.overview);
+            renderPenetrationChart(chartData.penetration);
+            renderCategoryShareChart(chartData.category_share);
+            renderUnlockFunnelChart(chartData.unlock_funnel);
+            renderCoreUserChart(chartData.core_user_contribution);
+            renderCompletionChart(chartData.completion);
+            renderAttemptChart(chartData.attempt_distribution);
+            renderDifficultyChart(chartData.difficulty_curve);
+            renderWaveFailureChart(chartData.wave_failure);
+            renderHeatmapChart(chartData.heatmap_data);
+            renderStrategyChart(chartData.strategy);
+            renderIAAChart(chartData.iaa);
+            renderVideoTrendChart(chartData.video_trend);
+            renderRevenueChart(chartData.revenue_structure);
+            renderUserSegmentChart(chartData.user_video_segments);
+            renderVideoRetentionChart(chartData.video_retention);
+        }
+        
+        function renderKPIs(data) {
+            document.getElementById('kpiGrid').innerHTML = `
+                <div class="kpi-card"><div class="kpi-value">${data.total_users.toLocaleString()}</div><div class="kpi-label">总用户数</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.total_actions.toLocaleString()}</div><div class="kpi-label">总行为数</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.ad_rate}%</div><div class="kpi-label">广告率</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.penetration_60d}%</div><div class="kpi-label">60日渗透率</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.avg_ipu}</div><div class="kpi-label">人均IPU</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.ad_views.toLocaleString()}</div><div class="kpi-label">广告观看数</div></div>
+            `;
+        }
+        
+        function renderPenetrationChart(data) {
+            const ctx = document.getElementById('penetrationChart').getContext('2d');
+            if (charts.penetration) charts.penetration.destroy();
+            charts.penetration = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => `第${d.day}天`),
+                    datasets: [{
+                        label: '累计渗透率 (%)', data: data.map(d => d.rate),
+                        borderColor: '#667eea', backgroundColor: 'rgba(102, 126, 234, 0.1)', fill: true, tension: 0.4
+                    }, {
+                        label: '目标线 (80%)', data: data.map(() => 80),
+                        borderColor: '#e74c3c', borderDash: [5, 5], fill: false, pointRadius: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+        }
+        
+        function renderCategoryShareChart(data) {
+            const ctx = document.getElementById('categoryShareChart').getContext('2d');
+            if (charts.categoryShare) charts.categoryShare.destroy();
+            charts.categoryShare = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: data.map(d => d.name), datasets: [{ data: data.map(d => d.value), backgroundColor: data.map(d => d.color) }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function renderUnlockFunnelChart(data) {
+            const ctx = document.getElementById('unlockFunnelChart').getContext('2d');
+            if (charts.unlockFunnel) charts.unlockFunnel.destroy();
+            charts.unlockFunnel = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: data.map(d => d.stage), datasets: [{ label: '用户数', data: data.map(d => d.users), backgroundColor: 'rgba(102, 126, 234, 0.8)' }] },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+            });
+        }
+        
+        function renderCoreUserChart(data) {
+            const ctx = document.getElementById('coreUserChart').getContext('2d');
+            if (charts.coreUser) charts.coreUser.destroy();
+            charts.coreUser = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['用户占比', '行为贡献'],
+                    datasets: [
+                        { label: '核心用户 (20%)', data: [data.core_users_pct, data.core_actions_pct], backgroundColor: '#e74c3c' },
+                        { label: '非核心用户 (80%)', data: [data.non_core_users_pct, data.non_core_actions_pct], backgroundColor: '#95a5a6' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function renderCompletionChart(data) {
+            const ctx = document.getElementById('completionChart').getContext('2d');
+            if (charts.completion) charts.completion.destroy();
+            charts.completion = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: data.map(d => d.chapter), datasets: [{ label: '完成率 (%)', data: data.map(d => d.rate), backgroundColor: 'rgba(102, 126, 234, 0.8)' }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+        }
+        
+        function renderAttemptChart(data) {
+            const ctx = document.getElementById('attemptChart').getContext('2d');
+            if (charts.attempt) charts.attempt.destroy();
+            charts.attempt = new Chart(ctx, {
+                type: 'pie',
+                data: { labels: data.map(d => d.attempts), datasets: [{ data: data.map(d => d.percentage), backgroundColor: ['#2ecc71', '#3498db', '#f39c12', '#e74c3c', '#95a5a6'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function renderDifficultyChart(data) {
+            const ctx = document.getElementById('difficultyChart').getContext('2d');
+            if (charts.difficulty) charts.difficulty.destroy();
+            charts.difficulty = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.chapter),
+                    datasets: [
+                        { label: '难度系数', data: data.map(d => d.difficulty), borderColor: '#e74c3c', fill: false },
+                        { label: '完成率', data: data.map(d => d.completion_rate), borderColor: '#2ecc71', fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function renderWaveFailureChart(data) {
+            const ctx = document.getElementById('waveFailureChart').getContext('2d');
+            if (charts.waveFailure) charts.waveFailure.destroy();
+            charts.waveFailure = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: data.map(d => d.wave), datasets: [{ label: '失败率 (%)', data: data.map(d => d.failure_rate), backgroundColor: data.map((d, i) => i === 2 ? '#e74c3c' : '#95a5a6') }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function renderHeatmapChart(data) {
+            const ctx = document.getElementById('heatmapChart').getContext('2d');
+            if (charts.heatmap) charts.heatmap.destroy();
+            const chapters = [...new Set(data.map(d => d.chapter))];
+            const waves = [...new Set(data.map(d => d.wave))];
+            const matrix = waves.map(wave => chapters.map(ch => data.find(d => d.chapter === ch && d.wave === wave)?.churn_rate || 0));
+            
+            charts.heatmap = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: chapters, datasets: waves.map((wave, i) => ({ label: wave, data: matrix[i], backgroundColor: matrix[i].map(v => `rgba(231, 76, 60, ${v/50})`) })) },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+            });
+        }
+        
+        function renderStrategyChart(data) {
+            const ctx = document.getElementById('strategyChart').getContext('2d');
+            if (charts.strategy) charts.strategy.destroy();
+            charts.strategy = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['银币周转率', '囤积率', '日战力增长', '战力匹配度'],
+                    datasets: [
+                        { label: '当前值', data: [data.silver_turnover, data.hoarding_rate, data.daily_growth, data.power_match], borderColor: '#667eea', backgroundColor: 'rgba(102, 126, 234, 0.2)' },
+                        { label: '健康标准', data: [100, 15, 10, 100], borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.1)', borderDash: [5, 5] }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, max: 150 } } }
+            });
+        }
+        
+        function renderIAAChart(data) {
+            const metric = document.getElementById('iaaMetricSelect')?.value || 'watch_rate';
+            const ctx = document.getElementById('iaaChart').getContext('2d');
+            if (charts.iaa) charts.iaa.destroy();
+            const labels = {'watch_rate': '视频观看率 (%)', 'avg_videos': '人均视频数', 'video_share': '视频占比 (%)'};
+            
+            charts.iaa = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: data.map(d => d.category), datasets: [{ label: labels[metric], data: data.map(d => d[metric]), backgroundColor: 'rgba(102, 126, 234, 0.8)' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function renderVideoTrendChart(data) {
+            const ctx = document.getElementById('videoTrendChart').getContext('2d');
+            if (charts.videoTrend) charts.videoTrend.destroy();
+            charts.videoTrend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => `第${d.day}天`),
+                    datasets: [
+                        { label: '视频观看率 (%)', data: data.map(d => d.watch_rate), borderColor: '#667eea', fill: false },
+                        { label: '目标线 (40%)', data: data.map(() => 40), borderColor: '#e74c3c', borderDash: [5, 5], pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function renderRevenueChart(data) {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            if (charts.revenue) charts.revenue.destroy();
+            charts.revenue = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: data.map(d => d.source), datasets: [{ data: data.map(d => d.percentage), backgroundColor: data.map(d => d.color) }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function renderUserSegmentChart(data) {
+            const ctx = document.getElementById('userSegmentChart').getContext('2d');
+            if (charts.userSegment) charts.userSegment.destroy();
+            charts.userSegment = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: data.map(d => d.segment), datasets: [{ label: '用户占比 (%)', data: data.map(d => d.percentage), backgroundColor: ['#e74c3c', '#f39c12', '#3498db', '#2ecc71', '#95a5a6'] }] },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+            });
+        }
+        
+        function renderVideoRetentionChart(data) {
+            const ctx = document.getElementById('videoRetentionChart').getContext('2d');
+            if (charts.videoRetention) charts.videoRetention.destroy();
+            charts.videoRetention = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['平均到达关卡', '7日留存率 (%)'],
+                    datasets: [
+                        { label: '视频用户', data: [data.video_users.reach, data.video_users.retention_7d], backgroundColor: '#667eea' },
+                        { label: '非视频用户', data: [data.non_video_users.reach, data.non_video_users.retention_7d], backgroundColor: '#95a5a6' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        function randomUniform(min, max) { return Math.random() * (max - min) + min; }
+        
+        function updateCompletionChart() {
+            const range = document.getElementById('chapterSelect').value;
+            const cat = document.getElementById('categorySelect').value;
+            let chapters = ['关卡1', '关卡2', '关卡3', '关卡4', '关卡5', '关卡6', '关卡7', '关卡8', '关卡9', '关卡10'];
+            if (range === '1-3') chapters = chapters.slice(0, 3);
+            else if (range === '4-6') chapters = chapters.slice(3, 6);
+            else if (range === '7-10') chapters = chapters.slice(6, 10);
+            
+            const data = chapters.map((ch, i) => {
+                let rate = 85 - i * 5;
+                if (cat === 'hard') rate -= 15;
+                if (cat === 'hell') rate -= 25;
+                return { chapter: ch, rate: Math.round((rate + randomUniform(-3, 3)) * 10) / 10 };
+            });
+            renderCompletionChart(data);
+        }
+        
+        function updateWaveFailureChart() {
+            const cat = document.getElementById('waveCategorySelect').value;
+            const data = [];
+            for (let wave = 1; wave <= 5; wave++) {
+                let rate = 15 + randomUniform(-3, 5);
+                if (wave === 3) rate = 32 + randomUniform(-2, 2);
+                if (cat === 'hard') rate += 10;
+                if (cat === 'hell') rate += 15;
+                data.push({ wave: `第${wave}波`, failure_rate: Math.round(Math.max(5, rate) * 10) / 10 });
+            }
+            renderWaveFailureChart(data);
+        }
+        
+        function updateIAAChart() {
+            const metric = document.getElementById('iaaMetricSelect').value;
+            const data = ['普通', '困难', '地狱', '副本'].map(cat => {
+                let watch_rate, avg_videos, video_share;
+                if (cat === '困难') { watch_rate = 55 + randomUniform(-5, 5); avg_videos = 2.8 + randomUniform(-0.3, 0.3); video_share = 40 + randomUniform(-3, 3); }
+                else if (cat === '地狱') { watch_rate = 45 + randomUniform(-5, 5); avg_videos = 2.2 + randomUniform(-0.3, 0.3); video_share = 30 + randomUniform(-3, 3); }
+                else if (cat === '副本') { watch_rate = 35 + randomUniform(-5, 5); avg_videos = 1.5 + randomUniform(-0.2, 0.2); video_share = 25 + randomUniform(-3, 3); }
+                else { watch_rate = 30 + randomUniform(-5, 5); avg_videos = 1.2 + randomUniform(-0.2, 0.2); video_share = 20 + randomUniform(-3, 3); }
+                return { category: cat, watch_rate: Math.round(watch_rate * 10) / 10, avg_videos: Math.round(avg_videos * 10) / 10, video_share: Math.round(video_share * 10) / 10 };
+            });
+            
+            const ctx = document.getElementById('iaaChart').getContext('2d');
+            if (charts.iaa) charts.iaa.destroy();
+            const labels = {'watch_rate': '视频观看率 (%)', 'avg_videos': '人均视频数', 'video_share': '视频占比 (%)'};
+            charts.iaa = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: data.map(d => d.category), datasets: [{ label: labels[metric], data: data.map(d => d[metric]), backgroundColor: 'rgba(102, 126, 234, 0.8)' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+        
+        window.onload = init;
+    </script>
+</body>
+</html>

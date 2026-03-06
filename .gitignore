@@ -1,0 +1,21 @@
+# 数据库文件
+*.db
+*.db-journal
+
+# 临时文件
+*.csv
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+
+# 虚拟环境
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# 迁移进度文件
+/tmp/migration_progress.json

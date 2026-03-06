@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏数据分析仪表盘</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 游戏数据分析仪表盘</h1>
+            <div class="date-selector">
+                <label for="dateInput">选择日期：</label>
+                <input type="date" id="dateInput" value="2026-02-09">
+                <button onclick="loadAllData()" class="btn-primary">刷新数据</button>
+            </div>
+        </header>
+
+        <!-- 关键指标卡片 -->
+        <section class="metrics">
+            <div class="metric-card">
+                <div class="metric-icon">👥</div>
+                <div class="metric-content">
+                    <h3>新增用户</h3>
+                    <p class="metric-value" id="newUsers">-</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">🎯</div>
+                <div class="metric-content">
+                    <h3>活跃用户</h3>
+                    <p class="metric-value" id="activeUsers">-</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">💰</div>
+                <div class="metric-content">
+                    <h3>总收入</h3>
+                    <p class="metric-value" id="revenue">-</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">📈</div>
+                <div class="metric-content">
+                    <h3>次日留存</h3>
+                    <p class="metric-value" id="retention">-</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 图表区域 -->
+        <section class="charts">
+            <div class="chart-row">
+                <div class="chart-container">
+                    <h2>用户留存曲线</h2>
+                    <canvas id="retentionChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>关卡进度分布</h2>
+                    <canvas id="levelsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-container">
+                    <h2>广告观看统计</h2>
+                    <canvas id="adsChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>渠道分布</h2>
+                    <canvas id="channelsChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p id="status">准备就绪</p>
+        </footer>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
