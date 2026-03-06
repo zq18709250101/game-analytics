@@ -1,0 +1,23 @@
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 667-519-888
+127.0.0.1 - - [06/Mar/2026 16:37:11] "GET /api/overview HTTP/1.1" 200 -
+127.0.0.1 - - [06/Mar/2026 16:37:15] "GET /api/overview HTTP/1.1" 200 -
+127.0.0.1 - - [06/Mar/2026 16:38:06] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Mar/2026 16:38:06] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [06/Mar/2026 16:38:06] "GET /api/retention HTTP/1.1" 200 -
+127.0.0.1 - - [06/Mar/2026 16:38:08] "GET /api/chapter_progress HTTP/1.1" 200 -
+127.0.0.1 - - [06/Mar/2026 16:38:08] "GET /api/overview HTTP/1.1" 200 -
+ * Detected change in '/Users/zhangqi/Library/Python/3.9/lib/python/site-packages/pymysql/err.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 667-519-888
+ * Detected change in '/Users/zhangqi/.openclaw/agents/programmer/game_analytics/backend/database.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 667-519-888

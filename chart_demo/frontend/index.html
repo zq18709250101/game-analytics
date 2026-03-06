@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机线性图展示</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 随机线性图展示</h1>
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+        <button onclick="refreshData()" class="refresh-btn">🔄 刷新数据</button>
+        <div id="status" class="status"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

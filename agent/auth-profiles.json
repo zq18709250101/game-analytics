@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "profiles": {
+    "moonshot:default": {
+      "type": "api_key",
+      "provider": "moonshot",
+      "key": "sk-utd2nxU0pC3vM1kr1TdfzOUTvI5QktjpVxQS0PfXlV7YlU2G"
+    }
+  },
+  "usageStats": {
+    "moonshot:default": {
+      "errorCount": 0,
+      "lastUsed": 1772786578471
+    }
+  }
+}
