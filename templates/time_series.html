@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间序列分析 - 多日期对比</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; text-align: center; }
+        .header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .controls { display: flex; justify-content: center; align-items: center; gap: 1rem; padding: 1rem; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-wrap: wrap; }
+        .date-input { display: flex; align-items: center; gap: 0.5rem; }
+        .date-input label { font-size: 0.9rem; color: #666; }
+        .date-input input { padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+        .btn { padding: 0.5rem 1.2rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.3s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a6fd6; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+        .chart-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .chart-card h3 { margin-bottom: 1rem; color: #333; font-size: 1rem; }
+        .chart-container { position: relative; height: 300px; }
+        .full-width { grid-column: 1 / -1; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .summary-card { background: white; border-radius: 12px; padding: 1.2rem; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .summary-value { font-size: 1.8rem; font-weight: bold; color: #667eea; }
+        .summary-label { font-size: 0.85rem; color: #666; margin-top: 0.3rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📈 时间序列分析</h1>
+        <p>多日期对比 · 留存趋势 · IPU趋势</p>
+    </div>
+    
+    <div class="controls">
+        <div class="date-input">
+            <label>📅 起始:</label>
+            <input type="date" id="startDate" value="2026-02-01">
+        </div>
+        <div class="date-input">
+            <label>📅 结束:</label>
+            <input type="date" id="endDate" value="2026-02-09">
+        </div>
+        <button class="btn btn-primary" onclick="loadData()">🔄 加载数据</button>
+    </div>
+    
+    <div class="container">
+        <div class="summary-cards" id="summaryCards"></div>
+        
+        <div class="chart-grid">
+            <div class="chart-card full-width">
+                <h3>多日留存对比曲线 (1-60日)</h3>
+                <div class="chart-container"><canvas id="retentionChart"></canvas></div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <h3>多日IPU对比曲线 (1-60日)</h3>
+                <div class="chart-container"><canvas id="ipuChart"></canvas></div>
+            </div>
+            
+            <div class="chart-card">
+                <h3>首日用户数趋势</h3>
+                <div class="chart-container"><canvas id="usersChart"></canvas></div>
+            </div>
+            
+            <div class="chart-card">
+                <h3>首日IPU趋势</h3>
+                <div class="chart-container"><canvas id="day1IpuChart"></canvas></div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <h3>关键留存点对比</h3>
+                <div class="chart-container"><canvas id="keyRetentionChart"></canvas></div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <h3>关键IPU点对比</h3>
+                <div class="chart-container"><canvas id="keyIpuChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let charts = {};
+        
+        async function loadData() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            try {
+                const [seriesRes, summaryRes] = await Promise.all([
+                    fetch(`/api/time_series?start_date=${startDate}&end_date=${endDate}`),
+                    fetch(`/api/time_series_summary?start_date=${startDate}&end_date=${endDate}`)
+                ]);
+                
+                const seriesData = await seriesRes.json();
+                const summaryData = await summaryRes.json();
+                
+                renderSummary(summaryData);
+                renderCharts(seriesData);
+            } catch (error) {
+                console.error('加载数据失败:', error);
+            }
+        }
+        
+        function renderSummary(data) {
+            document.getElementById('summaryCards').innerHTML = `
+                <div class="summary-card">
+                    <div class="summary-value">${data.total_users.toLocaleString()}</div>
+                    <div class="summary-label">总新增用户</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${data.date_count}</div>
+                    <div class="summary-label">统计天数</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${data.avg_day1_ipu}</div>
+                    <div class="summary-label">平均首日IPU</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${data.avg_retention.d1}%</div>
+                    <div class="summary-label">平均次日留存</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${data.avg_retention.d7}%</div>
+                    <div class="summary-label">平均7日留存</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-value">${data.avg_retention.d30}%</div>
+                    <div class="summary-label">平均30日留存</div>
+                </div>
+            `;
+        }
+        
+        function renderCharts(data) {
+            const dates = data.dates;
+            const metrics = data.metrics;
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#fa709a'];
+            
+            // 1. 多日留存对比曲线
+            const retentionCtx = document.getElementById('retentionChart').getContext('2d');
+            if (charts.retention) charts.retention.destroy();
+            
+            const retentionDatasets = dates.map((date, i) => ({
+                label: date,
+                data: [1, 2, 3, 7, 14, 30, 60].map(day => metrics[date].retention['d' + day]),
+                borderColor: colors[i % colors.length],
+                fill: false,
+                tension: 0.4
+            }));
+            
+            charts.retention = new Chart(retentionCtx, {
+                type: 'line',
+                data: {
+                    labels: ['首日', '次日', '3日', '7日', '14日', '30日', '60日'],
+                    datasets: retentionDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+            
+            // 2. 多日IPU对比曲线
+            const ipuCtx = document.getElementById('ipuChart').getContext('2d');
+            if (charts.ipu) charts.ipu.destroy();
+            
+            const ipuDatasets = dates.map((date, i) => ({
+                label: date,
+                data: [1, 2, 3, 7, 14, 30, 60].map(day => metrics[date].ipu['d' + day]),
+                borderColor: colors[i % colors.length],
+                fill: false,
+                tension: 0.4
+            }));
+            
+            charts.ipu = new Chart(ipuCtx, {
+                type: 'line',
+                data: {
+                    labels: ['首日', '次日', '3日', '7日', '14日', '30日', '60日'],
+                    datasets: ipuDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } }
+                }
+            });
+            
+            // 3. 首日用户数趋势
+            const usersCtx = document.getElementById('usersChart').getContext('2d');
+            if (charts.users) charts.users.destroy();
+            
+            charts.users = new Chart(usersCtx, {
+                type: 'bar',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: '首日用户数',
+                        data: dates.map(d => metrics[d].new_users),
+                        backgroundColor: '#667eea'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // 4. 首日IPU趋势
+            const day1IpuCtx = document.getElementById('day1IpuChart').getContext('2d');
+            if (charts.day1Ipu) charts.day1Ipu.destroy();
+            
+            charts.day1Ipu = new Chart(day1IpuCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: '首日IPU',
+                        data: dates.map(d => metrics[d].day1_ipu),
+                        borderColor: '#764ba2',
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // 5. 关键留存点对比
+            const keyRetentionCtx = document.getElementById('keyRetentionChart').getContext('2d');
+            if (charts.keyRetention) charts.keyRetention.destroy();
+            
+            const keyRetentionDatasets = dates.map((date, i) => ({
+                label: date,
+                data: ['d1', 'd2', 'd3', 'd7', 'd14', 'd30', 'd60'].map(d => metrics[date].retention[d]),
+                backgroundColor: colors[i % colors.length]
+            }));
+            
+            charts.keyRetention = new Chart(keyRetentionCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['次日', '3日', '7日', '14日', '30日', '60日'],
+                    datasets: keyRetentionDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // 6. 关键IPU点对比
+            const keyIpuCtx = document.getElementById('keyIpuChart').getContext('2d');
+            if (charts.keyIpu) charts.keyIpu.destroy();
+            
+            const keyIpuDatasets = dates.map((date, i) => ({
+                label: date,
+                data: ['d1', 'd2', 'd3', 'd7', 'd14', 'd30', 'd60'].map(d => metrics[date].ipu[d]),
+                backgroundColor: colors[i % colors.length]
+            }));
+            
+            charts.keyIpu = new Chart(keyIpuCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['首日', '次日', '3日', '7日', '14日', '30日', '60日'],
+                    datasets: keyIpuDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+        
+        // 页面加载时自动加载数据
+        window.onload = loadData;
+    </script>
+</body>
+</html>

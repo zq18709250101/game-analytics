@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏数据分析仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; text-align: center; }
+        .header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .dimension-selector { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+        .dimension-btn { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.85rem; }
+        .dimension-btn:hover { background: rgba(255,255,255,0.25); }
+        .dimension-btn.active { background: rgba(255,255,255,0.9); color: #667eea; font-weight: bold; }
+        .controls { display: flex; justify-content: center; gap: 1rem; padding: 1rem; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1rem; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .kpi-card { background: white; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .kpi-value { font-size: 1.5rem; font-weight: bold; color: #667eea; }
+        .kpi-label { font-size: 0.8rem; color: #666; margin-top: 0.3rem; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem; }
+        .chart-card { background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .chart-card h3 { margin-bottom: 0.5rem; font-size: 1rem; }
+        .chart-container { position: relative; height: 250px; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 游戏数据分析</h1>
+        <div class="dimension-selector">
+            <button class="dimension-btn active" onclick="switchDim('penetration')">📈 渗透</button>
+            <button class="dimension-btn" onclick="switchDim('completion')">🎯 完成</button>
+            <button class="dimension-btn" onclick="switchDim('strategy')">⚔️ 策略</button>
+            <button class="dimension-btn" onclick="switchDim('iaa')">💰 IAA</button>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <label>📅 日期:</label>
+        <input type="date" id="datePicker" value="2026-02-09" onchange="loadData()">
+        <button onclick="loadData()">🔄 刷新</button>
+    </div>
+    
+    <div class="container">
+        <div class="kpi-grid" id="kpiGrid"></div>
+        <div class="chart-grid" id="chartGrid"></div>
+    </div>
+
+    <script>
+        let charts = {}, currentDim = 'penetration', chartData = null;
+        
+        async function loadData() {
+            const date = document.getElementById('datePicker').value;
+            try {
+                const res = await fetch(`/api/all?date=${date}`);
+                chartData = await res.json();
+                renderKPIs();
+                renderCharts();
+            } catch (e) {
+                console.error('加载失败:', e);
+            }
+        }
+        
+        function renderKPIs() {
+            if (!chartData) return;
+            const data = chartData.overview;
+            document.getElementById('kpiGrid').innerHTML = `
+                <div class="kpi-card"><div class="kpi-value">${data.new_users?.toLocaleString() || 0}</div><div class="kpi-label">新增用户</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.avg_ipu || 0}</div><div class="kpi-label">人均IPU</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.ad_rate || 0}%</div><div class="kpi-label">看广率</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.penetration_60d || 0}%</div><div class="kpi-label">60日渗透</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data.total_actions?.toLocaleString() || 0}</div><div class="kpi-label">总行为</div></div>
+            `;
+        }
+        
+        function renderCharts() {
+            if (!chartData) return;
+            const grid = document.getElementById('chartGrid');
+            grid.innerHTML = '';
+            
+            if (currentDim === 'penetration') {
+                addChart(grid, 'penetrationChart', '累计渗透率', chartData.penetration, 'line', d => d.day, d => d.rate);
+                addChart(grid, 'categoryChart', '类别占比', chartData.category_share, 'doughnut', d => d.name, d => d.value);
+            } else if (currentDim === 'completion') {
+                addChart(grid, 'completionChart', '关卡完成率', chartData.completion, 'bar', d => d.chapter, d => d.rate);
+                addChart(grid, 'waveChart', '波次失败', chartData.wave_failure, 'bar', d => d.wave, d => d.failure_rate);
+            } else if (currentDim === 'strategy') {
+                addChart(grid, 'strategyChart', '策略战力', [chartData.strategy], 'radar');
+            } else if (currentDim === 'iaa') {
+                addChart(grid, 'iaaChart', 'IAA分析', chartData.iaa, 'bar', d => d.category, d => d.watch_rate);
+            }
+        }
+        
+        function addChart(container, id, title, data, type, xFn, yFn) {
+            const div = document.createElement('div');
+            div.className = 'chart-card';
+            div.innerHTML = `<h3>${title}</h3><div class="chart-container"><canvas id="${id}"></canvas></div>`;
+            container.appendChild(div);
+            
+            const ctx = document.getElementById(id).getContext('2d');
+            if (charts[id]) charts[id].destroy();
+            
+            if (type === 'radar') {
+                charts[id] = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['银币周转', '囤积率', '战力增长', '战力匹配'],
+                        datasets: [{
+                            label: '当前值',
+                            data: [data[0].silver_turnover, data[0].hoarding_rate, data[0].daily_growth, data[0].power_match],
+                            borderColor: '#667eea'
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            } else if (type === 'doughnut') {
+                charts[id] = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.map(xFn),
+                        datasets: [{ data: data.map(yFn), backgroundColor: ['#3498db', '#e74c3c', '#9b59b6', '#2ecc71'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            } else {
+                charts[id] = new Chart(ctx, {
+                    type: type,
+                    data: {
+                        labels: data.map(xFn),
+                        datasets: [{ label: title, data: data.map(yFn), backgroundColor: '#667eea' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        }
+        
+        function switchDim(dim) {
+            currentDim = dim;
+            document.querySelectorAll('.dimension-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderCharts();
+        }
+        
+        window.onload = loadData;
+    </script>
+</body>
+</html>

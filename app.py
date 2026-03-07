@@ -1,22 +1,17 @@
 from flask import Flask, render_template, jsonify
-import pymysql
+import sqlite3
 import json
 from datetime import datetime
 
 app = Flask(__name__)
 
-# 数据库配置
-DB_CONFIG = {
-    'host': 'gz-cdb-8ujlnyzv.sql.tencentcdb.com',
-    'port': 29284,
-    'user': 'root',
-    'password': 'HkcxDB2025!',
-    'database': 'game_analysis',
-    'charset': 'utf8mb4'
-}
+DB_PATH = 'game_analytics_local.db'
 
 def get_db_connection():
-    return pymysql.connect(**DB_CONFIG)
+    """获取本地SQLite数据库连接"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 @app.route('/')
 def index():
@@ -60,12 +55,12 @@ def api_chapter_progress():
     
     cursor.execute("""
         SELECT 
-            SUBSTRING_INDEX(module, '_', 1) as chapter,
+            SUBSTR(module, 1, INSTR(module, '_') - 1) as chapter,
             COUNT(DISTINCT openid) as users
         FROM tt_bfnly_action
-        WHERE module LIKE '章节%'
+        WHERE module LIKE '关卡%'
         GROUP BY chapter
-        ORDER BY CAST(SUBSTRING_INDEX(chapter, '章节', -1) AS UNSIGNED)
+        ORDER BY CAST(SUBSTR(chapter, 4) AS INTEGER)
     """)
     
     data = [{'chapter': row[0], 'users': row[1]} for row in cursor.fetchall()]
@@ -93,6 +88,29 @@ def api_retention():
     conn.close()
     
     return jsonify(data)
+
+@app.route('/api/import_status')
+def api_import_status():
+    """导入状态"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM tt_bfnly_user")
+    user_count = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM tt_bfnly_action")
+    action_count = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM tt_bfnly_log")
+    log_count = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    return jsonify({
+        'users': user_count,
+        'actions': action_count,
+        'logs': log_count
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

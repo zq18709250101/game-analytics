@@ -76,16 +76,21 @@ def generate_random_data_for_date(date_str):
         }
     }
     
-    # 7. 关键指标概览（基于该日期）
+    # 7. 关键指标概览（基于该日期）- 统一5个KPI指标
     overview = {
         'date': date_str,
-        'new_users': base_users,
-        'total_users': int(base_users * random.uniform(35, 45)),
-        'total_actions': int(base_users * random.uniform(120, 180)),
-        'ad_views': int(base_users * random.uniform(8, 15)),
-        'ad_rate': round(random.uniform(5.0, 7.5), 2),
+        'new_users': base_users,                              # 新增用户
+        'day1_ipu': round(random.uniform(3.0, 5.0), 1),       # 首日人均IPU
+        'ad_rate': round(random.uniform(35, 55), 1),          # 首日看广率%
+        'd2_retention': round(random.uniform(70, 85), 1),     # 次留%
+        'd7_retention': round(random.uniform(40, 55), 1),     # 7日留存%
+        # 保留旧字段兼容
+        'day1_retention': round(random.uniform(75, 88), 1),
+        'avg_ipu': round(random.uniform(2.5, 5.5), 1),
         'penetration_60d': round(random.uniform(75, 90), 1),
-        'avg_ipu': round(random.uniform(2.5, 5.5), 1)
+        'total_actions': int(base_users * random.uniform(120, 180)),
+        'total_users': int(base_users * random.uniform(35, 45)),
+        'ad_views': int(base_users * random.uniform(8, 15))
     }
     
     # 8. 类别占比饼图数据
@@ -200,7 +205,7 @@ def get_data_for_date(date_str):
 
 @app.route('/')
 def index():
-    return render_template('dashboard_random.html')
+    return render_template('dashboard_simple.html')
 
 @app.route('/api/data')
 def api_data():
@@ -315,5 +320,99 @@ def api_core_user_contribution():
     date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
     return jsonify(get_data_for_date(date_str)['core_user_contribution'])
 
+# ========== 时间序列分析 API ==========
+
+def generate_time_series_data(start_date, end_date):
+    """生成多日期的时间序列数据"""
+    data = {}
+    
+    start = datetime.strptime(start_date, '%Y-%m-%d')
+    end = datetime.strptime(end_date, '%Y-%m-%d')
+    
+    current = start
+    while current <= end:
+        date_str = current.strftime('%Y-%m-%d')
+        
+        # 生成该日期的随机数据
+        seed = int(date_str.replace('-', ''))
+        random.seed(seed)
+        
+        new_users = random.randint(800, 1500)
+        
+        # 留存数据（逐日递减）
+        retention = {
+            'd1': round(random.uniform(82, 88), 1),
+            'd2': round(random.uniform(70, 76), 1),
+            'd3': round(random.uniform(62, 68), 1),
+            'd7': round(random.uniform(42, 48), 1),
+            'd14': round(random.uniform(30, 35), 1),
+            'd30': round(random.uniform(16, 21), 1),
+            'd60': round(random.uniform(10, 15), 1)
+        }
+        
+        # IPU数据（先增后稳）
+        ipu = {
+            'd1': round(random.uniform(3.0, 4.0), 1),
+            'd2': round(random.uniform(3.8, 4.5), 1),
+            'd3': round(random.uniform(4.2, 5.0), 1),
+            'd7': round(random.uniform(4.8, 5.8), 1),
+            'd14': round(random.uniform(4.5, 5.5), 1),
+            'd30': round(random.uniform(4.0, 5.0), 1),
+            'd60': round(random.uniform(3.8, 4.8), 1)
+        }
+        
+        data[date_str] = {
+            'new_users': new_users,
+            'day1_ipu': ipu['d1'],
+            'retention': retention,
+            'ipu': ipu
+        }
+        
+        current += timedelta(days=1)
+    
+    random.seed()
+    return data
+
+@app.route('/api/time_series')
+def api_time_series():
+    """获取时间序列数据"""
+    start_date = request.args.get('start_date', '2026-02-01')
+    end_date = request.args.get('end_date', '2026-02-09')
+    
+    data = generate_time_series_data(start_date, end_date)
+    
+    return jsonify({
+        'success': True,
+        'dates': list(data.keys()),
+        'metrics': data
+    })
+
+@app.route('/api/time_series_summary')
+def api_time_series_summary():
+    """获取时间序列汇总统计"""
+    start_date = request.args.get('start_date', '2026-02-01')
+    end_date = request.args.get('end_date', '2026-02-09')
+    
+    data = generate_time_series_data(start_date, end_date)
+    
+    # 计算时间范围整体数据（统一5个KPI）
+    total_new_users = sum(d['new_users'] for d in data.values())  # 累加新增用户
+    avg_day1_ipu = round(sum(d['day1_ipu'] for d in data.values()) / len(data), 1)  # 平均首日IPU
+    avg_ad_rate = round(random.uniform(35, 50), 1)  # 模拟看广率
+    avg_d2_retention = round(sum(d['retention']['d2'] for d in data.values()) / len(data), 1)  # 平均次留
+    avg_d7_retention = round(sum(d['retention']['d7'] for d in data.values()) / len(data), 1)  # 平均7日留存
+    
+    return jsonify({
+        'success': True,
+        'summary': {
+            'new_users': total_new_users,           # 累加新增用户
+            'day1_ipu': avg_day1_ipu,               # 平均首日人均IPU
+            'ad_rate': avg_ad_rate,                 # 平均首日看广率
+            'd2_retention': avg_d2_retention,       # 平均次留
+            'd7_retention': avg_d7_retention,       # 平均7日留存
+            'date_count': len(data)
+        }
+    })
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5002)
+    app.run(debug=True, port=5007)

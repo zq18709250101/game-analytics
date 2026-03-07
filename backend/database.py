@@ -1,26 +1,76 @@
 import sqlite3
 from contextlib import contextmanager
+from functools import lru_cache
 import os
+import time
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'game_analysis.db')
 
+# 连接池（简单实现）
+class ConnectionPool:
+    def __init__(self, max_connections=5):
+        self.max_connections = max_connections
+        self.connections = []
+        self.in_use = set()
+    
+    def get_connection(self):
+        # 复用现有连接
+        for conn in list(self.connections):
+            if conn not in self.in_use and self._is_valid(conn):
+                self.in_use.add(conn)
+                return conn
+            elif not self._is_valid(conn):
+                self.connections.remove(conn)
+        
+        # 创建新连接
+        if len(self.connections) < self.max_connections:
+            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            # 启用 WAL 模式提高并发性能
+            conn.execute('PRAGMA journal_mode=WAL')
+            conn.execute('PRAGMA synchronous=NORMAL')
+            self.connections.append(conn)
+            self.in_use.add(conn)
+            return conn
+        
+        raise Exception("连接池已满")
+    
+    def release_connection(self, conn):
+        if conn in self.in_use:
+            self.in_use.remove(conn)
+    
+    def _is_valid(self, conn):
+        try:
+            conn.execute("SELECT 1")
+            return True
+        except:
+            return False
+
+pool = ConnectionPool()
+
 @contextmanager
 def get_db_connection():
-    """获取数据库连接"""
+    """获取数据库连接（使用连接池）"""
     conn = None
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
+        conn = pool.get_connection()
         yield conn
     except Exception as e:
         print(f"数据库连接错误: {e}")
         raise
     finally:
         if conn:
-            conn.close()
+            pool.release_connection(conn)
 
-def execute_query(sql, params=None):
-    """执行 SQL 查询"""
+def execute_query(sql, params=None, use_cache=True):
+    """执行 SQL 查询（支持缓存）"""
+    cache_key = None
+    if use_cache:
+        cache_key = f"{sql}:{str(params)}"
+        cached_result = _query_cache.get(cache_key)
+        if cached_result and time.time() - cached_result['time'] < 60:  # 60秒缓存
+            return cached_result['data']
+    
     with get_db_connection() as conn:
         cursor = conn.cursor()
         if params:
@@ -28,12 +78,20 @@ def execute_query(sql, params=None):
         else:
             cursor.execute(sql)
         
-        # 将结果转换为字典列表
         columns = [description[0] for description in cursor.description]
-        results = []
-        for row in cursor.fetchall():
-            results.append(dict(zip(columns, row)))
+        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        if use_cache and cache_key:
+            _query_cache[cache_key] = {'data': results, 'time': time.time()}
+        
         return results
+
+# 简单内存缓存
+_query_cache = {}
+
+def clear_cache():
+    """清除查询缓存"""
+    _query_cache.clear()
 
 def test_connection():
     """测试数据库连接"""
@@ -45,3 +103,22 @@ def test_connection():
     except Exception as e:
         print(f"连接测试失败: {e}")
         return False
+
+def execute_many(sql, params_list):
+    """批量执行 SQL"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.executemany(sql, params_list)
+        conn.commit()
+        return cursor.rowcount
+
+def execute_write(sql, params=None):
+    """执行写入操作"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        if params:
+            cursor.execute(sql, params)
+        else:
+            cursor.execute(sql)
+        conn.commit()
+        return cursor.lastrowid
