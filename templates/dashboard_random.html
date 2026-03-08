@@ -14,6 +14,11 @@
         .dimension-btn { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 0.6rem 1.2rem; border-radius: 25px; cursor: pointer; transition: all 0.3s; font-size: 0.9rem; }
         .dimension-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-2px); }
         .dimension-btn.active { background: rgba(255,255,255,0.9); color: #667eea; font-weight: bold; }
+        .time-granularity-selector { display: none; justify-content: center; gap: 0.5rem; margin-top: 0.8rem; flex-wrap: wrap; }
+        .time-granularity-selector.visible { display: flex; }
+        .granularity-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 0.4rem 1rem; border-radius: 15px; cursor: pointer; transition: all 0.3s; font-size: 0.8rem; }
+        .granularity-btn:hover { background: rgba(255,255,255,0.2); }
+        .granularity-btn.active { background: rgba(255,255,255,0.85); color: #667eea; font-weight: bold; }
         .controls-row { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
         .date-picker-wrapper { display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.15); padding: 0.5rem 1rem; border-radius: 20px; }
         .date-picker-wrapper input[type="date"] { padding: 0.3rem 0.6rem; border: none; border-radius: 4px; background: rgba(255,255,255,0.9); color: #333; font-size: 0.85rem; cursor: pointer; width: 130px; }
@@ -30,8 +35,11 @@
         .chart-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .chart-card h3 { margin-bottom: 1rem; color: #333; font-size: 1.1rem; }
         .chart-container { position: relative; height: 300px; }
-        .chart-selector { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .chart-selector { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
         .chart-selector select { padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: white; font-size: 0.9rem; cursor: pointer; }
+        .time-granularity-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; padding: 0.5rem 1.2rem; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .time-granularity-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3); }
+        .time-granularity-btn.active { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); color: white; font-weight: bold; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); transform: scale(1.05); }
         .insight-box { background: #f8f9fa; border-left: 4px solid #667eea; padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
         .insight-box h4 { color: #667eea; margin-bottom: 0.5rem; font-size: 0.95rem; }
         .insight-box ul { margin-left: 1.2rem; font-size: 0.85rem; }
@@ -45,12 +53,18 @@
         <h1>🎮 游戏数据分析仪表盘</h1>
         <p>五维分析框架 v3.0 | 基于新注册用户全生命周期 | 15个图表</p>
         <div class="dimension-selector">
-            <button class="dimension-btn active" onclick="switchDimension('all')">📊 全部</button>
-            <button class="dimension-btn" onclick="switchDimension('penetration')">📈 渗透</button>
+            <button class="dimension-btn active" onclick="switchDimension('penetration')">📈 渗透</button>
             <button class="dimension-btn" onclick="switchDimension('completion')">🎯 完成</button>
             <button class="dimension-btn" onclick="switchDimension('strategy')">⚔️ 策略</button>
             <button class="dimension-btn" onclick="switchDimension('iaa')">💰 IAA</button>
             <button class="dimension-btn" onclick="switchDimension('timeseries')">📅 时间序列</button>
+        </div>
+        <!-- 时间粒度选择器（已隐藏） -->
+        <div class="time-granularity-selector" id="timeGranularitySelector" style="display: none;">
+            <span>时间粒度:</span>
+            <button class="granularity-btn active" onclick="switchTimeGranularity('day')">日</button>
+            <button class="granularity-btn" onclick="switchTimeGranularity('week')">周</button>
+            <button class="granularity-btn" onclick="switchTimeGranularity('month')">月</button>
         </div>
         <div class="controls-row" id="dateControls">
             <!-- 单日期选择器（默认显示） -->
@@ -62,11 +76,11 @@
             <!-- 日期范围选择器（时间序列维度时显示） -->
             <div class="date-picker-wrapper" id="rangeDatePicker" style="display: none;">
                 <span>📅</span>
-                <input type="date" id="startDatePicker" value="2026-02-01" onchange="loadTimeSeriesData()">
+                <input type="date" id="tsStartDate" value="2026-02-01">
                 <span>~</span>
-                <input type="date" id="endDatePicker" value="2026-02-09" onchange="loadTimeSeriesData()">
+                <input type="date" id="tsEndDate" value="2026-02-09">
             </div>
-            <button class="refresh-btn" onclick="refreshData()">🔄 刷新</button>
+            <button class="refresh-btn" id="refreshBtn" onclick="handleRefresh()">🔄 刷新</button>
         </div>
     </div>
     
@@ -74,8 +88,8 @@
         <div class="kpi-grid" id="kpiGrid"></div>
         
         <div class="chart-grid" id="chartGrid">
-            <div class="section-title">📈 渗透维度</div>
-            
+            <div class="section-title" data-dimension="penetration">📈 渗透维度</div>
+
             <div class="chart-card" data-dimension="penetration">
                 <h3>累计渗透率趋势</h3>
                 <div class="chart-container"><canvas id="penetrationChart"></canvas></div>
@@ -100,7 +114,7 @@
                 <div class="insight-box"><h4>二八定律</h4><ul><li>20%核心用户贡献68%行为</li></ul></div>
             </div>
             
-            <div class="section-title">🎯 完成与流失维度</div>
+            <div class="section-title" data-dimension="completion">🎯 完成与流失维度</div>
             
             <div class="chart-card" data-dimension="completion">
                 <h3>关卡完成率</h3>
@@ -139,7 +153,7 @@
                 <div class="insight-box"><h4>优化建议</h4><ul><li>颜色越深流失越严重，重点关注第3波</li></ul></div>
             </div>
             
-            <div class="section-title">⚔️ 策略战力维度</div>
+            <div class="section-title" data-dimension="strategy">⚔️ 策略战力维度</div>
             
             <div class="chart-card" data-dimension="strategy">
                 <h3>策略战力指标</h3>
@@ -147,7 +161,7 @@
                 <div class="insight-box"><h4>健康标准</h4><ul><li>银币周转率：80-120%、囤积率：&lt;20%</li></ul></div>
             </div>
             
-            <div class="section-title">💰 IAA收益维度</div>
+            <div class="section-title" data-dimension="iaa">💰 IAA收益维度</div>
             
             <div class="chart-card" data-dimension="iaa">
                 <h3>类别视频分析</h3>
@@ -183,9 +197,9 @@
             </div>
             
             <div class="section-title" data-dimension="timeseries">📅 时间序列维度</div>
-            
 
-            
+
+
             <div class="chart-card" data-dimension="timeseries">
                 <h3>多日留存对比曲线</h3>
                 <div class="chart-container"><canvas id="tsRetentionChart"></canvas></div>
@@ -264,40 +278,48 @@
             } catch (error) { console.error('刷新数据失败:', error); }
         }
         
+        // 处理刷新按钮点击 - 根据当前维度选择刷新方式
+        function handleRefresh() {
+            if (currentDimension === 'timeseries') {
+                // 时间序列维度：获取开始和结束时间
+                validateAndLoadTimeSeries();
+            } else {
+                // 其他维度：使用单日期刷新
+                refreshData();
+            }
+        }
+        
         function switchDimension(dimension) {
             console.log(`🔄 切换维度: ${dimension}`);
             currentDimension = dimension;
-            
+
             // 更新按钮状态
             document.querySelectorAll('.dimension-btn').forEach(btn => btn.classList.remove('active'));
             if (event && event.target) {
                 event.target.classList.add('active');
             }
-            
+
             // 显示/隐藏对应的图表
             document.querySelectorAll('.chart-card, .section-title').forEach(el => {
-                if (dimension === 'all') {
-                    el.style.display = 'block';
-                } else {
-                    const elDim = el.getAttribute('data-dimension');
-                    el.style.display = (elDim === dimension) ? 'block' : 'none';
-                }
+                const elDim = el.getAttribute('data-dimension');
+                el.style.display = (elDim === dimension) ? 'block' : 'none';
             });
-            
+
             // 切换日期选择器
             const singlePicker = document.getElementById('singleDatePicker');
             const rangePicker = document.getElementById('rangeDatePicker');
-            
+            const dateControls = document.getElementById('dateControls');
+
             if (dimension === 'timeseries') {
                 if (singlePicker) singlePicker.style.display = 'none';
                 if (rangePicker) rangePicker.style.display = 'flex';
-                loadTimeSeriesData();
+                validateAndLoadTimeSeries();
             } else {
                 if (singlePicker) singlePicker.style.display = 'flex';
                 if (rangePicker) rangePicker.style.display = 'none';
                 loadData(currentDate);
             }
-            
+
             setTimeout(() => Object.values(charts).forEach(c => c && c.resize()), 100);
         }
         
@@ -584,22 +606,68 @@
         function randomUniform(min, max) {
             return Math.random() * (max - min) + min;
         }
-        
+
         // ========== 时间序列分析功能 ==========
-        
+
         let timeSeriesData = null;
+        let currentTimeGranularity = 'day';
+
+        function switchTimeGranularity(granularity) {
+            console.log(`🔄 切换时间粒度: ${granularity}`);
+            currentTimeGranularity = granularity;
+
+            // 更新按钮状态
+            document.querySelectorAll('.time-granularity-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            const activeBtn = document.getElementById(`btn${granularity.charAt(0).toUpperCase() + granularity.slice(1)}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // 重新加载数据
+            validateAndLoadTimeSeries();
+        }
+
+        // 防止弹框重复的标志位
+        let isValidating = false;
         
-        async function loadTimeSeriesData() {
-            const startDate = document.getElementById('startDatePicker').value;
-            const endDate = document.getElementById('endDatePicker').value;
+        function validateAndLoadTimeSeries() {
+            // 防止重复执行
+            if (isValidating) return;
+            isValidating = true;
+            
+            const startDateInput = document.getElementById('tsStartDate');
+            const endDateInput = document.getElementById('tsEndDate');
+            let startDate = startDateInput.value;
+            let endDate = endDateInput.value;
             
             if (!startDate || !endDate) {
                 alert('请选择起始和结束日期');
+                isValidating = false;
                 return;
             }
             
+            // 验证：结束时间必须 >= 开始时间
             if (new Date(startDate) > new Date(endDate)) {
-                alert('起始日期不能晚于结束日期');
+                alert('结束日期不能早于开始日期，已自动调整为开始日期');
+                endDate = startDate;
+                endDateInput.value = startDate;
+            }
+            
+            loadTimeSeriesData(startDate, endDate).finally(() => {
+                isValidating = false;
+            });
+        }
+        
+        async function loadTimeSeriesData(startDate, endDate) {
+            // 如果没有传入参数，从DOM获取
+            if (!startDate || !endDate) {
+                startDate = document.getElementById('tsStartDate').value;
+                endDate = document.getElementById('tsEndDate').value;
+            }
+            
+            if (!startDate || !endDate) {
+                alert('请选择起始和结束日期');
                 return;
             }
             
@@ -624,9 +692,6 @@
                 console.error('加载时间序列数据失败:', error);
             }
         }
-        
-        // 占位函数，避免重复定义错误
-        function _oldLoadTimeSeriesData() {
         
         function renderTimeSeriesCharts() {
             if (!timeSeriesData) return;
