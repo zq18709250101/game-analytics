@@ -205,7 +205,7 @@ def get_data_for_date(date_str):
 
 @app.route('/')
 def index():
-    return render_template('dashboard_random.html')
+    return render_template('dashboard.html')
 
 @app.route('/api/data')
 def api_data():
