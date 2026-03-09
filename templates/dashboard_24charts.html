@@ -191,7 +191,7 @@
                     </label>
                 </div>
                 <div class="chart-container"><canvas id="tsKeyRetentionChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同注册日期的关键留存点表现</li><li>柱状图：X轴为注册日期，鼠标悬停显示下降倍率（首个/最后数据柱，倍率越大下降越快）</li><li>折线图：X轴为留存节点，观察留存衰减趋势</li><li>健康标准：次日留存>40%，7日留存>20%，30日留存>10%</li></ul></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li><strong>柱状图</strong>：对比不同注册日期在各关键留存点的留存率分布，红色折线显示留存衰减倍率（倍率越大衰减越快）</li><li><strong>折线图</strong>：观察各注册日期的留存衰减曲线，识别异常日期和衰减趋势</li></ul></div>
             </div>
 
             <!-- P1-4: 关键IPU点对比 -->
@@ -838,14 +838,49 @@
                 labels = dates;
                 xTitle = '注册日期';
 
+                // 留存率柱状图数据集
                 datasets = keyRetentionPoints.map(point => ({
                     label: point.label,
                     data: data.map(d => d[point.key] || 0),
                     backgroundColor: point.color,
                     borderColor: point.color,
                     borderWidth: 1,
-                    hidden: !showAll && !point.defaultShow
+                    hidden: !showAll && !point.defaultShow,
+                    yAxisID: 'y',
+                    order: 2
                 }));
+
+                // 计算下降倍率数据（基于当前实际显示的数据点）
+                const visiblePoints = keyRetentionPoints.filter(p => showAll || p.defaultShow);
+                console.log('Visible points for decline ratio:', visiblePoints.map(p => p.label));
+                const declineRatioData = data.map(row => {
+                    if (visiblePoints.length < 2) return null;
+                    const firstKey = visiblePoints[0].key;
+                    const lastKey = visiblePoints[visiblePoints.length - 1].key;
+                    const firstVal = row[firstKey];
+                    const lastVal = row[lastKey];
+                    console.log(`Row ${row.register_date}: first=${firstVal}(${firstKey}), last=${lastVal}(${lastKey})`);
+                    if (!firstVal || !lastVal || lastVal === 0) return null;
+                    const ratio = firstVal / lastVal;
+                    console.log(`Decline ratio: ${ratio}`);
+                    return ratio;
+                });
+
+                // 添加下降倍率折线图
+                datasets.push({
+                    label: '下降倍率',
+                    data: declineRatioData,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    borderWidth: 3,
+                    type: 'line',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    yAxisID: 'y1',
+                    order: 1
+                });
             } else {
                 // 折线图：X轴为留存点，每个注册日期一条线
                 labels = keyRetentionPoints.map(p => p.label);
@@ -885,59 +920,32 @@
                             labels: {
                                 usePointStyle: true,
                                 padding: 15
+                            },
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                if (ci.isDatasetVisible(index)) {
+                                    ci.hide(index);
+                                    legendItem.hidden = true;
+                                } else {
+                                    ci.show(index);
+                                    legendItem.hidden = false;
+                                }
+                                // 如果是柱状图，更新下降倍率
+                                if (ci.config.type === 'bar' && chartType === 'bar') {
+                                    updateDeclineRatioLine(ci, data);
+                                }
                             }
                         },
                         tooltip: {
                             mode: 'index',
                             intersect: false,
                             callbacks: {
-                                label: (item) => `${item.dataset.label}: ${item.raw != null ? item.raw.toFixed(2) : '-'}%`,
-                                afterBody: (tooltipItems) => {
-                                    // 动态获取当前图表实例
-                                    const chart = charts.tsKeyRetention;
-                                    if (!chart || !chart.data || !chart.data.datasets) return '';
-                                    
-                                    // 只在柱状图时显示下降倍率
-                                    if (chart.config.type !== 'bar') return '';
-                                    
-                                    const dataIndex = tooltipItems[0].dataIndex;
-                                    const dataRow = data[dataIndex];
-                                    
-                                    // 动态获取当前图表实例中实际可见的数据集
-                                    const visibleIndices = [];
-                                    for (let idx = 0; idx < chart.data.datasets.length; idx++) {
-                                        const meta = chart.getDatasetMeta(idx);
-                                        // Chart.js中，hidden属性在data中是undefined表示显示，true表示隐藏
-                                        // 或者在dataset中直接设置hidden: true
-                                        const isHidden = meta.hidden === true || chart.data.datasets[idx].hidden === true;
-                                        if (!isHidden) {
-                                            visibleIndices.push(idx);
-                                        }
+                                label: (item) => {
+                                    if (item.dataset.label === '下降倍率') {
+                                        return `${item.dataset.label}: ${item.raw != null ? item.raw.toFixed(2) : '-'}x`;
                                     }
-                                    
-                                    if (visibleIndices.length < 2) {
-                                        return '\n下降倍率: -';
-                                    }
-                                    
-                                    const firstIdx = visibleIndices[0];
-                                    const lastIdx = visibleIndices[visibleIndices.length - 1];
-                                    const firstKey = keyRetentionPoints[firstIdx]?.key;
-                                    const lastKey = keyRetentionPoints[lastIdx]?.key;
-                                    
-                                    if (!firstKey || !lastKey) {
-                                        return '\n下降倍率: -';
-                                    }
-                                    
-                                    const firstVal = dataRow[firstKey];
-                                    const lastVal = dataRow[lastKey];
-                                    
-                                    if (!firstVal || !lastVal || lastVal === 0) {
-                                        return '\n下降倍率: -';
-                                    }
-                                    
-                                    // 下降倍率 = 首个数据柱 / 最后数据柱（越大表示下降越快）
-                                    const ratio = (firstVal / lastVal).toFixed(2);
-                                    return `\n下降倍率: ${ratio}x`;
+                                    return `${item.dataset.label}: ${item.raw != null ? item.raw.toFixed(2) : '-'}%`;
                                 }
                             }
                         }
@@ -950,7 +958,16 @@
                             beginAtZero: true,
                             max: yAxisMax,
                             title: { display: true, text: '留存率(%)' },
-                            ticks: { callback: value => value + '%' }
+                            ticks: { callback: value => value + '%' },
+                            position: 'left'
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            title: { display: true, text: '下降倍率' },
+                            ticks: { callback: value => value + 'x' },
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            display: chartType === 'bar'
                         }
                     }
                 }
@@ -975,7 +992,82 @@
 
         // Switch开关控制显示/隐藏
         function toggleKeyRetentionSwitch(checkbox) {
-            updateKeyRetentionChart();
+            const showAll = checkbox.checked;
+            
+            // 更新图表数据集的hidden属性
+            if (charts.tsKeyRetention && charts.tsKeyRetention.config.type === 'bar') {
+                keyRetentionPoints.forEach((point, index) => {
+                    if (showAll) {
+                        charts.tsKeyRetention.show(index);
+                    } else {
+                        if (point.defaultShow) {
+                            charts.tsKeyRetention.show(index);
+                        } else {
+                            charts.tsKeyRetention.hide(index);
+                        }
+                    }
+                });
+                // 更新下降倍率
+                const chartData = charts.tsKeyRetention.data;
+                const originalData = [];
+                // 从当前图表数据中提取原始留存率数据
+                for (let i = 0; i < chartData.labels.length; i++) {
+                    const row = { register_date: chartData.labels[i] };
+                    keyRetentionPoints.forEach((point, idx) => {
+                        row[point.key] = chartData.datasets[idx]?.data[i] || 0;
+                    });
+                    originalData.push(row);
+                }
+                updateDeclineRatioLine(charts.tsKeyRetention, originalData);
+            } else {
+                updateKeyRetentionChart();
+            }
+        }
+
+        // 更新下降倍率折线数据
+        function updateDeclineRatioLine(chart, data) {
+            if (!chart || !chart.data || !chart.data.datasets) return;
+            
+            // 找到下降倍率数据集的索引（最后一个数据集）
+            const declineRatioIndex = chart.data.datasets.length - 1;
+            if (declineRatioIndex < 0) return;
+            
+            // 获取当前可见的留存点数据集（排除下降倍率数据集本身）
+            const visibleIndices = [];
+            for (let idx = 0; idx < declineRatioIndex; idx++) {
+                const meta = chart.getDatasetMeta(idx);
+                const isHidden = meta.hidden === true || chart.data.datasets[idx].hidden === true;
+                if (!isHidden) {
+                    visibleIndices.push(idx);
+                }
+            }
+            
+            if (visibleIndices.length < 2) {
+                // 如果可见数据集少于2个，隐藏下降倍率线
+                chart.data.datasets[declineRatioIndex].data = data.map(() => null);
+                chart.update();
+                return;
+            }
+            
+            // 计算新的下降倍率数据
+            const newDeclineRatioData = data.map(row => {
+                const firstIdx = visibleIndices[0];
+                const lastIdx = visibleIndices[visibleIndices.length - 1];
+                const firstKey = keyRetentionPoints[firstIdx]?.key;
+                const lastKey = keyRetentionPoints[lastIdx]?.key;
+                
+                if (!firstKey || !lastKey) return null;
+                
+                const firstVal = row[firstKey];
+                const lastVal = row[lastKey];
+                
+                if (!firstVal || !lastVal || lastVal === 0) return null;
+                return firstVal / lastVal;
+            });
+            
+            // 更新下降倍率数据集
+            chart.data.datasets[declineRatioIndex].data = newDeclineRatioData;
+            chart.update();
         }
 
         // 计算下降倍率（当前图表上实际显示的最后/首个数据柱）
