@@ -197,8 +197,19 @@
             <!-- P1-4: 关键IPU点对比 -->
             <div class="chart-card full-width" data-dimension="timeseries">
                 <h3>关键IPU点对比 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="keyIpuChartType" onchange="onKeyIpuChartTypeChange()">
+                        <option value="bar">柱状图</option>
+                        <option value="line">折线图</option>
+                    </select>
+                    <label class="switch" id="keyIpuSwitchContainer" style="margin-left: 15px;">
+                        <input type="checkbox" id="keyIpuSwitch" onchange="toggleKeyIpuSwitch(this)">
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
+                    </label>
+                </div>
                 <div class="chart-container"><canvas id="tsKeyIpuChart"></canvas></div>
-                <div class="insight-box"><h4>关键节点</h4><ul><li>首日/次日/3日/7日/30日/60日IPU对比</li></ul></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li><strong>柱状图</strong>：对比不同注册日期在各关键IPU点的变现能力，红色折线显示次日起平均IPU</li><li><strong>折线图</strong>：观察各注册日期的IPU增长曲线，识别变现能力趋势</li></ul></div>
             </div>
 
             <!-- P2-5: 首日用户数趋势 -->
@@ -520,6 +531,8 @@
                 updateIpuCurve();
                 // 加载关键留存点对比图表
                 updateKeyRetentionChart();
+                // 加载关键IPU点对比图表
+                updateKeyIpuChart();
             } catch (error) {
                 console.error('加载时间序列数据失败:', error);
             }
@@ -815,6 +828,20 @@
             { key: 'd90_rate', label: '90日', color: '#fee140', defaultShow: false }
         ];
 
+        // 关键IPU点配置
+        const keyIpuPoints = [
+            { key: 'd1_ipu', label: '1日', color: '#667eea', defaultShow: true },
+            { key: 'd2_ipu', label: '2日', color: '#764ba2', defaultShow: true },
+            { key: 'd3_ipu', label: '3日', color: '#f093fb', defaultShow: true },
+            { key: 'd7_ipu', label: '7日', color: '#f5576c', defaultShow: true },
+            { key: 'd14_ipu', label: '14日', color: '#4facfe', defaultShow: true },
+            { key: 'd30_ipu', label: '30日', color: '#00f2fe', defaultShow: true },
+            { key: 'd45_ipu', label: '45日', color: '#43e97b', defaultShow: false },
+            { key: 'd60_ipu', label: '60日', color: '#38f9d7', defaultShow: false },
+            { key: 'd75_ipu', label: '75日', color: '#fa709a', defaultShow: false },
+            { key: 'd90_ipu', label: '90日', color: '#fee140', defaultShow: false }
+        ];
+
         // 渲染关键留存点对比图表（支持柱状图和折线图切换）
         function renderRetentionKeypointsChart(data, showAll = false, chartType = 'bar') {
             const ctx = document.getElementById('tsKeyRetentionChart').getContext('2d');
@@ -1021,6 +1048,325 @@
                 updateDeclineRatioLine(charts.tsKeyRetention, originalData);
             } else {
                 updateKeyRetentionChart();
+            }
+        }
+
+        // 渲染关键IPU点对比图表
+        function renderKeyIpuChart(data, showAll = false, chartType = 'bar') {
+            const ctx = document.getElementById('tsKeyIpuChart').getContext('2d');
+            if (charts.tsKeyIpu) charts.tsKeyIpu.destroy();
+
+            // 计算数据最大值用于动态Y轴
+            let maxValue = 0;
+            keyIpuPoints.forEach(point => {
+                data.forEach(d => {
+                    const val = d[point.key] || 0;
+                    if (val > maxValue) maxValue = val;
+                });
+            });
+            // 基础Y轴最大值（柱状图数据）
+            const baseYAxisMax = Math.ceil((maxValue * 1.2) / 5) * 5;
+            // 默认Y轴最大值（次日起平均IPU默认显示）
+            const yAxisMax = 90;
+
+            let labels, datasets, xTitle;
+
+            if (chartType === 'bar') {
+                // 柱状图：X轴为注册日期，每个日期多个IPU点
+                const dates = data.map(d => d.register_date);
+                labels = dates;
+                xTitle = '注册日期';
+
+                // IPU柱状图数据集（order设为3，确保在折线下方）
+                datasets = keyIpuPoints.map(point => ({
+                    label: point.label,
+                    data: data.map(d => d[point.key] || 0),
+                    backgroundColor: point.color,
+                    borderColor: point.color,
+                    borderWidth: 1,
+                    hidden: !showAll && !point.defaultShow,
+                    yAxisID: 'y',
+                    order: 3
+                }));
+
+                // 计算次日起平均IPU（当日所有可显示数据柱的平均值，不包括首日）
+                const visiblePoints = keyIpuPoints.filter(p => showAll || p.defaultShow);
+                const avgIpuData = data.map(row => {
+                    // 排除首日（d1_ipu），计算其余可见数据柱的平均值
+                    const subsequentPoints = visiblePoints.filter(p => p.key !== 'd1_ipu');
+                    if (subsequentPoints.length === 0) return null;
+                    
+                    let sum = 0;
+                    let count = 0;
+                    subsequentPoints.forEach(point => {
+                        const val = row[point.key];
+                        if (val != null && val > 0) {
+                            sum += val;
+                            count++;
+                        }
+                    });
+                    
+                    return count > 0 ? (sum / count).toFixed(2) : null;
+                });
+
+                // 添加首日IPU折线图（使用主Y轴，数据×12显示）
+                const d1IpuData = data.map(row => row.d1_ipu || null);
+                const d1IpuDataScaled = d1IpuData.map(val => val != null ? val * 12 : null);
+                datasets.push({
+                    label: '首日IPU',
+                    data: d1IpuDataScaled,
+                    borderColor: '#2ecc71',
+                    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                    borderWidth: 3,
+                    type: 'line',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    yAxisID: 'y',
+                    order: 1
+                });
+
+                // 添加次日起平均IPU折线图（使用主Y轴，数据×2显示）
+                const avgIpuDataScaled = avgIpuData.map(val => val != null ? val * 2 : null);
+                datasets.push({
+                    label: '次日起平均IPU',
+                    data: avgIpuDataScaled,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    borderWidth: 3,
+                    type: 'line',
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    yAxisID: 'y',
+                    order: 0
+                });
+            } else {
+                // 折线图：X轴为IPU点，每个注册日期一条线
+                labels = keyIpuPoints.map(p => p.label);
+                xTitle = 'IPU节点';
+
+                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b'];
+
+                datasets = data.map((row, index) => ({
+                    label: row.register_date,
+                    data: keyIpuPoints.map(point => {
+                        const val = row[point.key];
+                        return (showAll || point.defaultShow) ? (val || 0) : null;
+                    }),
+                    borderColor: colors[index % colors.length],
+                    backgroundColor: colors[index % colors.length] + '20',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    spanGaps: false
+                }));
+            }
+
+            charts.tsKeyIpu = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15
+                            },
+                            onClick: function(e, legendItem, legend) {
+                                const index = legendItem.datasetIndex;
+                                const ci = legend.chart;
+                                if (ci.isDatasetVisible(index)) {
+                                    ci.hide(index);
+                                    legendItem.hidden = true;
+                                } else {
+                                    ci.show(index);
+                                    legendItem.hidden = false;
+                                }
+                                // 如果是柱状图，更新次日起平均IPU
+                                if (ci.config.type === 'bar' && chartType === 'bar') {
+                                    updateAvgIpuLine(ci, data);
+                                }
+                                // 根据次日起平均IPU是否显示，调整Y轴
+                                if (ci.config.type === 'bar' && chartType === 'bar') {
+                                    const avgIpuIndex = ci.data.datasets.findIndex(ds => ds.label === '次日起平均IPU');
+                                    if (avgIpuIndex >= 0) {
+                                        const isAvgIpuVisible = !ci.getDatasetMeta(avgIpuIndex).hidden;
+                                        if (isAvgIpuVisible) {
+                                            ci.options.scales.y.max = 90;
+                                        } else {
+                                            // 次日起平均IPU隐藏时，动态调整Y轴
+                                            let maxVal = 0;
+                                            ci.data.datasets.forEach((ds, idx) => {
+                                                if (idx !== avgIpuIndex && !ci.getDatasetMeta(idx).hidden) {
+                                                    ds.data.forEach(v => {
+                                                        if (v && v > maxVal) maxVal = v;
+                                                    });
+                                                }
+                                            });
+                                            ci.options.scales.y.max = Math.max(50, Math.ceil((maxVal * 1.2) / 5) * 5);
+                                        }
+                                        ci.update();
+                                    }
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (item) => {
+                                    if (item.dataset.label === '次日起平均IPU') {
+                                        // 显示正常值（除以2）
+                                        const originalVal = item.raw != null ? (item.raw / 2).toFixed(2) : '-';
+                                        return `${item.dataset.label}: ${originalVal}`;
+                                    }
+                                    if (item.dataset.label === '首日IPU') {
+                                        // 显示正常值（除以12）
+                                        const originalVal = item.raw != null ? (item.raw / 12).toFixed(2) : '-';
+                                        return `${item.dataset.label}: ${originalVal}`;
+                                    }
+                                    return `${item.dataset.label}: ${item.raw != null ? item.raw.toFixed(2) : '-'}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: xTitle }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: yAxisMax,
+                            title: { display: true, text: 'IPU' },
+                            position: 'left'
+                        },
+                        // 移除额外的Y轴，所有数据使用主Y轴
+                    }
+                }
+            });
+        }
+
+        // 更新次日起平均IPU折线数据
+        function updateAvgIpuLine(chart, data) {
+            if (!chart || !chart.data || !chart.data.datasets) return;
+            
+            // 找到次日起平均IPU数据集的索引（最后一个数据集）
+            const avgIpuIndex = chart.data.datasets.length - 1;
+            if (avgIpuIndex < 0) return;
+            
+            // 获取当前可见的IPU点数据集（排除平均IPU数据集本身）
+            const visibleIndices = [];
+            for (let idx = 0; idx < avgIpuIndex; idx++) {
+                const meta = chart.getDatasetMeta(idx);
+                const isHidden = meta.hidden === true || chart.data.datasets[idx].hidden === true;
+                if (!isHidden) {
+                    visibleIndices.push(idx);
+                }
+            }
+            
+            if (visibleIndices.length === 0) {
+                chart.data.datasets[avgIpuIndex].data = data.map(() => null);
+                chart.update();
+                return;
+            }
+            
+            // 计算新的次日起平均IPU数据（排除首日）
+            const newAvgIpuData = data.map(row => {
+                // 排除首日（d1_ipu），计算其余可见数据柱的平均值
+                const subsequentIndices = visibleIndices.filter(idx => keyIpuPoints[idx]?.key !== 'd1_ipu');
+                if (subsequentIndices.length === 0) return null;
+                
+                let sum = 0;
+                let count = 0;
+                subsequentIndices.forEach(idx => {
+                    const key = keyIpuPoints[idx]?.key;
+                    if (key) {
+                        const val = row[key];
+                        if (val != null && val > 0) {
+                            sum += val;
+                            count++;
+                        }
+                    }
+                });
+                
+                // 返回平均值×2（用于显示在图表上方）
+                return count > 0 ? ((sum / count) * 2).toFixed(2) : null;
+            });
+            
+            chart.data.datasets[avgIpuIndex].data = newAvgIpuData;
+            chart.update();
+        }
+
+        // 图表类型切换时控制Switch显示/隐藏
+        function onKeyIpuChartTypeChange() {
+            const chartType = document.getElementById('keyIpuChartType')?.value || 'bar';
+            const switchContainer = document.getElementById('keyIpuSwitchContainer');
+            
+            if (chartType === 'line') {
+                if (switchContainer) switchContainer.style.display = 'none';
+            } else {
+                if (switchContainer) switchContainer.style.display = 'inline-flex';
+            }
+            
+            updateKeyIpuChart();
+        }
+
+        // Switch开关控制显示/隐藏
+        function toggleKeyIpuSwitch(checkbox) {
+            const showAll = checkbox.checked;
+            
+            if (charts.tsKeyIpu && charts.tsKeyIpu.config.type === 'bar') {
+                keyIpuPoints.forEach((point, index) => {
+                    if (showAll) {
+                        charts.tsKeyIpu.show(index);
+                    } else {
+                        if (point.defaultShow) {
+                            charts.tsKeyIpu.show(index);
+                        } else {
+                            charts.tsKeyIpu.hide(index);
+                        }
+                    }
+                });
+                // 更新次日起平均IPU
+                const chartData = charts.tsKeyIpu.data;
+                const originalData = [];
+                for (let i = 0; i < chartData.labels.length; i++) {
+                    const row = { register_date: chartData.labels[i] };
+                    keyIpuPoints.forEach((point, idx) => {
+                        row[point.key] = chartData.datasets[idx]?.data[i] || 0;
+                    });
+                    originalData.push(row);
+                }
+                updateAvgIpuLine(charts.tsKeyIpu, originalData);
+            } else {
+                updateKeyIpuChart();
+            }
+        }
+
+        // 更新关键IPU点图表
+        async function updateKeyIpuChart() {
+            const startDate = document.getElementById('tsStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('tsEndDate').value.replace(/-/g, '');
+            const showAll = document.getElementById('keyIpuSwitch')?.checked || false;
+            const chartType = document.getElementById('keyIpuChartType')?.value || 'bar';
+
+            try {
+                const response = await fetch(`/api/ipu_keypoints_table?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                renderKeyIpuChart(data.data, showAll, chartType);
+            } catch (error) {
+                console.error('加载关键IPU点图表失败:', error);
             }
         }
 

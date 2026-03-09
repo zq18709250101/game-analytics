@@ -430,5 +430,82 @@ def api_retention_keypoints_table():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# 关键IPU点对比API
+@app.route('/api/ipu_keypoints_table')
+def api_ipu_keypoints_table():
+    """
+    关键IPU点对比表格
+    
+    参数：
+    - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
+    - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
+    """
+    try:
+        start_date = request.args.get('start_date', '20260110', type=str)
+        end_date = request.args.get('end_date', '20260116', type=str)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                register_date,
+                MAX(CASE WHEN day_num = 0 THEN total_users END) as total_users,
+                ROUND(MAX(CASE WHEN day_num = 0 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 0 THEN active_users END), 0), 2) as d1_ipu,
+                ROUND(MAX(CASE WHEN day_num = 1 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 1 THEN active_users END), 0), 2) as d2_ipu,
+                ROUND(MAX(CASE WHEN day_num = 2 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 2 THEN active_users END), 0), 2) as d3_ipu,
+                ROUND(MAX(CASE WHEN day_num = 7 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 7 THEN active_users END), 0), 2) as d7_ipu,
+                ROUND(MAX(CASE WHEN day_num = 14 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 14 THEN active_users END), 0), 2) as d14_ipu,
+                ROUND(MAX(CASE WHEN day_num = 30 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 30 THEN active_users END), 0), 2) as d30_ipu,
+                ROUND(MAX(CASE WHEN day_num = 45 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 45 THEN active_users END), 0), 2) as d45_ipu,
+                ROUND(MAX(CASE WHEN day_num = 60 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 60 THEN active_users END), 0), 2) as d60_ipu,
+                ROUND(MAX(CASE WHEN day_num = 75 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 75 THEN active_users END), 0), 2) as d75_ipu,
+                ROUND(MAX(CASE WHEN day_num = 90 THEN ad_views END) * 1.0 / 
+                      NULLIF(MAX(CASE WHEN day_num = 90 THEN active_users END), 0), 2) as d90_ipu
+            FROM mv_daily_metrics
+            WHERE day_num IN (0, 1, 2, 7, 14, 30, 45, 60, 75, 90)
+                AND register_date >= ?
+                AND register_date <= ?
+            GROUP BY register_date
+            ORDER BY register_date
+        """, (start_date, end_date))
+        
+        result_data = []
+        for row in cursor.fetchall():
+            result_data.append({
+                'register_date': row[0],
+                'total_users': row[1],
+                'd1_ipu': row[2],
+                'd2_ipu': row[3],
+                'd3_ipu': row[4],
+                'd7_ipu': row[5],
+                'd14_ipu': row[6],
+                'd30_ipu': row[7],
+                'd45_ipu': row[8],
+                'd60_ipu': row[9],
+                'd75_ipu': row[10],
+                'd90_ipu': row[11]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'start_date': start_date,
+            'end_date': end_date,
+            'data': result_data
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=False, port=5029, host='0.0.0.0', threaded=True)
