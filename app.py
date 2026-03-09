@@ -610,7 +610,8 @@ def api_day_comparison_table():
                 }
             
             # 计算各项指标
-            ipu = round(ad_views / total_users, 2) if total_users > 0 else 0
+            # IPU = 广告观看次数 / 活跃用户数（不是总用户数）
+            ipu = round(ad_views / active_users, 2) if active_users > 0 else 0
             retention_rate = round(active_users * 100.0 / total_users, 2) if total_users > 0 else 0
             
             result_data[register_date]['metrics'][day_num] = {
