@@ -507,5 +507,192 @@ def api_ipu_keypoints_table():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# 首日用户数对比API
+@app.route('/api/day1_users')
+def api_day1_users():
+    """
+    首日用户数对比
+    
+    参数：
+    - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
+    - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
+    """
+    try:
+        start_date = request.args.get('start_date', '20260110', type=str)
+        end_date = request.args.get('end_date', '20260116', type=str)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                register_date,
+                total_users as day1_users
+            FROM mv_daily_metrics
+            WHERE day_num = 1
+                AND register_date >= ?
+                AND register_date <= ?
+            ORDER BY register_date
+        """, (start_date, end_date))
+        
+        result_data = []
+        for row in cursor.fetchall():
+            result_data.append({
+                'register_date': row[0],
+                'day1_users': row[1]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'start_date': start_date,
+            'end_date': end_date,
+            'data': result_data
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 日期对比表格API
+@app.route('/api/day_comparison_table')
+def api_day_comparison_table():
+    """
+    日期对比表格
+    
+    参数：
+    - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
+    - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
+    - time_span: 时间跨度（可选值：7,14,30,45,60,75,90，默认7）
+    """
+    try:
+        start_date = request.args.get('start_date', '20260110', type=str)
+        end_date = request.args.get('end_date', '20260116', type=str)
+        time_span = request.args.get('time_span', 7, type=int)
+        
+        # 验证时间跨度参数
+        valid_spans = [7, 14, 30, 45, 60, 75, 90]
+        if time_span not in valid_spans:
+            time_span = 7
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 查询每个注册日期的详细数据
+        cursor.execute("""
+            SELECT 
+                register_date,
+                day_num,
+                total_users,
+                active_users,
+                ad_views
+            FROM mv_daily_metrics
+            WHERE register_date >= ?
+                AND register_date <= ?
+                AND day_num >= 0
+                AND day_num <= ?
+            ORDER BY register_date, day_num
+        """, (start_date, end_date, time_span))
+        
+        # 按注册日期组织数据
+        result_data = {}
+        for row in cursor.fetchall():
+            register_date = row[0]
+            day_num = row[1]
+            total_users = row[2]
+            active_users = row[3]
+            ad_views = row[4]
+            
+            if register_date not in result_data:
+                result_data[register_date] = {
+                    'register_date': register_date,
+                    'total_users': total_users,
+                    'metrics': {}
+                }
+            
+            # 计算各项指标
+            ipu = round(ad_views / total_users, 2) if total_users > 0 else 0
+            retention_rate = round(active_users * 100.0 / total_users, 2) if total_users > 0 else 0
+            
+            result_data[register_date]['metrics'][day_num] = {
+                'ipu': ipu,
+                'retention_rate': retention_rate
+            }
+        
+        conn.close()
+        
+        return jsonify({
+            'start_date': start_date,
+            'end_date': end_date,
+            'time_span': time_span,
+            'data': list(result_data.values())
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 首日数据对比API
+@app.route('/api/day1_comparison')
+def api_day1_comparison():
+    """
+    首日数据对比（多线折线图）
+    
+    参数：
+    - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
+    - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
+    """
+    try:
+        start_date = request.args.get('start_date', '20260110', type=str)
+        end_date = request.args.get('end_date', '20260116', type=str)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 查询首日数据（day_num=1）和次日留存（day_num=1的留存，即次日留存）
+        cursor.execute("""
+            SELECT 
+                r1.register_date,
+                r1.total_users as day1_users,
+                r1.ad_views as day1_ad_views,
+                r1.active_users as d1_active_users
+            FROM mv_daily_metrics r1
+            WHERE r1.day_num = 1
+                AND r1.register_date >= ?
+                AND r1.register_date <= ?
+            ORDER BY r1.register_date
+        """, (start_date, end_date))
+        
+        result_data = []
+        for row in cursor.fetchall():
+            register_date = row[0]
+            day1_users = row[1]
+            day1_ad_views = row[2]
+            d1_active_users = row[3]
+            
+            # 计算各项指标
+            day1_ipu = round(day1_ad_views / day1_users, 2) if day1_users > 0 else 0
+            # 看广率估算：假设每个用户至少看1次广告，用IPU作为看广率的参考
+            day1_watch_rate = round(day1_ipu * 10, 2) if day1_ipu > 0 else 0  # 估算值
+            # 次日留存 = day_num=1的活跃用户 / 总用户数
+            d2_retention = round(d1_active_users * 100.0 / day1_users, 2) if day1_users > 0 else 0
+            
+            result_data.append({
+                'register_date': register_date,
+                'day1_users': day1_users,
+                'day1_ipu': day1_ipu,
+                'day1_watch_rate': min(day1_watch_rate, 100),  # 限制最大100%
+                'd2_retention': d2_retention
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'start_date': start_date,
+            'end_date': end_date,
+            'data': result_data
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=False, port=5029, host='0.0.0.0', threaded=True)

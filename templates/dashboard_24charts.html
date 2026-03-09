@@ -212,37 +212,43 @@
                 <div class="insight-box"><h4>分析要点</h4><ul><li><strong>柱状图</strong>：对比不同注册日期在各关键IPU点的变现能力，红色折线显示次日起平均IPU</li><li><strong>折线图</strong>：观察各注册日期的IPU增长曲线，识别变现能力趋势</li></ul></div>
             </div>
 
-            <!-- P2-5: 首日用户数趋势 -->
-            <div class="chart-card" data-dimension="timeseries">
-                <h3>首日用户数趋势 <span class="priority p2">P2</span></h3>
-                <div class="chart-container"><canvas id="tsNewUsersChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>观察每日新增用户规模</li><li>识别推广效果波动</li></ul></div>
-            </div>
-
-            <!-- P2-6: 首日IPU趋势 -->
-            <div class="chart-card" data-dimension="timeseries">
-                <h3>首日IPU趋势 <span class="priority p2">P2</span></h3>
-                <div class="chart-container"><canvas id="tsDay1IpuChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>观察首日变现能力</li><li>识别新手引导效果</li></ul></div>
-            </div>
-
-            <!-- P2-7: 留存热力图 -->
+            <!-- P2-5: 首日用户数对比 -->
             <div class="chart-card full-width" data-dimension="timeseries">
-                <h3>留存热力图 <span class="priority p2">P2</span></h3>
-                <div class="chart-container"><canvas id="tsHeatmapChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>日期×留存天数的热力分布</li><li>快速识别留存异常</li></ul></div>
+                <h3>首日用户数对比 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="tsDay1UsersChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同注册日期的首日活跃用户数</li><li>识别用户规模波动和推广效果</li></ul></div>
+            </div>
+
+            <!-- P2-6: 首日数据对比 -->
+            <div class="chart-card full-width" data-dimension="timeseries">
+                <h3>首日数据对比 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="tsDay1ComparisonChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>多线折线图对比首日用户数、首日IPU、首日看广率、次日留存</li><li>识别首日数据异常和趋势</li></ul></div>
             </div>
 
             <!-- P3-8: 日期对比表格 -->
             <div class="chart-card full-width" data-dimension="timeseries">
                 <h3>日期对比表格 <span class="priority p3">P3</span></h3>
-                <div class="chart-container" id="tsTableContainer" style="overflow: auto;">
-                    <table id="tsComparisonTable" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <div class="chart-selector">
+                    <select id="timeSpanSelect" onchange="updateDayComparisonTable()">
+                        <option value="7" selected>7天</option>
+                        <option value="14">14天</option>
+                        <option value="30">30天</option>
+                        <option value="45">45天</option>
+                        <option value="60">60天</option>
+                        <option value="75">75天</option>
+                        <option value="90">90天</option>
+                    </select>
+                    <span id="tablePaginationInfo" style="margin-left: 15px; font-size: 0.85rem; color: #666;"></span>
+                </div>
+                <div class="chart-container" id="dayComparisonTableContainer" style="max-height: 600px; overflow-y: auto;">
+                    <table id="dayComparisonTable" style="width: 100%; border-collapse: collapse; font-size: 0.75rem;">
                         <thead></thead>
                         <tbody></tbody>
                     </table>
                 </div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>详细数据对比</li><li>支持精确数值分析</li></ul></div>
+                <div id="tablePaginationControls" style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;"></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同注册日期的详细数据</li><li>展示注册用户数、首日IPU、留存率、每日IPU等指标</li><li>单页最多显示50行，支持翻页</li></ul></div>
             </div>
 
             <!-- ==================== 渗透维度 (6个图表) ==================== -->
@@ -533,6 +539,12 @@
                 updateKeyRetentionChart();
                 // 加载关键IPU点对比图表
                 updateKeyIpuChart();
+                // 加载首日用户数对比图表
+                updateDay1UsersChart();
+                // 加载首日数据对比图表
+                updateDay1ComparisonChart();
+                // 加载日期对比表格
+                updateDayComparisonTable();
             } catch (error) {
                 console.error('加载时间序列数据失败:', error);
             }
@@ -1351,6 +1363,344 @@
                 updateAvgIpuLine(charts.tsKeyIpu, originalData);
             } else {
                 updateKeyIpuChart();
+            }
+        }
+
+        // 渲染首日用户数对比图表
+        function renderDay1UsersChart(data) {
+            const ctx = document.getElementById('tsDay1UsersChart').getContext('2d');
+            if (charts.tsDay1Users) charts.tsDay1Users.destroy();
+
+            const dates = data.map(d => d.register_date);
+            const users = data.map(d => d.day1_users);
+
+            // 计算平均值
+            const avgUsers = users.reduce((a, b) => a + b, 0) / users.length;
+            const avgData = dates.map(() => avgUsers);
+
+            charts.tsDay1Users = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: '首日用户数',
+                            data: users,
+                            backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                            borderColor: '#667eea',
+                            borderWidth: 1,
+                            order: 2
+                        },
+                        {
+                            label: '平均值',
+                            data: avgData,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            type: 'line',
+                            fill: false,
+                            pointRadius: 0,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (item) => `${item.dataset.label}: ${item.raw?.toLocaleString() || '-'}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '注册日期' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: '用户数' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 表格分页状态
+        let tablePaginationState = {
+            currentPage: 1,
+            pageSize: 50,
+            totalData: [],
+            timeSpan: 7
+        };
+
+        // 渲染日期对比表格（支持分页）
+        function renderDayComparisonTable(data, timeSpan) {
+            // 保存完整数据
+            tablePaginationState.totalData = data;
+            tablePaginationState.timeSpan = timeSpan;
+            tablePaginationState.currentPage = 1;
+            
+            // 渲染表格
+            renderTablePage();
+        }
+        
+        // 渲染当前页表格
+        function renderTablePage() {
+            const table = document.getElementById('dayComparisonTable');
+            if (!table) return;
+            
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            const paginationInfo = document.getElementById('tablePaginationInfo');
+            const paginationControls = document.getElementById('tablePaginationControls');
+            
+            const { currentPage, pageSize, totalData, timeSpan } = tablePaginationState;
+            const totalPages = Math.ceil(totalData.length / pageSize);
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, totalData.length);
+            const pageData = totalData.slice(startIndex, endIndex);
+            
+            // 构建表头
+            let headerHtml = '<tr style="background: #667eea; color: white;">';
+            headerHtml += '<th style="padding: 8px; border: 1px solid #ddd; position: sticky; top: 0; background: #667eea;">注册日期</th>';
+            headerHtml += '<th style="padding: 8px; border: 1px solid #ddd; position: sticky; top: 0; background: #667eea;">注册用户数</th>';
+            headerHtml += '<th style="padding: 8px; border: 1px solid #ddd; position: sticky; top: 0; background: #667eea;">首日IPU</th>';
+            
+            // 添加每日列（从第2天到timeSpan+1天），留存和IPU合并显示
+            for (let day = 1; day <= timeSpan; day++) {
+                const displayDay = day + 1;
+                headerHtml += `<th style="padding: 8px; border: 1px solid #ddd; position: sticky; top: 0; background: #667eea; text-align: center;">${displayDay}日<br>留存/IPU</th>`;
+            }
+            headerHtml += '</tr>';
+            thead.innerHTML = headerHtml;
+            
+            // 构建表格内容
+            let tbodyHtml = '';
+            pageData.forEach((row, index) => {
+                const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+                tbodyHtml += `<tr style="background: ${bgColor};" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${bgColor}'">`;
+                
+                // 注册日期
+                tbodyHtml += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center; font-weight: 500;">${row.register_date}</td>`;
+                
+                // 注册用户数
+                tbodyHtml += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${row.total_users?.toLocaleString() || '-'}</td>`;
+                
+                // 首日IPU (day_num=0)
+                const day0Ipu = row.metrics[0]?.ipu || 0;
+                tbodyHtml += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${day0Ipu.toFixed(2)}</td>`;
+                
+                // 每日留存和IPU（合并显示）
+                for (let day = 1; day <= timeSpan; day++) {
+                    const metric = row.metrics[day];
+                    const retention = metric ? `${metric.retention_rate}%` : '-';
+                    const ipu = metric ? metric.ipu.toFixed(2) : '-';
+                    
+                    // 留存率颜色标识
+                    let retentionColor = '';
+                    if (metric) {
+                        if (metric.retention_rate >= 10) retentionColor = 'color: #2ecc71;';
+                        else if (metric.retention_rate >= 5) retentionColor = 'color: #f39c12;';
+                        else if (metric.retention_rate >= 2) retentionColor = 'color: #e74c3c;';
+                    }
+                    
+                    // 合并显示：留存率在上，IPU在下
+                    tbodyHtml += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center; line-height: 1.4;">`;
+                    tbodyHtml += `<div style="${retentionColor} font-weight: 500;">${retention}</div>`;
+                    tbodyHtml += `<div style="color: #666; font-size: 0.85em;">${ipu}</div>`;
+                    tbodyHtml += `</td>`;
+                }
+                
+                tbodyHtml += '</tr>';
+            });
+            
+            tbody.innerHTML = tbodyHtml;
+            
+            // 更新分页信息
+            if (paginationInfo) {
+                paginationInfo.textContent = `第 ${currentPage}/${totalPages} 页 (共 ${totalData.length} 条)`;
+            }
+            
+            // 渲染分页控件
+            if (paginationControls) {
+                if (totalPages <= 1) {
+                    paginationControls.innerHTML = '';
+                } else {
+                    let controlsHtml = '';
+                    
+                    // 上一页按钮
+                    controlsHtml += `<button onclick="changeTablePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} style="padding: 5px 15px; border: 1px solid #ddd; background: ${currentPage === 1 ? '#f5f5f5' : 'white'}; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; border-radius: 4px;">上一页</button>`;
+                    
+                    // 页码按钮
+                    for (let i = 1; i <= totalPages; i++) {
+                        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                            controlsHtml += `<button onclick="changeTablePage(${i})" style="padding: 5px 12px; border: 1px solid #ddd; background: ${i === currentPage ? '#667eea' : 'white'}; color: ${i === currentPage ? 'white' : '#333'}; cursor: pointer; border-radius: 4px;">${i}</button>`;
+                        } else if (i === currentPage - 3 || i === currentPage + 3) {
+                            controlsHtml += `<span style="padding: 5px;">...</span>`;
+                        }
+                    }
+                    
+                    // 下一页按钮
+                    controlsHtml += `<button onclick="changeTablePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 5px 15px; border: 1px solid #ddd; background: ${currentPage === totalPages ? '#f5f5f5' : 'white'}; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; border-radius: 4px;">下一页</button>`;
+                    
+                    paginationControls.innerHTML = controlsHtml;
+                }
+            }
+        }
+        
+        // 切换表格页面
+        function changeTablePage(page) {
+            const { totalData, pageSize } = tablePaginationState;
+            const totalPages = Math.ceil(totalData.length / pageSize);
+            
+            if (page < 1 || page > totalPages) return;
+            
+            tablePaginationState.currentPage = page;
+            renderTablePage();
+        }
+
+        // 更新日期对比表格
+        async function updateDayComparisonTable() {
+            const startDate = document.getElementById('tsStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('tsEndDate').value.replace(/-/g, '');
+            const timeSpan = document.getElementById('timeSpanSelect')?.value || 7;
+
+            try {
+                const response = await fetch(`/api/day_comparison_table?start_date=${startDate}&end_date=${endDate}&time_span=${timeSpan}`);
+                const data = await response.json();
+                renderDayComparisonTable(data.data, parseInt(timeSpan));
+            } catch (error) {
+                console.error('加载日期对比表格失败:', error);
+            }
+        }
+
+        // 更新首日用户数对比图表
+        async function updateDay1UsersChart() {
+            const startDate = document.getElementById('tsStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('tsEndDate').value.replace(/-/g, '');
+
+            try {
+                const response = await fetch(`/api/day1_users?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                renderDay1UsersChart(data.data);
+            } catch (error) {
+                console.error('加载首日用户数对比图表失败:', error);
+            }
+        }
+
+        // 渲染首日数据对比图表（多线折线图）
+        function renderDay1ComparisonChart(data) {
+            const ctx = document.getElementById('tsDay1ComparisonChart').getContext('2d');
+            if (charts.tsDay1Comparison) charts.tsDay1Comparison.destroy();
+
+            const dates = data.map(d => d.register_date);
+
+            charts.tsDay1Comparison = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: '首日用户数',
+                            data: data.map(d => d.day1_users),
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: '首日IPU',
+                            data: data.map(d => d.day1_ipu),
+                            borderColor: '#2ecc71',
+                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: 'y2'
+                        },
+                        {
+                            label: '首日看广率(%)',
+                            data: data.map(d => d.day1_watch_rate),
+                            borderColor: '#f39c12',
+                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: 'y3'
+                        },
+                        {
+                            label: '次日留存(%)',
+                            data: data.map(d => d.d2_retention),
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: 'y3'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '注册日期' }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            title: { display: true, text: '首日用户数' },
+                            position: 'left',
+                            grid: { drawOnChartArea: true }
+                        },
+                        y2: {
+                            beginAtZero: true,
+                            title: { display: true, text: '首日IPU' },
+                            position: 'right',
+                            grid: { drawOnChartArea: false }
+                        },
+                        y3: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: '百分比(%)' },
+                            position: 'right',
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新首日数据对比图表
+        async function updateDay1ComparisonChart() {
+            const startDate = document.getElementById('tsStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('tsEndDate').value.replace(/-/g, '');
+
+            try {
+                const response = await fetch(`/api/day1_comparison?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                renderDay1ComparisonChart(data.data);
+            } catch (error) {
+                console.error('加载首日数据对比图表失败:', error);
             }
         }
 
