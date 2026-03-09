@@ -1,28 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>游戏数据分析 dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏数据分析 Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { background: #333; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .stat-value { font-size: 32px; font-weight: bold; color: #333; }
-        .stat-label { color: #666; margin-top: 5px; }
-        .charts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-        .chart-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .chart-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; text-align: center; }
+        .header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: white; padding: 1.2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+        .stat-value { font-size: 1.8rem; font-weight: bold; color: #667eea; }
+        .stat-label { color: #666; margin-top: 0.3rem; font-size: 0.9rem; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; }
+        .chart-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .chart-card h3 { margin-bottom: 1rem; color: #333; font-size: 1rem; }
+        .chart-container { position: relative; height: 300px; }
+        .full-width { grid-column: 1 / -1; }
+        .insight-box { background: #f8f9fa; border-left: 4px solid #667eea; padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+        .insight-box h4 { color: #667eea; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .insight-box ul { margin-left: 1.2rem; font-size: 0.85rem; }
     </style>
 </head>
 <body>
+    <div class="header">
+        <h1>🎮 游戏数据分析 Dashboard</h1>
+        <p>2026年1月10日-19日 激活用户分析</p>
+    </div>
+    
     <div class="container">
-        <div class="header">
-            <h1>🎮 游戏数据分析 Dashboard</h1>
-            <p>2026年1月10日-19日 激活用户分析</p>
-        </div>
-        
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-value" id="totalUsers">-</div>
@@ -42,19 +51,37 @@
             </div>
         </div>
         
-        <div class="charts">
+        <div class="chart-grid">
+            <!-- 关卡进度分布 -->
             <div class="chart-card">
-                <div class="chart-title">📊 关卡进度分布</div>
-                <canvas id="chapterChart"></canvas>
+                <h3>📊 关卡进度分布</h3>
+                <div class="chart-container"><canvas id="chapterChart"></canvas></div>
             </div>
+            
+            <!-- 用户留存曲线 -->
             <div class="chart-card">
-                <div class="chart-title">📈 用户留存曲线</div>
-                <canvas id="retentionChart"></canvas>
+                <h3>📈 用户留存曲线</h3>
+                <div class="chart-container"><canvas id="retentionChart"></canvas></div>
+            </div>
+            
+            <!-- 战力分层分布 (P2) -->
+            <div class="chart-card">
+                <h3>⚔️ 战力分层分布</h3>
+                <div class="chart-container"><canvas id="powerDistChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li>识别核心玩家群体分布</li>
+                        <li>评估游戏难度平衡性</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
     
     <script>
+        let charts = {};
+        
         // 加载概览数据
         fetch('/api/overview')
             .then(r => r.json())
@@ -69,18 +96,21 @@
         fetch('/api/chapter_progress')
             .then(r => r.json())
             .then(data => {
-                new Chart(document.getElementById('chapterChart'), {
+                const ctx = document.getElementById('chapterChart').getContext('2d');
+                charts.chapter = new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: data.map(d => d.chapter),
                         datasets: [{
                             label: '用户数',
                             data: data.map(d => d.users),
-                            backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            borderRadius: 4
                         }]
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         scales: { y: { beginAtZero: true } }
                     }
                 });
@@ -90,23 +120,89 @@
         fetch('/api/retention')
             .then(r => r.json())
             .then(data => {
-                new Chart(document.getElementById('retentionChart'), {
+                const ctx = document.getElementById('retentionChart').getContext('2d');
+                charts.retention = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: data.map(d => 'Day ' + d.day),
                         datasets: [{
                             label: '留存用户数',
                             data: data.map(d => d.users),
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            fill: false
+                            borderColor: '#764ba2',
+                            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                            fill: true,
+                            tension: 0.4
                         }]
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         scales: { y: { beginAtZero: true } }
                     }
                 });
             });
+        
+        // 战力分层分布图表
+        function renderPowerDistChart() {
+            const ctx = document.getElementById('powerDistChart').getContext('2d');
+            
+            // 战力分层数据（模拟数据）
+            const powerData = {
+                labels: ['新手 (<1000)', '初级 (1000-3000)', '中级 (3000-6000)', '高级 (6000-10000)', '精英 (>10000)'],
+                datasets: [{
+                    data: [35, 28, 20, 12, 5],
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.6)',
+                        'rgba(118, 75, 162, 0.6)',
+                        'rgba(240, 147, 251, 0.6)',
+                        'rgba(245, 87, 108, 0.6)',
+                        'rgba(79, 172, 254, 0.6)'
+                    ],
+                    borderColor: [
+                        '#667eea',
+                        '#764ba2',
+                        '#f093fb',
+                        '#f5576c',
+                        '#4facfe'
+                    ],
+                    borderWidth: 2
+                }]
+            };
+            
+            charts.powerDist = new Chart(ctx, {
+                type: 'doughnut',
+                data: powerData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 15,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value}% (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 页面加载完成后渲染战力分布图表
+        window.onload = function() {
+            renderPowerDistChart();
+        };
     </script>
 </body>
 </html>

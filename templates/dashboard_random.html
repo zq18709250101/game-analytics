@@ -51,7 +51,7 @@
 <body>
     <div class="header">
         <h1>🎮 游戏数据分析仪表盘</h1>
-        <p>五维分析框架 v3.0 | 基于新注册用户全生命周期 | 15个图表</p>
+        <p>五维分析框架 v4.0 | 基于新注册用户全生命周期 | 24个图表</p>
         <div class="dimension-selector">
             <button class="dimension-btn active" onclick="switchDimension('penetration')">📈 渗透</button>
             <button class="dimension-btn" onclick="switchDimension('completion')">🎯 完成</button>
@@ -161,6 +161,12 @@
                 <div class="insight-box"><h4>健康标准</h4><ul><li>银币周转率：80-120%、囤积率：&lt;20%</li></ul></div>
             </div>
             
+            <div class="chart-card" data-dimension="strategy">
+                <h3>战力分层分布</h3>
+                <div class="chart-container"><canvas id="powerDistChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>不同战力层级用户分布</li><li>识别核心玩家群体</li></ul></div>
+            </div>
+            
             <div class="section-title" data-dimension="iaa">💰 IAA收益维度</div>
             
             <div class="chart-card" data-dimension="iaa">
@@ -234,6 +240,25 @@
                 <h3>关键IPU点对比</h3>
                 <div class="chart-container"><canvas id="tsKeyIpuChart"></canvas></div>
                 <div class="insight-box"><h4>关键节点</h4><ul><li>首日/次日/3日/7日/30日/60日IPU对比</li></ul></div>
+            </div>
+            
+            <!-- P2: 留存热力图 -->
+            <div class="chart-card full-width" data-dimension="timeseries">
+                <h3>留存热力图</h3>
+                <div class="chart-container"><canvas id="tsRetentionHeatmap"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>日期×留存天数的热力分布</li><li>快速识别留存异常</li></ul></div>
+            </div>
+            
+            <!-- P3: 日期对比表格 -->
+            <div class="chart-card full-width" data-dimension="timeseries">
+                <h3>日期对比表格</h3>
+                <div class="chart-container" id="tsTableContainer" style="overflow: auto; height: auto; max-height: 400px;">
+                    <table id="tsComparisonTable" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>详细数据对比</li><li>支持精确数值分析</li></ul></div>
             </div>
         </div>
     </div>
@@ -340,6 +365,7 @@
             renderRevenueChart(chartData.revenue_structure);
             renderUserSegmentChart(chartData.user_video_segments);
             renderVideoRetentionChart(chartData.video_retention);
+            renderPowerDistChart(chartData.power_distribution);
         }
         
         function renderKPIs(data, isTimeSeries = false) {
@@ -549,6 +575,46 @@
             });
         }
         
+        // 战力分层分布图表
+        function renderPowerDistChart(data) {
+            const ctx = document.getElementById('powerDistChart').getContext('2d');
+            if (charts.powerDist) charts.powerDist.destroy();
+            
+            charts.powerDist = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.tier),
+                    datasets: [{
+                        data: data.map(d => d.users),
+                        backgroundColor: data.map(d => d.color),
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 15,
+                                padding: 10,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
         function randomUniform(min, max) { return Math.random() * (max - min) + min; }
         
         function updateCompletionChart() {
@@ -716,6 +782,12 @@
             
             // 6. 关键IPU点对比
             renderTsKeyIpuChart(dates, colors);
+            
+            // 7. 留存热力图
+            renderTsRetentionHeatmap(dates);
+            
+            // 8. 日期对比表格
+            renderTsComparisonTable(dates);
         }
         
         function renderTsRetentionChart(dates, colors) {
@@ -1001,6 +1073,140 @@
                     }
                 }
             });
+        }
+        
+        // 留存热力图
+        function renderTsRetentionHeatmap(dates) {
+            const ctx = document.getElementById('tsRetentionHeatmap').getContext('2d');
+            if (charts.tsRetentionHeatmap) charts.tsRetentionHeatmap.destroy();
+            
+            // 关键留存天数
+            const retentionDays = [1, 2, 3, 7, 14, 30, 60];
+            const dayLabels = ['首日', '次日', '3日', '7日', '14日', '30日', '60日'];
+            
+            // 为每个日期创建数据集
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'];
+            
+            const datasets = dates.slice(0, 8).map((date, index) => {
+                const retentionData = retentionDays.map(day => {
+                    const key = 'd' + day;
+                    return timeSeriesData[date].retention[key] || 0;
+                });
+                
+                return {
+                    label: date,
+                    data: retentionData,
+                    backgroundColor: retentionData.map(rate => {
+                        // 根据留存率设置颜色深浅
+                        const alpha = Math.max(0.2, rate / 100);
+                        return `rgba(102, 126, 234, ${alpha})`;
+                    }),
+                    borderColor: colors[index % colors.length],
+                    borderWidth: 1,
+                    borderRadius: 4
+                };
+            });
+            
+            charts.tsRetentionHeatmap = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dayLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: '留存天数' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: '留存率(%)' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { boxWidth: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => `${item.dataset.label}: ${item.raw}%`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 日期对比表格
+        function renderTsComparisonTable(dates) {
+            const table = document.getElementById('tsComparisonTable');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            // 表头
+            let headerHTML = '<tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">';
+            headerHTML += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">指标</th>';
+            dates.forEach(date => {
+                headerHTML += `<th style="padding: 10px; text-align: center; border: 1px solid #ddd;">${date}</th>`;
+            });
+            headerHTML += '</tr>';
+            thead.innerHTML = headerHTML;
+            
+            // 表格数据行
+            const rows = [
+                { label: '新增用户', key: 'new_users', format: v => v.toLocaleString() },
+                { label: '首日IPU', key: 'day1_ipu', format: v => v.toFixed(1) },
+                { label: '次日留存(%)', key: 'retention_d1', format: v => v + '%' },
+                { label: '3日留存(%)', key: 'retention_d3', format: v => v + '%' },
+                { label: '7日留存(%)', key: 'retention_d7', format: v => v + '%' },
+                { label: '14日留存(%)', key: 'retention_d14', format: v => v + '%' },
+                { label: '30日留存(%)', key: 'retention_d30', format: v => v + '%' },
+                { label: '60日留存(%)', key: 'retention_d60', format: v => v + '%' },
+                { label: '首日IPU', key: 'ipu_d1', format: v => v.toFixed(1) },
+                { label: '7日IPU', key: 'ipu_d7', format: v => v.toFixed(1) },
+                { label: '30日IPU', key: 'ipu_d30', format: v => v.toFixed(1) }
+            ];
+            
+            let bodyHTML = '';
+            rows.forEach((row, index) => {
+                const bgColor = index % 2 === 0 ? '#f8f9fa' : '#fff';
+                bodyHTML += `<tr style="background: ${bgColor};">`;
+                bodyHTML += `<td style="padding: 8px 10px; border: 1px solid #ddd; font-weight: bold;">${row.label}</td>`;
+                
+                dates.forEach(date => {
+                    let value;
+                    if (row.key === 'new_users') {
+                        value = timeSeriesData[date].new_users;
+                    } else if (row.key === 'day1_ipu') {
+                        value = timeSeriesData[date].day1_ipu;
+                    } else if (row.key.startsWith('retention_')) {
+                        const day = row.key.replace('retention_', '');
+                        value = timeSeriesData[date].retention[day] || 0;
+                    } else if (row.key.startsWith('ipu_')) {
+                        const day = row.key.replace('ipu_', '');
+                        value = timeSeriesData[date].ipu[day] || 0;
+                    }
+                    
+                    // 根据数值设置颜色
+                    let cellStyle = 'padding: 8px 10px; text-align: center; border: 1px solid #ddd;';
+                    if (row.key.includes('retention')) {
+                        const numValue = parseFloat(value);
+                        if (numValue >= 70) cellStyle += ' color: #27ae60; font-weight: bold;';
+                        else if (numValue >= 40) cellStyle += ' color: #f39c12;';
+                        else cellStyle += ' color: #e74c3c;';
+                    }
+                    
+                    bodyHTML += `<td style="${cellStyle}">${row.format(value)}</td>`;
+                });
+                
+                bodyHTML += '</tr>';
+            });
+            
+            tbody.innerHTML = bodyHTML;
         }
         
         window.onload = init;

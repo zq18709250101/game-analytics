@@ -80,6 +80,23 @@
                 <h3>关键IPU点对比</h3>
                 <div class="chart-container"><canvas id="keyIpuChart"></canvas></div>
             </div>
+            
+            <!-- 留存热力图 (P2) -->
+            <div class="chart-card full-width">
+                <h3>留存热力图</h3>
+                <div class="chart-container"><canvas id="retentionHeatmap"></canvas></div>
+            </div>
+            
+            <!-- 日期对比表格 (P3) -->
+            <div class="chart-card full-width">
+                <h3>日期对比表格</h3>
+                <div class="chart-container" id="tableContainer" style="overflow: auto; height: auto; max-height: 400px;">
+                    <table id="comparisonTable" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -275,6 +292,140 @@
                     maintainAspectRatio: false
                 }
             });
+            
+            // 7. 留存热力图
+            renderRetentionHeatmap(dates, metrics, colors);
+            
+            // 8. 日期对比表格
+            renderComparisonTable(dates, metrics);
+        }
+        
+        // 留存热力图
+        function renderRetentionHeatmap(dates, metrics, colors) {
+            const ctx = document.getElementById('retentionHeatmap').getContext('2d');
+            if (charts.retentionHeatmap) charts.retentionHeatmap.destroy();
+            
+            const retentionDays = [1, 2, 3, 7, 14, 30, 60];
+            const dayLabels = ['首日', '次日', '3日', '7日', '14日', '30日', '60日'];
+            
+            const datasets = dates.slice(0, 8).map((date, index) => {
+                const retentionData = retentionDays.map(day => {
+                    const key = 'd' + day;
+                    return metrics[date].retention[key] || 0;
+                });
+                
+                return {
+                    label: date,
+                    data: retentionData,
+                    backgroundColor: retentionData.map(rate => {
+                        const alpha = Math.max(0.2, rate / 100);
+                        return `rgba(102, 126, 234, ${alpha})`;
+                    }),
+                    borderColor: colors[index % colors.length],
+                    borderWidth: 1,
+                    borderRadius: 4
+                };
+            });
+            
+            charts.retentionHeatmap = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dayLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: '留存天数' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: '留存率(%)' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { boxWidth: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => `${item.dataset.label}: ${item.raw}%`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 日期对比表格
+        function renderComparisonTable(dates, metrics) {
+            const table = document.getElementById('comparisonTable');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            // 表头
+            let headerHTML = '<tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">';
+            headerHTML += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd;">指标</th>';
+            dates.forEach(date => {
+                headerHTML += `<th style="padding: 10px; text-align: center; border: 1px solid #ddd;">${date}</th>`;
+            });
+            headerHTML += '</tr>';
+            thead.innerHTML = headerHTML;
+            
+            // 表格数据行
+            const rows = [
+                { label: '新增用户', key: 'new_users', format: v => v.toLocaleString() },
+                { label: '首日IPU', key: 'day1_ipu', format: v => v.toFixed(1) },
+                { label: '次日留存(%)', key: 'retention_d1', format: v => v + '%' },
+                { label: '3日留存(%)', key: 'retention_d3', format: v => v + '%' },
+                { label: '7日留存(%)', key: 'retention_d7', format: v => v + '%' },
+                { label: '14日留存(%)', key: 'retention_d14', format: v => v + '%' },
+                { label: '30日留存(%)', key: 'retention_d30', format: v => v + '%' },
+                { label: '60日留存(%)', key: 'retention_d60', format: v => v + '%' },
+                { label: '次日IPU', key: 'ipu_d2', format: v => v.toFixed(1) },
+                { label: '7日IPU', key: 'ipu_d7', format: v => v.toFixed(1) },
+                { label: '30日IPU', key: 'ipu_d30', format: v => v.toFixed(1) }
+            ];
+            
+            let bodyHTML = '';
+            rows.forEach((row, index) => {
+                const bgColor = index % 2 === 0 ? '#f8f9fa' : '#fff';
+                bodyHTML += `<tr style="background: ${bgColor};">`;
+                bodyHTML += `<td style="padding: 8px 10px; border: 1px solid #ddd; font-weight: bold;">${row.label}</td>`;
+                
+                dates.forEach(date => {
+                    let value;
+                    if (row.key === 'new_users') {
+                        value = metrics[date].new_users;
+                    } else if (row.key === 'day1_ipu') {
+                        value = metrics[date].day1_ipu;
+                    } else if (row.key.startsWith('retention_')) {
+                        const day = row.key.replace('retention_', '');
+                        value = metrics[date].retention[day] || 0;
+                    } else if (row.key.startsWith('ipu_')) {
+                        const day = row.key.replace('ipu_', '');
+                        value = metrics[date].ipu[day] || 0;
+                    }
+                    
+                    let cellStyle = 'padding: 8px 10px; text-align: center; border: 1px solid #ddd;';
+                    if (row.key.includes('retention')) {
+                        const numValue = parseFloat(value);
+                        if (numValue >= 70) cellStyle += ' color: #27ae60; font-weight: bold;';
+                        else if (numValue >= 40) cellStyle += ' color: #f39c12;';
+                        else cellStyle += ' color: #e74c3c;';
+                    }
+                    
+                    bodyHTML += `<td style="${cellStyle}">${row.format(value)}</td>`;
+                });
+                
+                bodyHTML += '</tr>';
+            });
+            
+            tbody.innerHTML = bodyHTML;
         }
         
         // 页面加载时自动加载数据

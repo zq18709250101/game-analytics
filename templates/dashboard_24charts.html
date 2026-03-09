@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏数据分析 - 五维分析框架（24图表完整版）</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; text-align: center; }
+        .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .header p { opacity: 0.9; font-size: 0.95rem; }
+        .dimension-selector { display: flex; justify-content: center; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; }
+        .dimension-btn { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 0.6rem 1.2rem; border-radius: 25px; cursor: pointer; transition: all 0.3s; font-size: 0.9rem; }
+        .dimension-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-2px); }
+        .dimension-btn.active { background: rgba(255,255,255,0.9); color: #667eea; font-weight: bold; }
+        .controls-row { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+        .date-picker-wrapper { display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.15); padding: 0.5rem 1rem; border-radius: 20px; }
+        .date-picker-wrapper input[type="date"] { padding: 0.3rem 0.6rem; border: none; border-radius: 4px; background: rgba(255,255,255,0.9); color: #333; font-size: 0.85rem; cursor: pointer; width: 130px; }
+        .date-picker-wrapper input[type="date"]:focus { outline: none; }
+        .refresh-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 0.5rem 1.2rem; border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: all 0.3s; display: flex; align-items: center; gap: 0.3rem; }
+        .refresh-btn:hover { background: rgba(255,255,255,0.3); }
+        #currentDateDisplay { font-size: 0.8rem; opacity: 0.8; margin-left: 0.3rem; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .kpi-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+        .kpi-value { font-size: 1.8rem; font-weight: bold; color: #667eea; }
+        .kpi-label { color: #666; font-size: 0.85rem; margin-top: 0.5rem; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 2rem; }
+        .chart-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .chart-card h3 { margin-bottom: 1rem; color: #333; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .chart-card h3 .priority { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 10px; font-weight: normal; }
+        .chart-card h3 .priority.p0 { background: #e74c3c; color: white; }
+        .chart-card h3 .priority.p1 { background: #f39c12; color: white; }
+        .chart-card h3 .priority.p2 { background: #3498db; color: white; }
+        .chart-card h3 .priority.p3 { background: #95a5a6; color: white; }
+        .chart-container { position: relative; height: 300px; }
+        .chart-selector { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+        .chart-selector select { padding: 0.4rem 0.8rem; border: 1px solid #ddd; border-radius: 6px; background: white; font-size: 0.9rem; cursor: pointer; }
+        .insight-box { background: #f8f9fa; border-left: 4px solid #667eea; padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+        .insight-box h4 { color: #667eea; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .insight-box ul { margin-left: 1.2rem; font-size: 0.85rem; }
+        .full-width { grid-column: 1 / -1; }
+        .section-title { grid-column: 1 / -1; font-size: 1.4rem; color: #667eea; margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #667eea; display: flex; align-items: center; gap: 0.5rem; }
+        .chart-count { font-size: 0.8rem; color: #666; font-weight: normal; margin-left: auto; }
+        @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 游戏数据分析仪表盘</h1>
+        <p>五维分析框架 v4.0 | 24个数据可视化图表 | 基于新注册用户全生命周期</p>
+        <div class="dimension-selector">
+            <button class="dimension-btn active" onclick="switchDimension('timeseries')">📅 时间序列</button>
+            <button class="dimension-btn" onclick="switchDimension('penetration')">📈 渗透</button>
+            <button class="dimension-btn" onclick="switchDimension('completion')">🎯 完成与流失</button>
+            <button class="dimension-btn" onclick="switchDimension('iaa')">💰 IAA收益</button>
+            <button class="dimension-btn" onclick="switchDimension('strategy')">⚔️ 策略战力</button>
+        </div>
+        <div class="controls-row" id="dateControls">
+            <div class="date-picker-wrapper" id="singleDatePicker">
+                <span>📅</span>
+                <input type="date" id="datePicker" onchange="changeDate()" title="选择日期">
+                <span id="currentDateDisplay"></span>
+            </div>
+            <div class="date-picker-wrapper" id="rangeDatePicker" style="display: none;">
+                <span>📅</span>
+                <input type="date" id="tsStartDate" value="2026-01-10">
+                <span>~</span>
+                <input type="date" id="tsEndDate" value="2026-01-25">
+            </div>
+            <button class="refresh-btn" id="refreshBtn" onclick="handleRefresh()">🔄 刷新</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="kpi-grid" id="kpiGrid"></div>
+        
+        <div class="chart-grid" id="chartGrid">
+            <!-- ==================== 时间序列维度 (8个图表) ==================== -->
+            <div class="section-title" data-dimension="timeseries">
+                📅 时间序列维度
+                <span class="chart-count">8个图表</span>
+            </div>
+
+            <!-- P0-1: 多日留存对比曲线 -->
+            <div class="chart-card" data-dimension="timeseries">
+                <h3>多日留存对比曲线 <span class="priority p0">P0</span></h3>
+                <div class="chart-selector">
+                    <select id="retentionRangeSelect" onchange="updateRetentionCurve()">
+                        <option value="3">3天留存</option>
+                        <option value="7">7天留存</option>
+                        <option value="14">14天留存</option>
+                        <option value="30" selected>30天留存</option>
+                        <option value="45">45天留存</option>
+                        <option value="60">60天留存</option>
+                        <option value="90">90天留存</option>
+                    </select>
+                    <label class="switch" style="margin-left: 10px; display: inline-flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="retentionToggle" checked onchange="toggleAllRetentionSwitch(this)">
+                        <span class="slider" style="position: relative; display: inline-block; width: 50px; height: 24px; background-color: #667eea; border-radius: 24px; transition: 0.3s;"></span>
+                        <span style="margin-left: 8px; font-size: 14px;">显示全部</span>
+                    </label>
+                </div>
+                <div class="chart-container"><canvas id="tsRetentionChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同日期的1-90日留存曲线</li><li>识别留存异常的日期和趋势</li></ul></div>
+            </div>
+
+            <!-- P0-2: 多日IPU对比曲线 -->
+            <div class="chart-card" data-dimension="timeseries">
+                <h3>多日IPU对比曲线 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="ipuRangeSelect" onchange="updateIpuCurve()">
+                        <option value="3">3天IPU</option>
+                        <option value="7">7天IPU</option>
+                        <option value="14">14天IPU</option>
+                        <option value="30" selected>30天IPU</option>
+                        <option value="45">45天IPU</option>
+                        <option value="60">60天IPU</option>
+                        <option value="90">90天IPU</option>
+                    </select>
+                    <label class="switch" style="margin-left: 10px; display: inline-flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="ipuToggle" checked onchange="toggleAllIpuSwitch(this)">
+                        <span class="slider" style="position: relative; display: inline-block; width: 50px; height: 24px; background-color: #667eea; border-radius: 24px; transition: 0.3s;"></span>
+                        <span style="margin-left: 8px; font-size: 14px;">显示全部</span>
+                    </label>
+                </div>
+                <div class="chart-container"><canvas id="tsIpuChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同日期的1-90日IPU曲线</li><li>识别变现能力异常的日期和趋势</li></ul></div>
+            </div>
+
+            <!-- P1-3: 关键留存点对比 -->
+            <div class="chart-card full-width" data-dimension="timeseries">
+                <h3>关键留存点对比 <span class="priority p1">P1</span></h3>
+                <div class="chart-container"><canvas id="tsKeyRetentionChart"></canvas></div>
+                <div class="insight-box"><h4>关键节点</h4><ul><li>次日/3日/7日/14日/30日/60日留存对比</li></ul></div>
+            </div>
+
+            <!-- P1-4: 关键IPU点对比 -->
+            <div class="chart-card full-width" data-dimension="timeseries">
+                <h3>关键IPU点对比 <span class="priority p1">P1</span></h3>
+                <div class="chart-container"><canvas id="tsKeyIpuChart"></canvas></div>
+                <div class="insight-box"><h4>关键节点</h4><ul><li>首日/次日/3日/7日/30日/60日IPU对比</li></ul></div>
+            </div>
+
+            <!-- P2-5: 首日用户数趋势 -->
+            <div class="chart-card" data-dimension="timeseries">
+                <h3>首日用户数趋势 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="tsNewUsersChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>观察每日新增用户规模</li><li>识别推广效果波动</li></ul></div>
+            </div>
+
+            <!-- P2-6: 首日IPU趋势 -->
+            <div class="chart-card" data-dimension="timeseries">
+                <h3>首日IPU趋势 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="tsDay1IpuChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>观察首日变现能力</li><li>识别新手引导效果</li></ul></div>
+            </div>
+
+            <!-- P2-7: 留存热力图 -->
+            <div class="chart-card full-width" data-dimension="timeseries">
+                <h3>留存热力图 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="tsHeatmapChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>日期×留存天数的热力分布</li><li>快速识别留存异常</li></ul></div>
+            </div>
+
+            <!-- P3-8: 日期对比表格 -->
+            <div class="chart-card full-width" data-dimension="timeseries">
+                <h3>日期对比表格 <span class="priority p3">P3</span></h3>
+                <div class="chart-container" id="tsTableContainer" style="overflow: auto;">
+                    <table id="tsComparisonTable" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>详细数据对比</li><li>支持精确数值分析</li></ul></div>
+            </div>
+
+            <!-- ==================== 渗透维度 (6个图表) ==================== -->
+            <div class="section-title" data-dimension="penetration">
+                📈 渗透维度
+                <span class="chart-count">6个图表</span>
+            </div>
+
+            <!-- P0-9: 累计渗透率趋势图 -->
+            <div class="chart-card" data-dimension="penetration">
+                <h3>累计渗透率趋势图 <span class="priority p0">P0</span></h3>
+                <div class="chart-container"><canvas id="penetrationChart"></canvas></div>
+                <div class="insight-box"><h4>关键洞察</h4><ul><li>60日渗透率目标：>80%</li><li>前期增长快，后期趋于平稳</li></ul></div>
+            </div>
+
+            <!-- P1-10: 类别占比饼图 -->
+            <div class="chart-card" data-dimension="penetration">
+                <h3>类别占比饼图 <span class="priority p1">P1</span></h3>
+                <div class="chart-container"><canvas id="categoryShareChart"></canvas></div>
+                <div class="insight-box"><h4>健康标准</h4><ul><li>普通：60%、困难：25%、地狱：10%、副本：5%</li></ul></div>
+            </div>
+
+            <!-- P1-11: 解锁漏斗图 -->
+            <div class="chart-card" data-dimension="penetration">
+                <h3>解锁转化漏斗 <span class="priority p1">P1</span></h3>
+                <div class="chart-container"><canvas id="unlockFunnelChart"></canvas></div>
+                <div class="insight-box"><h4>转化目标</h4><ul><li>普通→困难：>40%、困难→地狱：>30%</li></ul></div>
+            </div>
+
+            <!-- P2-12: 用户分布柱状图 -->
+            <div class="chart-card" data-dimension="penetration">
+                <h3>用户分布柱状图 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="userDistChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>各关卡类别用户分布</li><li>识别用户偏好</li></ul></div>
+            </div>
+
+            <!-- P2-13: 核心用户贡献对比 -->
+            <div class="chart-card" data-dimension="penetration">
+                <h3>核心用户贡献对比 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="coreUserChart"></canvas></div>
+                <div class="insight-box"><h4>二八定律</h4><ul><li>20%核心用户贡献68%行为</li></ul></div>
+            </div>
+
+            <!-- P2-14: 解锁进度分析 -->
+            <div class="chart-card" data-dimension="penetration">
+                <h3>解锁进度分析 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="unlockProgressChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>各关卡解锁进度分布</li><li>识别解锁瓶颈</li></ul></div>
+            </div>
+
+            <!-- ==================== 完成与流失维度 (6个图表) ==================== -->
+            <div class="section-title" data-dimension="completion">
+                🎯 完成与流失维度
+                <span class="chart-count">6个图表</span>
+            </div>
+
+            <!-- P0-15: 各关卡通关率分析 -->
+            <div class="chart-card" data-dimension="completion">
+                <h3>各关卡通关率分析 <span class="priority p0">P0</span></h3>
+                <div class="chart-selector">
+                    <select id="chapterSelect" onchange="updateCompletionChart()">
+                        <option value="all">全部关卡</option>
+                        <option value="1-3">关卡 1-3</option>
+                        <option value="4-6">关卡 4-6</option>
+                        <option value="7-10">关卡 7-10</option>
+                    </select>
+                    <select id="categorySelect" onchange="updateCompletionChart()">
+                        <option value="all">全部类别</option>
+                        <option value="normal">普通</option>
+                        <option value="hard">困难</option>
+                        <option value="hell">地狱</option>
+                    </select>
+                </div>
+                <div class="chart-container"><canvas id="completionChart"></canvas></div>
+            </div>
+
+            <!-- P1-16: 失败波次分布 -->
+            <div class="chart-card" data-dimension="completion">
+                <h3>失败波次分布 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="waveChapterSelect" onchange="updateWaveFailureChart()">
+                        <option value="all">全部关卡</option>
+                        <option value="1-3">关卡 1-3</option>
+                        <option value="4-6">关卡 4-6</option>
+                        <option value="7-10">关卡 7-10</option>
+                    </select>
+                    <select id="waveCategorySelect" onchange="updateWaveFailureChart()">
+                        <option value="all">全部类别</option>
+                        <option value="normal">普通</option>
+                        <option value="hard">困难</option>
+                        <option value="hell">地狱</option>
+                    </select>
+                </div>
+                <div class="chart-container"><canvas id="waveFailureChart"></canvas></div>
+                <div class="insight-box"><h4>关键发现</h4><ul><li>第3波是卡关高峰，失败率平均32%</li></ul></div>
+            </div>
+
+            <!-- P1-17: 尝试次数分析 -->
+            <div class="chart-card" data-dimension="completion">
+                <h3>尝试次数分析 <span class="priority p1">P1</span></h3>
+                <div class="chart-container"><canvas id="attemptChart"></canvas></div>
+                <div class="insight-box"><h4>难度评估</h4><ul><li>1-1.5次：偏简单、1.5-2.5次：适中、2.5-4次：偏难</li></ul></div>
+            </div>
+
+            <!-- P2-18: 难度曲线 -->
+            <div class="chart-card" data-dimension="completion">
+                <h3>难度曲线 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="difficultyChart"></canvas></div>
+                <div class="insight-box"><h4>趋势分析</h4><ul><li>难度应平滑递增，避免突然跳跃</li></ul></div>
+            </div>
+
+            <!-- P2-19: 流失点识别热力图 -->
+            <div class="chart-card full-width" data-dimension="completion">
+                <h3>流失点识别热力图 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="churnHeatmapChart"></canvas></div>
+                <div class="insight-box"><h4>优化建议</h4><ul><li>颜色越深流失越严重，重点关注第3波</li></ul></div>
+            </div>
+
+            <!-- P2-20: 失败次数与IPU关联 -->
+            <div class="chart-card" data-dimension="completion">
+                <h3>失败次数与IPU关联 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="failIpuChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>分析失败次数与广告观看的关系</li></ul></div>
+            </div>
+
+            <!-- ==================== IAA收益维度 (4个图表) ==================== -->
+            <div class="section-title" data-dimension="iaa">
+                💰 IAA收益维度
+                <span class="chart-count">4个图表</span>
+            </div>
+
+            <!-- P0-21: 日看广率趋势 -->
+            <div class="chart-card" data-dimension="iaa">
+                <h3>日看广率趋势 <span class="priority p0">P0</span></h3>
+                <div class="chart-container"><canvas id="videoTrendChart"></canvas></div>
+                <div class="insight-box"><h4>目标</h4><ul><li>日观看率>40%</li></ul></div>
+            </div>
+
+            <!-- P1-22: 关卡视频盈利贡献 -->
+            <div class="chart-card" data-dimension="iaa">
+                <h3>关卡视频盈利贡献 <span class="priority p1">P1</span></h3>
+                <div class="chart-container"><canvas id="levelContribChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>各关卡的广告收益贡献</li></ul></div>
+            </div>
+
+            <!-- P1-23: 类别视频盈利贡献 -->
+            <div class="chart-card" data-dimension="iaa">
+                <h3>类别视频盈利贡献 <span class="priority p1">P1</span></h3>
+                <div class="chart-container"><canvas id="categoryContribChart"></canvas></div>
+                <div class="insight-box"><h4>核心洞察</h4><ul><li>困难类别是核心盈利来源，视频占比40%</li></ul></div>
+            </div>
+
+            <!-- P2-24: 波次视频分布分析 -->
+            <div class="chart-card" data-dimension="iaa">
+                <h3>波次视频分布分析 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="waveVideoChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>各波次广告观看分布</li></ul></div>
+            </div>
+
+            <!-- ==================== 策略战力维度 (2个图表) ==================== -->
+            <div class="section-title" data-dimension="strategy">
+                ⚔️ 策略战力维度
+                <span class="chart-count">2个图表</span>
+            </div>
+
+            <!-- P1-25: 战力成长分析 -->
+            <div class="chart-card" data-dimension="strategy">
+                <h3>战力成长分析 <span class="priority p1">P1</span></h3>
+                <div class="chart-container"><canvas id="growthChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>用户战力成长曲线</li></ul></div>
+            </div>
+
+            <!-- P2-26: 战力分层分布 -->
+            <div class="chart-card" data-dimension="strategy">
+                <h3>战力分层分布 <span class="priority p2">P2</span></h3>
+                <div class="chart-container"><canvas id="powerDistChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>不同战力层级用户分布</li></ul></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 简化版JavaScript - 实际实现需要补充完整
+        let charts = {}, currentDimension = 'timeseries', chartData = {}, currentDate = new Date().toISOString().split('T')[0], timeSeriesData = null;
+
+        async function init() {
+            document.getElementById('datePicker').value = currentDate;
+            updateDateDisplay();
+            switchDimension('timeseries');
+        }
+
+        function updateDateDisplay() {
+            const date = new Date(currentDate);
+            document.getElementById('currentDateDisplay').textContent = `当前：${date.getFullYear()}年${date.getMonth()+1}月${date.getDate()}日 新注册用户`;
+        }
+
+        async function changeDate() {
+            const newDate = document.getElementById('datePicker').value;
+            if (newDate && newDate !== currentDate) {
+                currentDate = newDate;
+                updateDateDisplay();
+                await loadData(currentDate);
+            }
+        }
+
+        async function loadData(date) {
+            try {
+                const response = await fetch(`/api/all?date=${date}`);
+                chartData = await response.json();
+                renderAllCharts();
+            } catch (error) { console.error('加载数据失败:', error); }
+        }
+
+        async function refreshData() {
+            try {
+                await fetch(`/api/refresh?date=${currentDate}`);
+                await loadData(currentDate);
+            } catch (error) { console.error('刷新数据失败:', error); }
+        }
+
+        function handleRefresh() {
+            if (currentDimension === 'timeseries') {
+                validateAndLoadTimeSeries();
+            } else {
+                refreshData();
+            }
+        }
+
+        function switchDimension(dimension) {
+            currentDimension = dimension;
+            document.querySelectorAll('.dimension-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.querySelector(`.dimension-btn[onclick="switchDimension('${dimension}')"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            document.querySelectorAll('.chart-card, .section-title').forEach(el => {
+                const elDim = el.getAttribute('data-dimension');
+                el.style.display = (elDim === dimension) ? 'block' : 'none';
+            });
+
+            const singlePicker = document.getElementById('singleDatePicker');
+            const rangePicker = document.getElementById('rangeDatePicker');
+
+            if (dimension === 'timeseries') {
+                if (singlePicker) singlePicker.style.display = 'none';
+                if (rangePicker) rangePicker.style.display = 'flex';
+                validateAndLoadTimeSeries();
+            } else {
+                if (singlePicker) singlePicker.style.display = 'flex';
+                if (rangePicker) rangePicker.style.display = 'none';
+                loadData(currentDate);
+            }
+        }
+
+        // 图表渲染函数占位
+        function renderAllCharts() {
+            renderKPIs(chartData.overview);
+            // 其他图表渲染...
+        }
+
+        function renderKPIs(data, isTimeSeries = false) {
+            const prefix = isTimeSeries ? '累计' : '';
+            document.getElementById('kpiGrid').innerHTML = `
+                <div class="kpi-card"><div class="kpi-value">${data?.new_users?.toLocaleString() || 0}</div><div class="kpi-label">${prefix}新增用户</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data?.day1_ipu || 0}</div><div class="kpi-label">首日人均IPU</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data?.ad_rate || 0}%</div><div class="kpi-label">首日看广率</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data?.d2_retention || 0}%</div><div class="kpi-label">次留</div></div>
+                <div class="kpi-card"><div class="kpi-value">${data?.d7_retention || 0}%</div><div class="kpi-label">7日留存</div></div>
+            `;
+        }
+
+        let isValidating = false;
+        function validateAndLoadTimeSeries() {
+            if (isValidating) return;
+            isValidating = true;
+            const startDate = document.getElementById('tsStartDate').value;
+            const endDate = document.getElementById('tsEndDate').value;
+            if (!startDate || !endDate) { alert('请选择起始和结束日期'); isValidating = false; return; }
+            if (new Date(startDate) > new Date(endDate)) { alert('结束日期不能早于开始日期'); isValidating = false; return; }
+            loadTimeSeriesData(startDate, endDate).finally(() => { isValidating = false; });
+        }
+
+        async function loadTimeSeriesData(startDate, endDate) {
+            try {
+                // 渲染留存曲线和IPU曲线
+                updateRetentionCurve();
+                updateIpuCurve();
+            } catch (error) { 
+                console.error('加载时间序列数据失败:', error); 
+            }
+        }
+
+        function renderTimeSeriesCharts() {
+            if (!timeSeriesData) return;
+            const dates = Object.keys(timeSeriesData).sort();
+            // 渲染时间序列图表...
+            
+            // 加载多日留存对比曲线
+            updateRetentionCurve();
+        }
+        
+        async function updateRetentionCurve() {
+            const retentionDays = document.getElementById('retentionRangeSelect').value;
+            const startDate = document.getElementById('tsStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('tsEndDate').value.replace(/-/g, '');
+            
+            try {
+                const response = await fetch(`/api/retention_curve?retention_range_days=${retentionDays}&start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                renderRetentionCurveChart(data);
+            } catch (error) {
+                console.error('加载留存曲线失败:', error);
+            }
+        }
+        
+        function renderRetentionCurveChart(data) {
+            const ctx = document.getElementById('tsRetentionChart').getContext('2d');
+            if (charts.tsRetention) charts.tsRetention.destroy();
+            
+            // 按注册日期分组数据
+            const groupedData = {};
+            data.data.forEach(item => {
+                if (!groupedData[item.register_date]) {
+                    groupedData[item.register_date] = [];
+                }
+                groupedData[item.register_date].push({
+                    day: item.retention_day,
+                    rate: item.retention_rate
+                });
+            });
+            
+            // 准备数据集
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b'];
+            const datasets = Object.keys(groupedData).map((date, index) => ({
+                label: date,
+                data: groupedData[date].map(d => d.rate),
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length] + '20',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 2
+            }));
+            
+            // 计算平均值曲线
+            // day_num 0=注册当天(第1天), 1=第2天, 2=第3天...
+            const labels = groupedData[Object.keys(groupedData)[0]]?.map(d => `第${d.day + 1}天`) || [];
+            const avgData = [];
+            
+            for (let i = 0; i < labels.length; i++) {
+                let sum = 0;
+                let count = 0;
+                Object.keys(groupedData).forEach(date => {
+                    if (groupedData[date][i]) {
+                        sum += groupedData[date][i].rate;
+                        count++;
+                    }
+                });
+                avgData.push(count > 0 ? (sum / count).toFixed(2) : 0);
+            }
+            
+            // 添加平均值数据集
+            datasets.push({
+                label: '平均值',
+                data: avgData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 3,
+                borderDash: [5, 5]
+            });
+            
+            // 计算数据中的最大留存率，用于动态设置Y轴
+            let maxRate = 0;
+            data.data.forEach(item => {
+                if (item.retention_rate > maxRate) {
+                    maxRate = item.retention_rate;
+                }
+            });
+            // 向上取整到最近的5的倍数，并留出10%的空间
+            const yAxisMax = Math.ceil((maxRate * 1.1) / 5) * 5;
+            
+            charts.tsRetention = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: (items) => items[0].label,
+                                label: (item) => `${item.dataset.label}: ${item.raw}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: yAxisMax,
+                            title: { display: true, text: '留存率(%)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // IPU曲线更新函数
+        async function updateIpuCurve() {
+            const rangeDays = document.getElementById('ipuRangeSelect').value;
+            const startDate = document.getElementById('tsStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('tsEndDate').value.replace(/-/g, '');
+            
+            try {
+                const response = await fetch(`/api/ipu_curve?range_days=${rangeDays}&start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                renderIpuCurveChart(data);
+            } catch (error) {
+                console.error('加载IPU曲线失败:', error);
+            }
+        }
+        
+        function renderIpuCurveChart(data) {
+            const ctx = document.getElementById('tsIpuChart').getContext('2d');
+            if (charts.tsIpu) charts.tsIpu.destroy();
+            
+            // 按注册日期分组数据
+            const groupedData = {};
+            data.data.forEach(item => {
+                if (!groupedData[item.register_date]) {
+                    groupedData[item.register_date] = [];
+                }
+                groupedData[item.register_date].push({
+                    day: item.day_num,
+                    ipu: item.ipu
+                });
+            });
+            
+            // 准备数据集
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b'];
+            const datasets = Object.keys(groupedData).map((date, index) => ({
+                label: date,
+                data: groupedData[date].map(d => d.ipu),
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length] + '20',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 2
+            }));
+            
+            // 计算平均值曲线
+            // day_num 0=注册当天(第1天), 1=第2天, 2=第3天...
+            const labels = groupedData[Object.keys(groupedData)[0]]?.map(d => `第${d.day + 1}天`) || [];
+            const avgData = [];
+            
+            for (let i = 0; i < labels.length; i++) {
+                let sum = 0;
+                let count = 0;
+                Object.keys(groupedData).forEach(date => {
+                    if (groupedData[date][i]) {
+                        sum += groupedData[date][i].ipu;
+                        count++;
+                    }
+                });
+                avgData.push(count > 0 ? (sum / count).toFixed(2) : 0);
+            }
+            
+            // 添加平均值数据集
+            datasets.push({
+                label: '平均值',
+                data: avgData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 3,
+                borderDash: [5, 5]
+            });
+            
+            // 计算Y轴最大值
+            let maxIpu = 0;
+            data.data.forEach(item => {
+                if (item.ipu > maxIpu) {
+                    maxIpu = item.ipu;
+                }
+            });
+            const yAxisMax = Math.ceil((maxIpu * 1.1) / 0.5) * 0.5;
+            
+            charts.tsIpu = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: (items) => items[0].label,
+                                label: (item) => `${item.dataset.label}: ${item.raw}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: yAxisMax,
+                            title: { display: true, text: 'IPU' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Switch开关功能 - 留存曲线
+        function toggleAllRetentionSwitch(checkbox) {
+            const show = checkbox.checked;
+            if (charts.tsRetention) {
+                charts.tsRetention.data.datasets.forEach((dataset, index) => {
+                    if (dataset.label !== '平均值') {
+                        charts.tsRetention.setDatasetVisibility(index, show);
+                    }
+                });
+                charts.tsRetention.update();
+            }
+        }
+        
+        // Switch开关功能 - IPU曲线
+        function toggleAllIpuSwitch(checkbox) {
+            const show = checkbox.checked;
+            if (charts.tsIpu) {
+                charts.tsIpu.data.datasets.forEach((dataset, index) => {
+                    if (dataset.label !== '平均值') {
+                        charts.tsIpu.setDatasetVisibility(index, show);
+                    }
+                });
+                charts.tsIpu.update();
+            }
+        }
+
+        function updateCompletionChart() { /* 更新通关率图表 */ }
+        function updateWaveFailureChart() { /* 更新波次失败图表 */ }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

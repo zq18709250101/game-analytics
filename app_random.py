@@ -172,6 +172,15 @@ def generate_random_data_for_date(date_str):
         'non_core_actions_pct': round(random.uniform(25, 40), 1)
     }
     
+    # 17. 战力分层分布数据
+    power_distribution = [
+        {'tier': '新手(0-1000)', 'users': round(random.uniform(25, 35), 1), 'color': '#95a5a6'},
+        {'tier': '初级(1000-3000)', 'users': round(random.uniform(28, 38), 1), 'color': '#3498db'},
+        {'tier': '中级(3000-6000)', 'users': round(random.uniform(18, 28), 1), 'color': '#2ecc71'},
+        {'tier': '高级(6000-10000)', 'users': round(random.uniform(8, 15), 1), 'color': '#f39c12'},
+        {'tier': '专家(10000+)', 'users': round(random.uniform(3, 8), 1), 'color': '#e74c3c'}
+    ]
+    
     # 重置随机种子
     random.seed()
     
@@ -192,7 +201,8 @@ def generate_random_data_for_date(date_str):
         'video_trend': video_trend,
         'revenue_structure': revenue_structure,
         'user_video_segments': user_video_segments,
-        'core_user_contribution': core_user_contribution
+        'core_user_contribution': core_user_contribution,
+        'power_distribution': power_distribution
     }
 
 def get_data_for_date(date_str):
@@ -319,6 +329,11 @@ def api_user_video_segments():
 def api_core_user_contribution():
     date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
     return jsonify(get_data_for_date(date_str)['core_user_contribution'])
+
+@app.route('/api/power_distribution')
+def api_power_distribution():
+    date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    return jsonify(get_data_for_date(date_str)['power_distribution'])
 
 # ========== 时间序列分析 API ==========
 
