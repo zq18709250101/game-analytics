@@ -8,6 +8,52 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; }
+        
+        /* Switch开关样式 */
+        .switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+        .switch .slider {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 24px;
+            transition: 0.3s;
+            flex-shrink: 0;
+        }
+        .switch .slider:before {
+            content: "";
+            position: absolute;
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .switch input:checked + .slider {
+            background-color: #4CAF50;
+        }
+        .switch input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .switch .switch-label {
+            margin-left: 8px;
+            font-size: 14px;
+            white-space: nowrap;
+        }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; text-align: center; }
         .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
         .header p { opacity: 0.9; font-size: 0.95rem; }
@@ -97,10 +143,10 @@
                         <option value="60">60天留存</option>
                         <option value="90">90天留存</option>
                     </select>
-                    <label class="switch" style="margin-left: 10px; display: inline-flex; align-items: center; cursor: pointer;">
+                    <label class="switch" style="margin-left: 10px;">
                         <input type="checkbox" id="retentionToggle" checked onchange="toggleAllRetentionSwitch(this)">
-                        <span class="slider" style="position: relative; display: inline-block; width: 50px; height: 24px; background-color: #667eea; border-radius: 24px; transition: 0.3s;"></span>
-                        <span style="margin-left: 8px; font-size: 14px;">显示全部</span>
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
                     </label>
                 </div>
                 <div class="chart-container"><canvas id="tsRetentionChart"></canvas></div>
@@ -120,10 +166,10 @@
                         <option value="60">60天IPU</option>
                         <option value="90">90天IPU</option>
                     </select>
-                    <label class="switch" style="margin-left: 10px; display: inline-flex; align-items: center; cursor: pointer;">
+                    <label class="switch" style="margin-left: 10px;">
                         <input type="checkbox" id="ipuToggle" checked onchange="toggleAllIpuSwitch(this)">
-                        <span class="slider" style="position: relative; display: inline-block; width: 50px; height: 24px; background-color: #667eea; border-radius: 24px; transition: 0.3s;"></span>
-                        <span style="margin-left: 8px; font-size: 14px;">显示全部</span>
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
                     </label>
                 </div>
                 <div class="chart-container"><canvas id="tsIpuChart"></canvas></div>
@@ -133,8 +179,19 @@
             <!-- P1-3: 关键留存点对比 -->
             <div class="chart-card full-width" data-dimension="timeseries">
                 <h3>关键留存点对比 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="keyRetentionChartType" onchange="onKeyRetentionChartTypeChange()">
+                        <option value="bar">柱状图</option>
+                        <option value="line">折线图</option>
+                    </select>
+                    <label class="switch" id="keyRetentionSwitchContainer" style="margin-left: 15px;">
+                        <input type="checkbox" id="keyRetentionSwitch" onchange="toggleKeyRetentionSwitch(this)">
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
+                    </label>
+                </div>
                 <div class="chart-container"><canvas id="tsKeyRetentionChart"></canvas></div>
-                <div class="insight-box"><h4>关键节点</h4><ul><li>次日/3日/7日/14日/30日/60日留存对比</li></ul></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同注册日期的关键留存点表现</li><li>柱状图：X轴为注册日期，鼠标悬停显示下降倍率（首个/最后数据柱，倍率越大下降越快）</li><li>折线图：X轴为留存节点，观察留存衰减趋势</li><li>健康标准：次日留存>40%，7日留存>20%，30日留存>10%</li></ul></div>
             </div>
 
             <!-- P1-4: 关键IPU点对比 -->
@@ -461,8 +518,10 @@
                 // 渲染留存曲线和IPU曲线
                 updateRetentionCurve();
                 updateIpuCurve();
-            } catch (error) { 
-                console.error('加载时间序列数据失败:', error); 
+                // 加载关键留存点对比图表
+                updateKeyRetentionChart();
+            } catch (error) {
+                console.error('加载时间序列数据失败:', error);
             }
         }
 
@@ -727,6 +786,242 @@
 
         function updateCompletionChart() { /* 更新通关率图表 */ }
         function updateWaveFailureChart() { /* 更新波次失败图表 */ }
+
+        // 加载关键留存点对比图表（柱状图+折线图）
+        async function loadRetentionKeypointsChart() {
+            const startDate = document.getElementById('tsStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('tsEndDate').value.replace(/-/g, '');
+
+            try {
+                const response = await fetch(`/api/retention_keypoints_table?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                renderRetentionKeypointsChart(data.data);
+            } catch (error) {
+                console.error('加载留存关键点图表失败:', error);
+            }
+        }
+
+        // 关键留存点配置
+        const keyRetentionPoints = [
+            { key: 'd1_rate', label: '1日', color: '#667eea', defaultShow: true },
+            { key: 'd2_rate', label: '2日', color: '#764ba2', defaultShow: true },
+            { key: 'd3_rate', label: '3日', color: '#f093fb', defaultShow: true },
+            { key: 'd7_rate', label: '7日', color: '#f5576c', defaultShow: true },
+            { key: 'd14_rate', label: '14日', color: '#4facfe', defaultShow: true },
+            { key: 'd30_rate', label: '30日', color: '#00f2fe', defaultShow: true },
+            { key: 'd45_rate', label: '45日', color: '#43e97b', defaultShow: false },
+            { key: 'd60_rate', label: '60日', color: '#38f9d7', defaultShow: false },
+            { key: 'd75_rate', label: '75日', color: '#fa709a', defaultShow: false },
+            { key: 'd90_rate', label: '90日', color: '#fee140', defaultShow: false }
+        ];
+
+        // 渲染关键留存点对比图表（支持柱状图和折线图切换）
+        function renderRetentionKeypointsChart(data, showAll = false, chartType = 'bar') {
+            const ctx = document.getElementById('tsKeyRetentionChart').getContext('2d');
+            if (charts.tsKeyRetention) charts.tsKeyRetention.destroy();
+
+            // 计算数据最大值用于动态Y轴
+            let maxValue = 0;
+            keyRetentionPoints.forEach(point => {
+                data.forEach(d => {
+                    const val = d[point.key] || 0;
+                    if (val > maxValue) maxValue = val;
+                });
+            });
+            const yAxisMax = Math.min(100, Math.ceil((maxValue * 1.1) / 5) * 5);
+
+            let labels, datasets, xTitle;
+
+            if (chartType === 'bar') {
+                // 柱状图：X轴为注册日期，每个日期多个留存点
+                const dates = data.map(d => d.register_date);
+                labels = dates;
+                xTitle = '注册日期';
+
+                datasets = keyRetentionPoints.map(point => ({
+                    label: point.label,
+                    data: data.map(d => d[point.key] || 0),
+                    backgroundColor: point.color,
+                    borderColor: point.color,
+                    borderWidth: 1,
+                    hidden: !showAll && !point.defaultShow
+                }));
+            } else {
+                // 折线图：X轴为留存点，每个注册日期一条线
+                labels = keyRetentionPoints.map(p => p.label);
+                xTitle = '留存节点';
+
+                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b'];
+
+                datasets = data.map((row, index) => ({
+                    label: row.register_date,
+                    data: keyRetentionPoints.map(point => {
+                        const val = row[point.key];
+                        return (showAll || point.defaultShow) ? (val || 0) : null;
+                    }),
+                    borderColor: colors[index % colors.length],
+                    backgroundColor: colors[index % colors.length] + '20',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    spanGaps: false
+                }));
+            }
+
+            charts.tsKeyRetention = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (item) => `${item.dataset.label}: ${item.raw != null ? item.raw.toFixed(2) : '-'}%`,
+                                afterBody: (tooltipItems) => {
+                                    // 动态获取当前图表实例
+                                    const chart = charts.tsKeyRetention;
+                                    if (!chart || !chart.data || !chart.data.datasets) return '';
+                                    
+                                    // 只在柱状图时显示下降倍率
+                                    if (chart.config.type !== 'bar') return '';
+                                    
+                                    const dataIndex = tooltipItems[0].dataIndex;
+                                    const dataRow = data[dataIndex];
+                                    
+                                    // 动态获取当前图表实例中实际可见的数据集
+                                    const visibleIndices = [];
+                                    for (let idx = 0; idx < chart.data.datasets.length; idx++) {
+                                        const meta = chart.getDatasetMeta(idx);
+                                        // Chart.js中，hidden属性在data中是undefined表示显示，true表示隐藏
+                                        // 或者在dataset中直接设置hidden: true
+                                        const isHidden = meta.hidden === true || chart.data.datasets[idx].hidden === true;
+                                        if (!isHidden) {
+                                            visibleIndices.push(idx);
+                                        }
+                                    }
+                                    
+                                    if (visibleIndices.length < 2) {
+                                        return '\n下降倍率: -';
+                                    }
+                                    
+                                    const firstIdx = visibleIndices[0];
+                                    const lastIdx = visibleIndices[visibleIndices.length - 1];
+                                    const firstKey = keyRetentionPoints[firstIdx]?.key;
+                                    const lastKey = keyRetentionPoints[lastIdx]?.key;
+                                    
+                                    if (!firstKey || !lastKey) {
+                                        return '\n下降倍率: -';
+                                    }
+                                    
+                                    const firstVal = dataRow[firstKey];
+                                    const lastVal = dataRow[lastKey];
+                                    
+                                    if (!firstVal || !lastVal || lastVal === 0) {
+                                        return '\n下降倍率: -';
+                                    }
+                                    
+                                    // 下降倍率 = 首个数据柱 / 最后数据柱（越大表示下降越快）
+                                    const ratio = (firstVal / lastVal).toFixed(2);
+                                    return `\n下降倍率: ${ratio}x`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: xTitle }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: yAxisMax,
+                            title: { display: true, text: '留存率(%)' },
+                            ticks: { callback: value => value + '%' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 图表类型切换时控制Switch显示/隐藏
+        function onKeyRetentionChartTypeChange() {
+            const chartType = document.getElementById('keyRetentionChartType')?.value || 'bar';
+            const switchContainer = document.getElementById('keyRetentionSwitchContainer');
+            
+            if (chartType === 'line') {
+                // 折线图时隐藏Switch
+                if (switchContainer) switchContainer.style.display = 'none';
+            } else {
+                // 柱状图时显示Switch
+                if (switchContainer) switchContainer.style.display = 'inline-flex';
+            }
+            
+            updateKeyRetentionChart();
+        }
+
+        // Switch开关控制显示/隐藏
+        function toggleKeyRetentionSwitch(checkbox) {
+            updateKeyRetentionChart();
+        }
+
+        // 计算下降倍率（当前图表上实际显示的最后/首个数据柱）
+        function calculateDeclineRatio(dataRow, chartInstance) {
+            if (!chartInstance || !chartInstance.data || !chartInstance.data.datasets) return null;
+            
+            // 获取当前实际显示的数据集索引
+            const visibleDatasetIndices = [];
+            chartInstance.data.datasets.forEach((dataset, index) => {
+                if (!chartInstance.getDatasetMeta(index).hidden) {
+                    visibleDatasetIndices.push(index);
+                }
+            });
+            
+            if (visibleDatasetIndices.length < 2) return null;
+            
+            // 获取第一个和最后一个可见数据点的key
+            const firstIndex = visibleDatasetIndices[0];
+            const lastIndex = visibleDatasetIndices[visibleDatasetIndices.length - 1];
+            const firstKey = keyRetentionPoints[firstIndex]?.key;
+            const lastKey = keyRetentionPoints[lastIndex]?.key;
+            
+            if (!firstKey || !lastKey) return null;
+            
+            const firstVal = dataRow[firstKey];
+            const lastVal = dataRow[lastKey];
+            
+            if (!firstVal || !lastVal || firstVal === 0) return null;
+            return (lastVal / firstVal).toFixed(2);
+        }
+
+        // 更新关键留存点图表
+        async function updateKeyRetentionChart() {
+            const startDate = document.getElementById('tsStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('tsEndDate').value.replace(/-/g, '');
+            const showAll = document.getElementById('keyRetentionSwitch')?.checked || false;
+            const chartType = document.getElementById('keyRetentionChartType')?.value || 'bar';
+
+            try {
+                const response = await fetch(`/api/retention_keypoints_table?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                renderRetentionKeypointsChart(data.data, showAll, chartType);
+            } catch (error) {
+                console.error('加载留存关键点图表失败:', error);
+            }
+        }
 
         window.onload = init;
     </script>

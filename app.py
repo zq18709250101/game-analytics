@@ -313,13 +313,15 @@ def api_ipu_curve():
         cursor = conn.cursor()
         
         # 从物化视图查询IPU数据（包含注册当天day_num=0）
+        # IPU = 广告观看次数 / 活跃用户数（而不是总用户数）
         cursor.execute("""
             SELECT 
                 register_date,
                 day_num,
                 total_users,
+                active_users,
                 ad_views,
-                ROUND(COALESCE(ad_views, 0) * 1.0 / total_users, 2) as ipu
+                ROUND(COALESCE(ad_views, 0) * 1.0 / CASE WHEN active_users > 0 THEN active_users ELSE total_users END, 2) as ipu
             FROM mv_daily_metrics
             WHERE register_date >= ? 
             AND register_date <= ?
@@ -334,14 +336,92 @@ def api_ipu_curve():
                 'register_date': row[0],
                 'day_num': row[1],
                 'total_users': row[2],
-                'ad_views': row[3],
-                'ipu': row[4]
+                'active_users': row[3],
+                'ad_views': row[4],
+                'ipu': row[5]
             })
         
         conn.close()
         
         return jsonify({
             'range_days': range_days,
+            'start_date': start_date,
+            'end_date': end_date,
+            'data': result_data
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 关键留存点对比表格API
+@app.route('/api/retention_keypoints_table')
+def api_retention_keypoints_table():
+    """
+    关键留存点对比表格
+    
+    参数：
+    - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
+    - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
+    """
+    try:
+        start_date = request.args.get('start_date', '20260110', type=str)
+        end_date = request.args.get('end_date', '20260116', type=str)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                register_date,
+                MAX(CASE WHEN day_num = 0 THEN total_users END) as total_users,
+                ROUND(MAX(CASE WHEN day_num = 1 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d1_rate,
+                ROUND(MAX(CASE WHEN day_num = 2 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d2_rate,
+                ROUND(MAX(CASE WHEN day_num = 3 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d3_rate,
+                ROUND(MAX(CASE WHEN day_num = 7 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d7_rate,
+                ROUND(MAX(CASE WHEN day_num = 14 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d14_rate,
+                ROUND(MAX(CASE WHEN day_num = 30 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d30_rate,
+                ROUND(MAX(CASE WHEN day_num = 45 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d45_rate,
+                ROUND(MAX(CASE WHEN day_num = 60 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d60_rate,
+                ROUND(MAX(CASE WHEN day_num = 75 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d75_rate,
+                ROUND(MAX(CASE WHEN day_num = 90 THEN active_users END) * 100.0 / 
+                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d90_rate
+            FROM mv_daily_metrics
+            WHERE day_num IN (0, 1, 2, 3, 7, 14, 30, 45, 60, 75, 90)
+                AND register_date >= ?
+                AND register_date <= ?
+            GROUP BY register_date
+            ORDER BY register_date
+        """, (start_date, end_date))
+        
+        result_data = []
+        for row in cursor.fetchall():
+            result_data.append({
+                'register_date': row[0],
+                'total_users': row[1],
+                'd1_rate': row[2],
+                'd2_rate': row[3],
+                'd3_rate': row[4],
+                'd7_rate': row[5],
+                'd14_rate': row[6],
+                'd30_rate': row[7],
+                'd45_rate': row[8],
+                'd60_rate': row[9],
+                'd75_rate': row[10],
+                'd90_rate': row[11]
+            })
+        
+        conn.close()
+        
+        return jsonify({
             'start_date': start_date,
             'end_date': end_date,
             'data': result_data
