@@ -602,8 +602,8 @@
             }));
             
             // 计算平均值曲线
-            // day_num 0=注册当天(第1天), 1=第2天, 2=第3天...
-            const labels = groupedData[Object.keys(groupedData)[0]]?.map(d => `第${d.day + 1}天`) || [];
+            // API返回的day已经是实际天数（从2开始）
+            const labels = groupedData[Object.keys(groupedData)[0]]?.map(d => `第${d.day}天`) || [];
             const avgData = [];
             
             for (let i = 0; i < labels.length; i++) {
@@ -661,6 +661,13 @@
                         }
                     },
                     scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        },
                         y: {
                             beginAtZero: true,
                             max: yAxisMax,
@@ -715,8 +722,8 @@
             }));
             
             // 计算平均值曲线
-            // day_num 0=注册当天(第1天), 1=第2天, 2=第3天...
-            const labels = groupedData[Object.keys(groupedData)[0]]?.map(d => `第${d.day + 1}天`) || [];
+            // API返回的day已经是实际天数
+            const labels = groupedData[Object.keys(groupedData)[0]]?.map(d => `第${d.day}天`) || [];
             const avgData = [];
             
             for (let i = 0; i < labels.length; i++) {
@@ -773,6 +780,13 @@
                         }
                     },
                     scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        },
                         y: {
                             beginAtZero: true,
                             max: yAxisMax,

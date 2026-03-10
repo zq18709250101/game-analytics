@@ -204,12 +204,12 @@ def api_retention_curve():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 步骤1：选择要分析的注册日期
+        # 步骤1：从物化视图选择要分析的注册日期
         cursor.execute("""
-            SELECT DISTINCT activeday as register_date
-            FROM tt_bfnly_user
-            WHERE activeday >= ? AND activeday <= ?
-            ORDER BY activeday
+            SELECT DISTINCT register_date
+            FROM mv_daily_metrics
+            WHERE register_date >= ? AND register_date <= ?
+            ORDER BY register_date
             LIMIT 7
         """, (start_date, end_date))
         
@@ -224,15 +224,15 @@ def api_retention_curve():
                 'data': []
             })
         
-        # 步骤2：计算每个注册日期的总用户数
+        # 步骤2：从物化视图获取每个注册日期的总用户数
         placeholders = ','.join('?' * len(target_dates))
         cursor.execute(f"""
             SELECT 
-                activeday as register_date,
-                COUNT(DISTINCT openid) as total_users
-            FROM tt_bfnly_user
-            WHERE activeday IN ({placeholders})
-            GROUP BY activeday
+                register_date,
+                MAX(total_users) as total_users
+            FROM mv_daily_metrics
+            WHERE register_date IN ({placeholders})
+            GROUP BY register_date
         """, target_dates)
         
         total_users_map = {row[0]: row[1] for row in cursor.fetchall()}
@@ -243,12 +243,12 @@ def api_retention_curve():
         for register_date in target_dates:
             retention_data[register_date] = {}
             
-            # 从物化视图查询该注册日期的留存数据（包含注册当天day_num=0）
+            # 从物化视图查询该注册日期的留存数据（从day2开始，day1留存率100%不需要显示）
             cursor.execute("""
                 SELECT day_num, total_users, active_users
                 FROM mv_daily_metrics
                 WHERE register_date = ?
-                AND day_num >= 0
+                AND day_num >= 2
                 AND day_num <= ?
                 ORDER BY day_num
             """, (register_date, retention_days))
@@ -260,12 +260,12 @@ def api_retention_curve():
         
         conn.close()
         
-        # 步骤4：组装结果
+        # 步骤4：组装结果（从day2开始，day1留存率固定100%不需要显示）
         result_data = []
         for register_date in target_dates:
             total_users = total_users_map.get(register_date, 0)
             
-            for day in range(1, retention_days + 1):
+            for day in range(2, retention_days + 1):
                 retained_users = retention_data.get(register_date, {}).get(day, 0)
                 retention_rate = (retained_users / total_users * 100) if total_users > 0 else 0
                 
@@ -696,4 +696,4 @@ def api_day1_comparison():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5029, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5030, host='0.0.0.0', threaded=True)
