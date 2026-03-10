@@ -357,8 +357,9 @@ def api_ipu_curve():
 @app.route('/api/retention_keypoints_table')
 def api_retention_keypoints_table():
     """
-    关键留存点对比表格
-    
+    关键留存点对比表格（不含首日）
+    留存点：2, 3, 7, 14, 30, 45, 60, 75, 90日（对应day_num: 2, 3, 8, 15, 31, 46, 61, 76, 91）
+
     参数：
     - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
     - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
@@ -366,67 +367,57 @@ def api_retention_keypoints_table():
     try:
         start_date = request.args.get('start_date', '20260110', type=str)
         end_date = request.args.get('end_date', '20260116', type=str)
-        
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
+        # 关键留存点对比（不含首日）
+        # 留存点：2, 3, 7, 14, 30, 45, 60, 75, 90日（对应day_num: 2, 3, 8, 15, 31, 46, 61, 76, 91）
         cursor.execute("""
-            SELECT 
+            SELECT
                 register_date,
-                MAX(CASE WHEN day_num = 0 THEN total_users END) as total_users,
-                ROUND(MAX(CASE WHEN day_num = 1 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d1_rate,
-                ROUND(MAX(CASE WHEN day_num = 2 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d2_rate,
-                ROUND(MAX(CASE WHEN day_num = 3 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d3_rate,
-                ROUND(MAX(CASE WHEN day_num = 7 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d7_rate,
-                ROUND(MAX(CASE WHEN day_num = 14 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d14_rate,
-                ROUND(MAX(CASE WHEN day_num = 30 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d30_rate,
-                ROUND(MAX(CASE WHEN day_num = 45 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d45_rate,
-                ROUND(MAX(CASE WHEN day_num = 60 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d60_rate,
-                ROUND(MAX(CASE WHEN day_num = 75 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d75_rate,
-                ROUND(MAX(CASE WHEN day_num = 90 THEN active_users END) * 100.0 / 
-                    NULLIF(MAX(CASE WHEN day_num = 0 THEN total_users END), 0), 2) as d90_rate
+                total_users,
+                MAX(CASE WHEN day_num = 2 THEN retention_rate END) as d2_retention,
+                MAX(CASE WHEN day_num = 3 THEN retention_rate END) as d3_retention,
+                MAX(CASE WHEN day_num = 8 THEN retention_rate END) as d7_retention,
+                MAX(CASE WHEN day_num = 15 THEN retention_rate END) as d14_retention,
+                MAX(CASE WHEN day_num = 31 THEN retention_rate END) as d30_retention,
+                MAX(CASE WHEN day_num = 46 THEN retention_rate END) as d45_retention,
+                MAX(CASE WHEN day_num = 61 THEN retention_rate END) as d60_retention,
+                MAX(CASE WHEN day_num = 76 THEN retention_rate END) as d75_retention,
+                MAX(CASE WHEN day_num = 91 THEN retention_rate END) as d90_retention
             FROM mv_daily_metrics
-            WHERE day_num IN (0, 1, 2, 3, 7, 14, 30, 45, 60, 75, 90)
+            WHERE day_num IN (2, 3, 8, 15, 31, 46, 61, 76, 91)
                 AND register_date >= ?
                 AND register_date <= ?
-            GROUP BY register_date
+            GROUP BY register_date, total_users
             ORDER BY register_date
         """, (start_date, end_date))
-        
+
         result_data = []
         for row in cursor.fetchall():
             result_data.append({
                 'register_date': row[0],
                 'total_users': row[1],
-                'd1_rate': row[2],
-                'd2_rate': row[3],
-                'd3_rate': row[4],
-                'd7_rate': row[5],
-                'd14_rate': row[6],
-                'd30_rate': row[7],
-                'd45_rate': row[8],
-                'd60_rate': row[9],
-                'd75_rate': row[10],
-                'd90_rate': row[11]
+                'd2_retention': row[2],
+                'd3_retention': row[3],
+                'd7_retention': row[4],
+                'd14_retention': row[5],
+                'd30_retention': row[6],
+                'd45_retention': row[7],
+                'd60_retention': row[8],
+                'd75_retention': row[9],
+                'd90_retention': row[10]
             })
-        
+
         conn.close()
-        
+
         return jsonify({
             'start_date': start_date,
             'end_date': end_date,
             'data': result_data
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -435,7 +426,8 @@ def api_retention_keypoints_table():
 def api_ipu_keypoints_table():
     """
     关键IPU点对比表格
-    
+    IPU点：1, 2, 3, 7, 14, 30, 45, 60, 75, 90日（对应day_num: 1, 2, 3, 8, 15, 31, 46, 61, 76, 91）
+
     参数：
     - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
     - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
@@ -443,42 +435,33 @@ def api_ipu_keypoints_table():
     try:
         start_date = request.args.get('start_date', '20260110', type=str)
         end_date = request.args.get('end_date', '20260116', type=str)
-        
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
+        # IPU点：1, 2, 3, 7, 14, 30, 45, 60, 75, 90日（对应day_num: 1, 2, 3, 8, 15, 31, 46, 61, 76, 91）
         cursor.execute("""
-            SELECT 
+            SELECT
                 register_date,
-                MAX(CASE WHEN day_num = 0 THEN total_users END) as total_users,
-                ROUND(MAX(CASE WHEN day_num = 0 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 0 THEN active_users END), 0), 2) as d1_ipu,
-                ROUND(MAX(CASE WHEN day_num = 1 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 1 THEN active_users END), 0), 2) as d2_ipu,
-                ROUND(MAX(CASE WHEN day_num = 2 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 2 THEN active_users END), 0), 2) as d3_ipu,
-                ROUND(MAX(CASE WHEN day_num = 7 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 7 THEN active_users END), 0), 2) as d7_ipu,
-                ROUND(MAX(CASE WHEN day_num = 14 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 14 THEN active_users END), 0), 2) as d14_ipu,
-                ROUND(MAX(CASE WHEN day_num = 30 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 30 THEN active_users END), 0), 2) as d30_ipu,
-                ROUND(MAX(CASE WHEN day_num = 45 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 45 THEN active_users END), 0), 2) as d45_ipu,
-                ROUND(MAX(CASE WHEN day_num = 60 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 60 THEN active_users END), 0), 2) as d60_ipu,
-                ROUND(MAX(CASE WHEN day_num = 75 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 75 THEN active_users END), 0), 2) as d75_ipu,
-                ROUND(MAX(CASE WHEN day_num = 90 THEN ad_views END) * 1.0 / 
-                      NULLIF(MAX(CASE WHEN day_num = 90 THEN active_users END), 0), 2) as d90_ipu
+                total_users,
+                MAX(CASE WHEN day_num = 1 THEN ipu END) as d1_ipu,
+                MAX(CASE WHEN day_num = 2 THEN ipu END) as d2_ipu,
+                MAX(CASE WHEN day_num = 3 THEN ipu END) as d3_ipu,
+                MAX(CASE WHEN day_num = 8 THEN ipu END) as d7_ipu,
+                MAX(CASE WHEN day_num = 15 THEN ipu END) as d14_ipu,
+                MAX(CASE WHEN day_num = 31 THEN ipu END) as d30_ipu,
+                MAX(CASE WHEN day_num = 46 THEN ipu END) as d45_ipu,
+                MAX(CASE WHEN day_num = 61 THEN ipu END) as d60_ipu,
+                MAX(CASE WHEN day_num = 76 THEN ipu END) as d75_ipu,
+                MAX(CASE WHEN day_num = 91 THEN ipu END) as d90_ipu
             FROM mv_daily_metrics
-            WHERE day_num IN (0, 1, 2, 7, 14, 30, 45, 60, 75, 90)
+            WHERE day_num IN (1, 2, 3, 8, 15, 31, 46, 61, 76, 91)
                 AND register_date >= ?
                 AND register_date <= ?
-            GROUP BY register_date
+            GROUP BY register_date, total_users
             ORDER BY register_date
         """, (start_date, end_date))
-        
+
         result_data = []
         for row in cursor.fetchall():
             result_data.append({
@@ -495,15 +478,15 @@ def api_ipu_keypoints_table():
                 'd75_ipu': row[10],
                 'd90_ipu': row[11]
             })
-        
+
         conn.close()
-        
+
         return jsonify({
             'start_date': start_date,
             'end_date': end_date,
             'data': result_data
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -557,42 +540,47 @@ def api_day1_users():
 @app.route('/api/day_comparison_table')
 def api_day_comparison_table():
     """
-    日期对比表格
-    
+    日期对比表格（多日留存、IPU、看广率对比）
+    返回每个注册日期的每日留存、IPU、看广率
+
     参数：
     - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
     - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
-    - time_span: 时间跨度（可选值：7,14,30,45,60,75,90，默认7）
+    - max_days: 最大天数（可选值：7,14,30,45,60,75,90，默认30）
     """
     try:
         start_date = request.args.get('start_date', '20260110', type=str)
         end_date = request.args.get('end_date', '20260116', type=str)
-        time_span = request.args.get('time_span', 7, type=int)
-        
-        # 验证时间跨度参数
-        valid_spans = [7, 14, 30, 45, 60, 75, 90]
-        if time_span not in valid_spans:
-            time_span = 7
-        
+        max_days = request.args.get('max_days', 30, type=int)
+
+        # 验证max_days参数
+        valid_days = [7, 14, 30, 45, 60, 75, 90]
+        if max_days not in valid_days:
+            max_days = 30
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # 查询每个注册日期的详细数据
+
+        # 日期对比表格（多日留存、IPU、看广率对比）
+        # 返回每个注册日期的每日留存、IPU、看广率
         cursor.execute("""
-            SELECT 
+            SELECT
                 register_date,
                 day_num,
                 total_users,
                 active_users,
-                ad_views
+                retention_rate,
+                ipu,
+                ad_view_rate,
+                ad_views,
+                users_with_ad
             FROM mv_daily_metrics
             WHERE register_date >= ?
                 AND register_date <= ?
-                AND day_num >= 0
                 AND day_num <= ?
             ORDER BY register_date, day_num
-        """, (start_date, end_date, time_span))
-        
+        """, (start_date, end_date, max_days))
+
         # 按注册日期组织数据
         result_data = {}
         for row in cursor.fetchall():
@@ -600,34 +588,38 @@ def api_day_comparison_table():
             day_num = row[1]
             total_users = row[2]
             active_users = row[3]
-            ad_views = row[4]
-            
+            retention_rate = row[4]
+            ipu = row[5]
+            ad_view_rate = row[6]
+            ad_views = row[7]
+            users_with_ad = row[8]
+
             if register_date not in result_data:
                 result_data[register_date] = {
                     'register_date': register_date,
                     'total_users': total_users,
-                    'metrics': {}
+                    'metrics': []
                 }
-            
-            # 计算各项指标
-            # IPU = 广告观看次数 / 活跃用户数（不是总用户数）
-            ipu = round(ad_views / active_users, 2) if active_users > 0 else 0
-            retention_rate = round(active_users * 100.0 / total_users, 2) if total_users > 0 else 0
-            
-            result_data[register_date]['metrics'][day_num] = {
+
+            result_data[register_date]['metrics'].append({
+                'day_num': day_num,
+                'active_users': active_users,
+                'retention_rate': retention_rate,
                 'ipu': ipu,
-                'retention_rate': retention_rate
-            }
-        
+                'ad_view_rate': ad_view_rate,
+                'ad_views': ad_views,
+                'users_with_ad': users_with_ad
+            })
+
         conn.close()
-        
+
         return jsonify({
             'start_date': start_date,
             'end_date': end_date,
-            'time_span': time_span,
+            'max_days': max_days,
             'data': list(result_data.values())
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -636,7 +628,10 @@ def api_day_comparison_table():
 def api_day1_comparison():
     """
     首日数据对比（多线折线图）
-    
+    指标：用户数、IPU、看广率、次日留存
+    day_num = 1: 首日数据
+    day_num = 2: 次日留存
+
     参数：
     - start_date: 注册日期起始（格式：YYYYMMDD，默认20260110）
     - end_date: 注册日期结束（格式：YYYYMMDD，默认20260116）
@@ -644,56 +639,50 @@ def api_day1_comparison():
     try:
         start_date = request.args.get('start_date', '20260110', type=str)
         end_date = request.args.get('end_date', '20260116', type=str)
-        
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # 查询首日数据（day_num=1）和次日留存（day_num=1的留存，即次日留存）
+
+        # 首日数据对比（用户数、IPU、看广率、次日留存）
+        # day_num = 1: 首日数据
+        # day_num = 2: 次日留存
         cursor.execute("""
-            SELECT 
-                r1.register_date,
-                r1.total_users as day1_users,
-                r1.ad_views as day1_ad_views,
-                r1.active_users as d1_active_users
-            FROM mv_daily_metrics r1
-            WHERE r1.day_num = 1
-                AND r1.register_date >= ?
-                AND r1.register_date <= ?
-            ORDER BY r1.register_date
+            SELECT
+                m1.register_date,
+                m1.total_users as first_day_users,
+                m1.ipu as first_day_ipu,
+                m1.ad_view_rate as first_day_ad_rate,
+                m2.retention_rate as d2_retention
+            FROM mv_daily_metrics m1
+            LEFT JOIN mv_daily_metrics m2
+                ON m1.register_date = m2.register_date
+                AND m2.day_num = 2
+            WHERE m1.day_num = 1
+                AND m1.register_date >= ?
+                AND m1.register_date <= ?
+            ORDER BY m1.register_date
         """, (start_date, end_date))
-        
+
         result_data = []
         for row in cursor.fetchall():
-            register_date = row[0]
-            day1_users = row[1]
-            day1_ad_views = row[2]
-            d1_active_users = row[3]
-            
-            # 计算各项指标
-            day1_ipu = round(day1_ad_views / day1_users, 2) if day1_users > 0 else 0
-            # 看广率估算：假设每个用户至少看1次广告，用IPU作为看广率的参考
-            day1_watch_rate = round(day1_ipu * 10, 2) if day1_ipu > 0 else 0  # 估算值
-            # 次日留存 = day_num=1的活跃用户 / 总用户数
-            d2_retention = round(d1_active_users * 100.0 / day1_users, 2) if day1_users > 0 else 0
-            
             result_data.append({
-                'register_date': register_date,
-                'day1_users': day1_users,
-                'day1_ipu': day1_ipu,
-                'day1_watch_rate': min(day1_watch_rate, 100),  # 限制最大100%
-                'd2_retention': d2_retention
+                'register_date': row[0],
+                'day1_users': row[1],
+                'day1_ipu': row[2],
+                'day1_watch_rate': row[3],
+                'd2_retention': row[4]
             })
-        
+
         conn.close()
-        
+
         return jsonify({
             'start_date': start_date,
             'end_date': end_date,
             'data': result_data
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5030, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5041, host='0.0.0.0', threaded=True)
