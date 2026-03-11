@@ -133,6 +133,20 @@
                 <span class="chart-count">8个图表</span>
             </div>
 
+            <!-- P0-0: 首日数据对比 -->
+            <div class="chart-card full-width" data-dimension="timeseries">
+                <h3>首日数据对比 <span class="priority p0">P0</span></h3>
+                <div class="chart-selector">
+                    <label class="switch">
+                        <input type="checkbox" id="day1ComparisonToggle" checked onchange="toggleDay1ComparisonSwitch(this)">
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
+                    </label>
+                </div>
+                <div class="chart-container"><canvas id="tsDay1ComparisonChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>多线折线图对比首日用户数、首日IPU、首日看广率、次日留存</li><li>识别首日数据异常和趋势</li></ul></div>
+            </div>
+
             <!-- P0-1: 多日留存对比曲线 -->
             <div class="chart-card" data-dimension="timeseries">
                 <h3>多日留存对比曲线 <span class="priority p0">P0</span></h3>
@@ -222,20 +236,6 @@
                 <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同注册日期的首日活跃用户数</li><li>识别用户规模波动和推广效果</li></ul></div>
             </div>
 
-            <!-- P2-6: 首日数据对比 -->
-            <div class="chart-card full-width" data-dimension="timeseries">
-                <h3>首日数据对比 <span class="priority p2">P2</span></h3>
-                <div class="chart-selector">
-                    <label class="switch">
-                        <input type="checkbox" id="day1ComparisonToggle" checked onchange="toggleDay1ComparisonSwitch(this)">
-                        <span class="slider"></span>
-                        <span class="switch-label">显示全部</span>
-                    </label>
-                </div>
-                <div class="chart-container"><canvas id="tsDay1ComparisonChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>多线折线图对比首日用户数、首日IPU、首日看广率、次日留存</li><li>识别首日数据异常和趋势</li></ul></div>
-            </div>
-
             <!-- P3-8: 日期对比表格 -->
             <div class="chart-card full-width" data-dimension="timeseries">
                 <h3>日期对比表格 <span class="priority p3">P3</span></h3>
@@ -268,31 +268,133 @@
             </div>
 
             <!-- P0-9: 累计渗透率趋势图 -->
-            <div class="chart-card" data-dimension="penetration">
+            <div class="chart-card full-width" data-dimension="penetration">
                 <h3>累计渗透率趋势图 <span class="priority p0">P0</span></h3>
+                <div class="chart-selector">
+                    <!-- 树形多选下拉框 -->
+                    <div class="tree-selector-wrapper" style="display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap;">
+                        <div class="tree-dropdown-container" style="position: relative; min-width: 250px;">
+                            <div class="tree-dropdown-trigger" onclick="toggleTreeDropdown(event)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                                <span id="treeDropdownText">普通1,困难1,地狱1,副本1</span>
+                                <span style="color: #999;">▼</span>
+                            </div>
+                            <div id="treeDropdownPanel" class="tree-dropdown-panel" onclick="event.stopPropagation()" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 350px; overflow-y: auto; z-index: 1000;">
+                                <!-- 树形结构动态生成 -->
+                            </div>
+                        </div>
+                        <!-- 天数选择 -->
+                        <div class="selector-group">
+                            <select id="penetrationDaySelect" onchange="updatePenetrationChart()" style="min-width: 80px; padding: 8px;">
+                                <option value="7">7天</option>
+                                <option value="14">14天</option>
+                                <option value="30" selected>30天</option>
+                                <option value="60">60天</option>
+                                <option value="90">90天</option>
+                            </select>
+                        </div>
+                        <!-- Switch开关：显示渗透率 -->
+                        <label class="switch">
+                            <input type="checkbox" id="penetrationToggle" checked onchange="updatePenetrationChart()">
+                            <span class="slider"></span>
+                            <span class="switch-label">显示渗透率</span>
+                        </label>
+                        <!-- Switch开关：显示波次 -->
+                        <label class="switch">
+                            <input type="checkbox" id="waveToggle" checked onchange="updatePenetrationChart()">
+                            <span class="slider"></span>
+                            <span class="switch-label">显示波次</span>
+                        </label>
+                        <!-- Switch开关：显示默认 -->
+                        <label class="switch">
+                            <input type="checkbox" id="defaultToggle" checked onchange="toggleDefaultLevels()">
+                            <span class="slider"></span>
+                            <span class="switch-label">显示默认</span>
+                        </label>
+                    </div>
+                </div>
                 <div class="chart-container"><canvas id="penetrationChart"></canvas></div>
-                <div class="insight-box"><h4>关键洞察</h4><ul><li>60日渗透率目标：>80%</li><li>前期增长快，后期趋于平稳</li></ul></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li><strong>平均最大波次逻辑：</strong>统计到达该关卡的玩家当日最深到达的平均波次。例如平均3.5波表示玩家平均推进到第3.5波，反映关卡内的渗透深度</li><li><strong>最大波次分布逻辑：</strong>各波次作为玩家当日最深到达的人数分布。例如第5波580人表示有580名玩家最深到达第5波，可用于识别具体波次的流失点</li><li><strong>点击查看分布：</strong>点击平均最大波次曲线上的点，可查看该关卡该日期的最大波次分布详情</li></ul></div>
             </div>
 
-            <!-- P1-10: 类别占比饼图 -->
+            <!-- 最大波次分布图子页面（弹窗） -->
+            <div id="waveDistModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+                <div style="background: white; border-radius: 12px; padding: 20px; width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 id="waveDistTitle" style="margin: 0; color: #333;">最大波次分布</h3>
+                        <button onclick="closeWaveDistModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+                    </div>
+                    <div id="waveDistContent" style="margin-bottom: 15px;">
+                        <!-- 分布图内容 -->
+                    </div>
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button onclick="closeWaveDistModal()" style="padding: 8px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">关闭</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- P1-10: 关卡类别进入占比 -->
             <div class="chart-card" data-dimension="penetration">
-                <h3>类别占比饼图 <span class="priority p1">P1</span></h3>
+                <h3>关卡类别进入占比 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="categoryDaySelect" onchange="updateCategoryChart()">
+                        <option value="1">1天</option>
+                        <option value="7" selected>7天</option>
+                        <option value="14">14天</option>
+                        <option value="30">30天</option>
+                    </select>
+                    <select id="categoryMetricSelect" onchange="updateCategoryChart()">
+                        <option value="enter_count" selected>进入次数占比</option>
+                        <option value="enter_user">进入人数占比</option>
+                    </select>
+                </div>
                 <div class="chart-container"><canvas id="categoryShareChart"></canvas></div>
                 <div class="insight-box"><h4>健康标准</h4><ul><li>普通：60%、困难：25%、地狱：10%、副本：5%</li></ul></div>
             </div>
 
-            <!-- P1-11: 解锁漏斗图 -->
+            <!-- P1-11: 解锁转化率分析 -->
             <div class="chart-card" data-dimension="penetration">
-                <h3>解锁转化漏斗 <span class="priority p1">P1</span></h3>
+                <h3>解锁转化率分析 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="unlockViewType" onchange="updateUnlockView()">
+                        <option value="funnel" selected>漏斗图</option>
+                        <option value="trend">趋势图</option>
+                    </select>
+                    <select id="unlockPathSelect" onchange="updateUnlockChart()">
+                        <option value="normal_hard_hell" selected>普通→困难→地狱</option>
+                        <option value="normal_hard">普通→困难</option>
+                        <option value="hard_hell">困难→地狱</option>
+                        <option value="normal_copy">普通→副本</option>
+                    </select>
+                    <select id="unlockDaySelect" onchange="updateUnlockChart()">
+                        <option value="7" selected>7天</option>
+                        <option value="14">14天</option>
+                        <option value="30">30天</option>
+                    </select>
+                </div>
                 <div class="chart-container"><canvas id="unlockFunnelChart"></canvas></div>
                 <div class="insight-box"><h4>转化目标</h4><ul><li>普通→困难：>40%、困难→地狱：>30%</li></ul></div>
             </div>
 
-            <!-- P2-12: 用户分布柱状图 -->
+            <!-- P2-12: 用户类别分布 -->
             <div class="chart-card" data-dimension="penetration">
-                <h3>用户分布柱状图 <span class="priority p2">P2</span></h3>
+                <h3>用户类别分布 <span class="priority p2">P2</span></h3>
+                <div class="chart-selector">
+                    <select id="userDistDaySelect" onchange="updateUserDistChart()">
+                        <option value="7" selected>7天</option>
+                        <option value="14">14天</option>
+                        <option value="30">30天</option>
+                    </select>
+                    <select id="userDistMetricSelect" onchange="updateUserDistChart()">
+                        <option value="user_pct" selected>用户占比</option>
+                        <option value="user_count">用户人数</option>
+                    </select>
+                    <select id="userDistChartType" onchange="updateUserDistChart()">
+                        <option value="bar" selected>柱状图</option>
+                        <option value="pie">饼图</option>
+                    </select>
+                </div>
                 <div class="chart-container"><canvas id="userDistChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>各关卡类别用户分布</li><li>识别用户偏好</li></ul></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>新手/普通/困难/地狱/副本玩家分布</li><li>识别用户分层结构</li></ul></div>
             </div>
 
             <!-- P2-13: 核心用户贡献对比 -->
@@ -447,6 +549,7 @@
         async function init() {
             document.getElementById('datePicker').value = currentDate;
             updateDateDisplay();
+            initPenetrationLevelSelect(); // 初始化关卡选择器
             switchDimension('timeseries');
         }
 
@@ -505,11 +608,25 @@
                 if (singlePicker) singlePicker.style.display = 'none';
                 if (rangePicker) rangePicker.style.display = 'flex';
                 validateAndLoadTimeSeries();
+            } else if (dimension === 'penetration') {
+                // 渗透维度也使用范围选择器（和时间序列相同）
+                if (singlePicker) singlePicker.style.display = 'none';
+                if (rangePicker) rangePicker.style.display = 'flex';
+                // 加载渗透维度图表
+                loadPenetrationCharts();
             } else {
                 if (singlePicker) singlePicker.style.display = 'flex';
                 if (rangePicker) rangePicker.style.display = 'none';
                 loadData(currentDate);
             }
+        }
+
+        // 加载渗透维度所有图表
+        async function loadPenetrationCharts() {
+            updatePenetrationChart();
+            updateCategoryChart();
+            updateUnlockChart();
+            updateUserDistChart();
         }
 
         // 图表渲染函数占位
@@ -1847,6 +1964,1009 @@
                 renderRetentionKeypointsChart(data.data, showAll, chartType);
             } catch (error) {
                 console.error('加载留存关键点图表失败:', error);
+            }
+        }
+
+        // ==================== 渗透维度图表函数（使用API数据）====================
+
+        // 图表1: 累计渗透率趋势图
+        // 关卡类别配置 - 关卡ID映射规则
+        // 普通: 1-100, 困难: 1001-1100, 地狱: 2001-2100, 副本: 10001-10100
+        const categoryConfig = {
+            'normal': { name: '普通', offset: 0, start: 1, end: 100 },
+            'hard': { name: '困难', offset: 1000, start: 1, end: 100 },
+            'hell': { name: '地狱', offset: 2000, start: 1, end: 100 },
+            'dungeon': { name: '副本', offset: 10000, start: 1, end: 100 }
+        };
+
+        // 将类别和关卡序号转换为实际关卡ID
+        function calculateLevelId(category, levelNum) {
+            const config = categoryConfig[category];
+            if (!config) return null;
+            return config.offset + parseInt(levelNum);
+        }
+
+        // 从实际关卡ID反解类别和关卡序号
+        // 注意：物化视图中存储的是类别内ID，需要结合level_type判断
+        function parseLevelId(levelId, levelType) {
+            const id = parseInt(levelId);
+            // 如果有level_type，直接使用
+            if (levelType) {
+                const typeMap = {
+                    '普通': 'normal',
+                    '困难': 'hard',
+                    '地狱': 'hell',
+                    '副本': 'dungeon'
+                };
+                return { 
+                    category: typeMap[levelType] || 'normal', 
+                    categoryName: levelType, 
+                    levelNum: id 
+                };
+            }
+            // 兼容旧格式（无level_type时）
+            if (id >= 10001 && id <= 10100) {
+                return { category: 'dungeon', categoryName: '副本', levelNum: id - 10000 };
+            } else if (id >= 2001 && id <= 2100) {
+                return { category: 'hell', categoryName: '地狱', levelNum: id - 2000 };
+            } else if (id >= 1001 && id <= 1100) {
+                return { category: 'hard', categoryName: '困难', levelNum: id - 1000 };
+            } else if (id >= 1 && id <= 100) {
+                return { category: 'normal', categoryName: '普通', levelNum: id };
+            }
+            return null;
+        }
+
+        // 全局存储已选关卡
+        let selectedLevelsGlobal = new Set();
+
+        // 存储展开状态 - 类别和分组
+        let expandedGroups = new Set();
+        let expandedLevelGroups = new Set();
+
+        // 渲染树形下拉框
+        function renderTreeDropdown() {
+            const panel = document.getElementById('treeDropdownPanel');
+            if (!panel) return;
+            
+            let html = '<div class="tree-content" style="padding: 8px 0;">';
+            
+            // 遍历所有类别
+            Object.entries(categoryConfig).forEach(([catKey, config]) => {
+                html += `<div class="tree-category" style="margin-bottom: 4px;">`;
+                
+                // 类别标题（带全选勾选）
+                const catLevels = [];
+                for (let i = config.start; i <= config.end; i++) {
+                    catLevels.push(`${config.name}-${i}`);  // 格式：类型-关卡ID
+                }
+                const catSelectedCount = catLevels.filter(l => selectedLevelsGlobal.has(l)).length;
+                const catAllSelected = catSelectedCount === catLevels.length && catLevels.length > 0;
+                
+                html += `<div class="tree-category-header" style="padding: 6px 12px; background: #f5f5f5; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleCategoryExpand('${catKey}')">`;
+                html += `<span style="width: 16px; display: inline-block;">${expandedGroups.has(catKey) ? '▼' : '▶'}</span>`;
+                html += `<input type="checkbox" ${catAllSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleCategoryAll('${catKey}')" style="cursor: pointer;">`;
+                html += `<span>${config.name}</span>`;
+                html += `<span style="color: #999; font-size: 11px; margin-left: auto;">${catSelectedCount}/${catLevels.length}</span>`;
+                html += `</div>`;
+                
+                // 分组和关卡（展开时显示）
+                if (expandedGroups.has(catKey)) {
+                    html += `<div class="tree-groups" style="padding-left: 12px;">`;
+                    
+                    // 每10关一组
+                    for (let start = config.start; start <= config.end; start += 10) {
+                        const end = Math.min(start + 9, config.end);
+                        const groupKey = `${catKey}_${start}`;
+                        const isGroupExpanded = expandedLevelGroups.has(groupKey);
+                        
+                        // 计算该组选中状态
+                        const groupLevels = [];
+                        for (let i = start; i <= end; i++) {
+                            groupLevels.push(`${config.name}-${i}`);  // 格式：类型-关卡ID
+                        }
+                        const groupSelectedCount = groupLevels.filter(l => selectedLevelsGlobal.has(l)).length;
+                        const groupAllSelected = groupSelectedCount === groupLevels.length && groupLevels.length > 0;
+                        
+                        html += `<div class="tree-group" style="margin: 2px 0;">`;
+                        
+                        // 分组标题（带展开/收缩箭头）
+                        html += `<div class="tree-group-header" style="padding: 4px 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="toggleLevelGroupExpand('${catKey}', ${start})" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">`;
+                        html += `<span style="width: 12px; display: inline-block; font-size: 10px;">${isGroupExpanded ? '▼' : '▶'}</span>`;
+                        html += `<input type="checkbox" ${groupAllSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleGroupAll('${catKey}', ${start}, ${end})" style="cursor: pointer;">`;
+                        html += `<span style="font-size: 12px; color: #666;">${start}-${end}关</span>`;
+                        html += `<span style="color: #999; font-size: 10px;">(${groupSelectedCount})</span>`;
+                        html += `</div>`;
+                        
+                        // 具体关卡（展开时显示，横向排列）
+                        if (isGroupExpanded) {
+                            html += `<div class="tree-levels" style="padding: 4px 12px 4px 32px; display: flex; flex-wrap: wrap; gap: 8px;">`;
+                            for (let i = start; i <= end; i++) {
+                                const levelKey = `${config.name}-${i}`;  // 格式：类型-关卡ID
+                                const isSelected = selectedLevelsGlobal.has(levelKey);
+                                html += `<label style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 3px; ${isSelected ? 'background: #e3f2fd;' : ''}" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='${isSelected ? '#e3f2fd' : 'transparent'}'">`;
+                                html += `<input type="checkbox" value="${levelKey}" ${isSelected ? 'checked' : ''} onchange="toggleLevel('${levelKey}')" style="cursor: pointer;">`;
+                                html += `<span>${i}</span>`;
+                                html += `</label>`;
+                            }
+                            html += `</div>`;
+                        }
+                        
+                        html += `</div>`;
+                    }
+                    
+                    html += `</div>`;
+                }
+                
+                html += `</div>`;
+            });
+            
+            html += '</div>';
+            panel.innerHTML = html;
+        }
+
+        // 切换下拉框显示
+        function toggleTreeDropdown(event) {
+            if (event) event.stopPropagation();
+            const panel = document.getElementById('treeDropdownPanel');
+            if (panel) {
+                const isHidden = panel.style.display === 'none';
+                panel.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    renderTreeDropdown();
+                }
+            }
+        }
+
+        // 切换类别展开
+        function toggleCategoryExpand(catCode) {
+            if (expandedGroups.has(catCode)) {
+                expandedGroups.delete(catCode);
+            } else {
+                expandedGroups.add(catCode);
+            }
+            renderTreeDropdown();
+        }
+
+        // 切换分组展开/收缩
+        function toggleLevelGroupExpand(catKey, start) {
+            const groupKey = `${catKey}_${start}`;
+            if (expandedLevelGroups.has(groupKey)) {
+                expandedLevelGroups.delete(groupKey);
+            } else {
+                expandedLevelGroups.add(groupKey);
+            }
+            renderTreeDropdown();
+        }
+
+        // 全选/取消全选某个类别的所有关卡
+        function toggleCategoryAll(catKey) {
+            const config = categoryConfig[catKey];
+            if (!config) return;
+            
+            const catLevels = [];
+            for (let i = config.start; i <= config.end; i++) {
+                catLevels.push(`${config.name}-${i}`);  // 格式：类型-关卡ID
+            }
+            
+            const catSelectedCount = catLevels.filter(l => selectedLevelsGlobal.has(l)).length;
+            const shouldSelect = catSelectedCount < catLevels.length;
+            
+            catLevels.forEach(levelKey => {
+                if (shouldSelect) {
+                    selectedLevelsGlobal.add(levelKey);
+                } else {
+                    selectedLevelsGlobal.delete(levelKey);
+                }
+            });
+            
+            renderTreeDropdown();
+            updateTreeDropdownText();
+            updatePenetrationChart();
+        }
+
+        // 全选/取消全选某个分组
+        function toggleGroupAll(catKey, start, end) {
+            const config = categoryConfig[catKey];
+            if (!config) return;
+            
+            const groupLevels = [];
+            for (let i = start; i <= end; i++) {
+                groupLevels.push(`${config.name}-${i}`);  // 格式：类型-关卡ID
+            }
+            
+            const groupSelectedCount = groupLevels.filter(l => selectedLevelsGlobal.has(l)).length;
+            const shouldSelect = groupSelectedCount < groupLevels.length;
+            
+            groupLevels.forEach(levelKey => {
+                if (shouldSelect) {
+                    selectedLevelsGlobal.add(levelKey);
+                } else {
+                    selectedLevelsGlobal.delete(levelKey);
+                }
+            });
+            
+            renderTreeDropdown();
+            updateTreeDropdownText();
+            updatePenetrationChart();
+        }
+
+        // 切换单个关卡选择
+        function toggleLevel(levelId) {
+            if (selectedLevelsGlobal.has(levelId)) {
+                selectedLevelsGlobal.delete(levelId);
+            } else {
+                selectedLevelsGlobal.add(levelId);
+            }
+            
+            renderTreeDropdown();
+            updateTreeDropdownText();
+            updatePenetrationChart();
+        }
+
+        // 更新下拉框显示文本
+        function updateTreeDropdownText() {
+            const textEl = document.getElementById('treeDropdownText');
+            if (!textEl) return;
+            
+            if (selectedLevelsGlobal.size === 0) {
+                textEl.textContent = '请选择关卡...';
+                return;
+            }
+            
+            // 按类别分组统计
+            const grouped = {};
+            selectedLevelsGlobal.forEach(levelId => {
+                // 从levelId中提取类型信息（格式：类型-ID）
+                const parts = levelId.split('-');
+                if (parts.length === 2) {
+                    const catName = parts[0];
+                    const levelNum = parseInt(parts[1]);
+                    if (!grouped[catName]) grouped[catName] = [];
+                    grouped[catName].push(levelNum);
+                } else {
+                    // 兼容旧格式
+                    const parsed = parseLevelId(levelId);
+                    if (parsed) {
+                        if (!grouped[parsed.categoryName]) grouped[parsed.categoryName] = [];
+                        grouped[parsed.categoryName].push(parsed.levelNum);
+                    }
+                }
+            });
+            
+            // 格式化显示
+            const parts = [];
+            for (const [catName, levels] of Object.entries(grouped)) {
+                levels.sort((a, b) => a - b);
+                // 简化显示：如果连续则显示范围
+                const ranges = [];
+                let start = levels[0];
+                let prev = levels[0];
+                
+                for (let i = 1; i <= levels.length; i++) {
+                    if (i === levels.length || levels[i] !== prev + 1) {
+                        if (start === prev) {
+                            ranges.push(start.toString());
+                        } else {
+                            ranges.push(`${start}-${prev}`);
+                        }
+                        if (i < levels.length) {
+                            start = levels[i];
+                            prev = levels[i];
+                        }
+                    } else {
+                        prev = levels[i];
+                    }
+                }
+                
+                parts.push(`${catName}${ranges.join(',')}`);
+            }
+            
+            const fullText = parts.join('; ');
+            textEl.textContent = fullText.length > 30 ? fullText.substring(0, 30) + '...' : fullText;
+            textEl.title = fullText;
+        }
+
+        // 点击外部关闭下拉框
+        document.addEventListener('click', function(e) {
+            const container = document.querySelector('.tree-dropdown-container');
+            const panel = document.getElementById('treeDropdownPanel');
+            if (container && panel && !container.contains(e.target)) {
+                panel.style.display = 'none';
+            }
+        });
+
+        // 初始化关卡选择器
+        function initPenetrationLevelSelect() {
+            // 默认选中普通1、困难1、地狱1、副本1
+            selectedLevelsGlobal = new Set([...defaultLevels]);
+            expandedGroups = new Set(['normal', 'hard', 'hell', 'dungeon']);
+            
+            renderTreeDropdown();
+            updateTreeDropdownText();
+            updatePenetrationChart();
+        }
+
+        async function updatePenetrationChart() {
+            const maxDays = parseInt(document.getElementById('penetrationDaySelect')?.value || 30);
+            const registerDateStart = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
+            const registerDateEnd = document.getElementById('tsEndDate')?.value?.replace(/-/g, '') || '20260116';
+            
+            // 获取选中的关卡，如果没有选中则不显示任何曲线
+            let levelsToShow = Array.from(selectedLevelsGlobal);
+            
+            // 如果没有选中任何关卡，清空图表
+            if (levelsToShow.length === 0) {
+                // 清空图表
+                const ctx = document.getElementById('penetrationChart')?.getContext('2d');
+                if (ctx && charts.penetration) {
+                    charts.penetration.destroy();
+                    charts.penetration = null;
+                }
+                updateTreeDropdownText();
+                return;
+            }
+
+            // 解析选中的关卡，构建类型+ID的查询参数
+            // 格式: 普通-1,普通-2,困难-1 等
+            const levelTypeIds = [];
+            
+            levelsToShow.forEach(levelKey => {
+                // levelKey格式: "普通-1"、"困难-5"等
+                const parts = levelKey.split('-');
+                if (parts.length === 2) {
+                    // 已经是正确格式，直接使用
+                    levelTypeIds.push(levelKey);
+                } else {
+                    // 兼容旧格式
+                    const parsed = parseLevelId(levelKey);
+                    if (parsed) {
+                        levelTypeIds.push(`${parsed.categoryName}-${parsed.levelNum}`);
+                    }
+                }
+            });
+
+            // 调用API获取真实数据
+            try {
+                // 使用level_type_ids参数传递类型+ID组合
+                let url = `/api/level_penetration_curve?register_date_start=${registerDateStart}&register_date_end=${registerDateEnd}&max_days=${maxDays}&compare_mode=multi`;
+                
+                if (levelTypeIds.length > 0) {
+                    url += `&level_type_ids=${encodeURIComponent(levelTypeIds.join(','))}`;
+                }
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.code === 0 && result.data) {
+                    renderPenetrationChart(result.data);
+                } else {
+                    console.error('API返回错误:', result.message);
+                    // 降级使用模拟数据
+                    const mockData = generateMockPenetrationData(levelsToShow, maxDays);
+                    renderPenetrationChart(mockData);
+                }
+            } catch (error) {
+                console.error('加载累计渗透率数据失败:', error);
+                // 降级使用模拟数据
+                const mockData = generateMockPenetrationData(levelsToShow, maxDays);
+                renderPenetrationChart(mockData);
+            }
+        }
+
+        // 生成模拟渗透率数据
+        function generateMockPenetrationData(levelIds, maxDays) {
+            const data = levelIds.map((levelId, index) => {
+                const levelData = [];
+                // 基础渗透率根据关卡序号递减
+                const baseRate = Math.max(10, 95 - index * 15);
+                
+                for (let day = 1; day <= maxDays; day++) {
+                    // 模拟S型增长曲线
+                    const growthFactor = 1 - Math.exp(-day / 10);
+                    const penetrationRate = Math.min(100, baseRate * growthFactor + Math.random() * 2);
+                    
+                    levelData.push({
+                        day_num: day,
+                        penetration_rate: parseFloat(penetrationRate.toFixed(2))
+                    });
+                }
+                
+                return {
+                    level_id: levelId,
+                    data: levelData
+                };
+            });
+            
+            return { data: data };
+        }
+
+        function renderPenetrationChart(responseData) {
+            const ctx = document.getElementById('penetrationChart')?.getContext('2d');
+            if (!ctx) {
+                console.error('Canvas context not found');
+                return;
+            }
+            
+            // 销毁旧图表
+            if (charts.penetration) {
+                charts.penetration.destroy();
+                charts.penetration = null;
+            }
+
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#fa709a', '#38f9d7', '#ffecd2'];
+            
+            // 支持两种数据格式：API返回的data.curves 或 模拟数据的data.data
+            let levelsToShow = [];
+            if (responseData.curves) {
+                levelsToShow = responseData.curves;
+            } else if (responseData.data) {
+                levelsToShow = responseData.data;
+            }
+            
+            console.log('Rendering chart with levels:', levelsToShow.length);
+            console.log('First level data:', levelsToShow[0]);
+            
+            if (!levelsToShow || levelsToShow.length === 0) {
+                console.warn('No levels to display');
+                return;
+            }
+
+            // 提取关卡类别和序号用于标签显示
+            const getLevelLabel = (levelId, levelType) => {
+                const parsed = parseLevelId(String(levelId), levelType);
+                if (parsed) {
+                    return `${parsed.categoryName}${parsed.levelNum}`;
+                }
+                return `关卡${levelId}`;
+            };
+
+            // 获取Switch开关状态
+            const showPenetration = document.getElementById('penetrationToggle')?.checked ?? true;
+            const showWave = document.getElementById('waveToggle')?.checked ?? true;
+            
+            // 为每个关卡创建曲线，根据开关控制显示
+            const datasets = [];
+            
+            levelsToShow.forEach((level, index) => {
+                const label = getLevelLabel(level.level_id, level.level_type);
+                const color = colors[index % colors.length];
+                
+                // 渗透率曲线 - 左Y轴（根据开关控制）
+                if (showPenetration) {
+                    const penetrationData = level.data ? level.data.map(d => d.penetration_rate || 0) : [];
+                    datasets.push({
+                        label: `${label}渗透率`,
+                        data: penetrationData,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        fill: false,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        yAxisID: 'y',
+                        order: 1
+                    });
+                }
+                
+                // 平均最大波次曲线 - 右Y轴（根据开关控制）
+                if (showWave) {
+                    const waveData = level.data ? level.data.map(d => d.avg_wave_num || 0) : [];
+                    datasets.push({
+                        label: `${label}平均最大波次`,
+                        data: waveData,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        fill: false,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        borderDash: [5, 5], // 虚线区分
+                        yAxisID: 'y1',
+                        order: 2
+                    });
+                }
+            });
+
+            const labels = levelsToShow[0]?.data?.map(d => `第${d.day_num}天`) || [];
+            
+            console.log('Chart datasets:', datasets.length);
+            console.log('Chart labels:', labels.length);
+
+            // 根据关卡数量决定是否显示图例（超过9关隐藏）
+            const showLegend = levelsToShow.length <= 9;
+
+            charts.penetration = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: showLegend,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 10,
+                                font: { size: 11 },
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (item) => {
+                                    const datasetLabel = item.dataset.label;
+                                    const value = item.raw;
+                                    if (datasetLabel.includes('渗透率')) {
+                                        return `${datasetLabel}: ${value}%`;
+                                    } else if (datasetLabel.includes('平均最大波次')) {
+                                        return `${datasetLabel}: ${value}波`;
+                                    } else {
+                                        return `${datasetLabel}: ${value}`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: '注册后天数' }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            title: { display: true, text: '累计渗透率(%)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            title: { display: true, text: '平均最大波次' },
+                            grid: {
+                                drawOnChartArea: false // 不绘制网格线，避免重叠
+                            }
+                        }
+                    },
+                    onClick: (e, elements, chart) => {
+                        // 获取点击位置的精确数据
+                        const points = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+                        
+                        if (points && points.length > 0) {
+                            const point = points[0];
+                            const datasetIndex = point.datasetIndex;
+                            const dataIndex = point.index;
+                            const dataset = chart.data.datasets[datasetIndex];
+                            
+                            console.log('Clicked dataset:', datasetIndex, 'label:', dataset?.label);
+                            
+                            // 严格检查：只处理平均最大波次曲线的点击
+                            // 渗透率曲线索引为偶数(0,2,4...)，平均最大波次曲线索引为奇数(1,3,5...)
+                            if (datasetIndex % 2 === 1 && dataset && dataset.label && dataset.label.includes('平均最大波次')) {
+                                const levelIndex = Math.floor(datasetIndex / 2);
+                                const levelData = levelsToShow[levelIndex];
+                                const dayData = levelData && levelData.data ? levelData.data[dataIndex] : null;
+                                
+                                console.log('Opening modal for level:', levelData, 'day:', dayData);
+                                
+                                if (levelData && dayData) {
+                                    showWaveDistModal(levelData, dayData);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 显示最大波次分布弹窗
+        function showWaveDistModal(levelData, dayData) {
+            const modal = document.getElementById('waveDistModal');
+            const title = document.getElementById('waveDistTitle');
+            const content = document.getElementById('waveDistContent');
+            
+            if (!modal || !title || !content) return;
+            
+            // 设置标题
+            title.textContent = `${levelData.level_type}${levelData.level_id} - 第${dayData.day_num}天 最大波次分布`;
+            
+            // 生成分布图（使用进度条样式）
+            let html = '<div style="margin-bottom: 15px;">';
+            html += `<div style="color: #666; font-size: 14px; margin-bottom: 10px;">`;
+            html += `累计到达人数: ${dayData.cumulative_users}人 | `;
+            html += `平均最大波次: ${dayData.avg_wave_num}波 | `;
+            html += `最大到达波次: ${dayData.max_wave_reached}波`;
+            html += '</div>';
+            html += '</div>';
+            
+            // 从API数据获取波次分布
+            let waveDistribution = [];
+            if (dayData.wave_dist_json) {
+                try {
+                    waveDistribution = JSON.parse(dayData.wave_dist_json);
+                } catch (e) {
+                    console.error('解析波次分布JSON失败:', e);
+                }
+            }
+            
+            // 如果没有波次分布数据，使用空数组
+            if (!waveDistribution || waveDistribution.length === 0) {
+                html += '<div style="color: #999; padding: 20px;">暂无波次分布数据</div>';
+            } else {
+                const totalUsers = dayData.cumulative_users || 1;
+                
+                html += '<div style="max-height: 400px; overflow-y: auto;">';
+                
+                // 按波次排序
+                waveDistribution.sort((a, b) => a.wave_num - b.wave_num);
+                
+                waveDistribution.forEach(item => {
+                    const waveNum = item.wave_num;
+                    const users = item.arrival_users;
+                    const percent = Math.round(users * 100 / totalUsers);
+                    const barWidth = percent;
+                    
+                    html += `<div style="display: flex; align-items: center; margin-bottom: 8px;">`;
+                    html += `<span style="width: 60px; font-size: 13px; color: #666;">第${waveNum}波</span>`;
+                    html += `<div style="flex: 1; height: 24px; background: #f0f0f0; border-radius: 4px; overflow: hidden; margin: 0 10px;">`;
+                    html += `<div style="height: 100%; width: ${barWidth}%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px;"></div>`;
+                    html += `</div>`;
+                    html += `<span style="width: 80px; font-size: 13px; color: #333; text-align: right;">${users}人 (${percent}%)</span>`;
+                    html += `</div>`;
+                });
+                
+                html += '</div>';
+            }
+            
+            content.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        // 关闭最大波次分布弹窗
+        function closeWaveDistModal() {
+            const modal = document.getElementById('waveDistModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 默认关卡列表
+        const defaultLevels = ['普通-1', '困难-1', '地狱-1', '副本-1'];
+        
+        // 切换显示默认关卡
+        function toggleDefaultLevels() {
+            const defaultToggle = document.getElementById('defaultToggle');
+            const isChecked = defaultToggle?.checked ?? true;
+            
+            if (isChecked) {
+                // 添加默认关卡（如果还没有）
+                defaultLevels.forEach(level => {
+                    selectedLevelsGlobal.add(level);
+                });
+            } else {
+                // 只移除默认关卡，保留用户选择的其他关卡
+                defaultLevels.forEach(level => {
+                    selectedLevelsGlobal.delete(level);
+                });
+            }
+            
+            renderTreeDropdown();
+            updateTreeDropdownText();
+            updatePenetrationChart();
+        }
+
+        // 图表2: 关卡类别进入占比
+        async function updateCategoryChart() {
+            // 使用范围选择器的起始日期（和时间序列维度一致）
+            const registerDate = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
+            const maxDays = document.getElementById('categoryDaySelect')?.value || 7;
+            const metricType = document.getElementById('categoryMetricSelect')?.value || 'enter_count';
+
+            try {
+                const response = await fetch(`/api/category_enter_stats?register_date=${registerDate}&max_days=${maxDays}`);
+                const data = await response.json();
+                renderCategoryChart(data, metricType);
+            } catch (error) {
+                console.error('加载关卡类别进入占比失败:', error);
+            }
+        }
+
+        function renderCategoryChart(data, metricType = 'enter_count') {
+            const ctx = document.getElementById('categoryShareChart')?.getContext('2d');
+            if (!ctx) return;
+            if (charts.categoryShare) charts.categoryShare.destroy();
+
+            // 获取最后一天的数据
+            const categories = data.data || [];
+            const lastDayData = categories.map(cat => {
+                const lastData = cat.data[cat.data.length - 1] || {};
+                return {
+                    category: cat.category,
+                    value: metricType === 'enter_count' ? (lastData.enter_count_rate || 0) : (lastData.enter_user_rate || 0),
+                    count: metricType === 'enter_count' ? (lastData.enter_count || 0) : (lastData.enter_users || 0)
+                };
+            });
+
+            const labels = lastDayData.map(c => c.category);
+            const values = lastDayData.map(c => c.value);
+            const bgColors = ['#3498db', '#e74c3c', '#9b59b6', '#f39c12'];
+
+            charts.categoryShare = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: bgColors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    const cat = lastDayData[item.dataIndex];
+                                    return `${cat.category}: ${cat.value}% (${cat.count})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 图表3: 解锁转化率分析
+        async function updateUnlockView() {
+            const viewType = document.getElementById('unlockViewType')?.value || 'funnel';
+            updateUnlockChart();
+        }
+
+        async function updateUnlockChart() {
+            // 使用范围选择器的起始日期（和时间序列维度一致）
+            const registerDate = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
+            const maxDays = document.getElementById('unlockDaySelect')?.value || 7;
+            const viewType = document.getElementById('unlockViewType')?.value || 'funnel';
+            const path = document.getElementById('unlockPathSelect')?.value || 'normal_hard_hell';
+
+            try {
+                const response = await fetch(`/api/unlock_conversion_stats?register_date=${registerDate}&max_days=${maxDays}`);
+                const data = await response.json();
+                if (viewType === 'funnel') {
+                    renderUnlockFunnelChart(data, path);
+                } else {
+                    renderUnlockTrendChart(data, path);
+                }
+            } catch (error) {
+                console.error('加载解锁转化率分析失败:', error);
+            }
+        }
+
+        function renderUnlockFunnelChart(data, path) {
+            const ctx = document.getElementById('unlockFunnelChart')?.getContext('2d');
+            if (!ctx) return;
+            if (charts.unlockFunnel) charts.unlockFunnel.destroy();
+
+            // 获取最后一天的数据
+            const lastData = data.data[data.data.length - 1] || {};
+            
+            let funnelData = [];
+            if (path === 'normal_hard_hell') {
+                funnelData = [
+                    { stage: '普通关卡', users: lastData.normal_users || 0, rate: 100 },
+                    { stage: '困难关卡', users: lastData.hard_users || 0, rate: lastData.normal_to_hard_rate || 0 },
+                    { stage: '地狱关卡', users: lastData.hell_users || 0, rate: lastData.hard_to_hell_rate || 0 }
+                ];
+            } else if (path === 'normal_hard') {
+                funnelData = [
+                    { stage: '普通关卡', users: lastData.normal_users || 0, rate: 100 },
+                    { stage: '困难关卡', users: lastData.hard_users || 0, rate: lastData.normal_to_hard_rate || 0 }
+                ];
+            } else if (path === 'hard_hell') {
+                funnelData = [
+                    { stage: '困难关卡', users: lastData.hard_users || 0, rate: 100 },
+                    { stage: '地狱关卡', users: lastData.hell_users || 0, rate: lastData.hard_to_hell_rate || 0 }
+                ];
+            } else if (path === 'normal_copy') {
+                funnelData = [
+                    { stage: '普通关卡', users: lastData.normal_users || 0, rate: 100 },
+                    { stage: '副本关卡', users: lastData.copy_users || 0, rate: lastData.normal_to_copy_rate || 0 }
+                ];
+            }
+
+            const labels = funnelData.map(d => d.stage);
+            const values = funnelData.map(d => d.rate);
+            const bgColors = ['#3498db', '#e67e22', '#e74c3c'];
+
+            charts.unlockFunnel = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: '转化率(%)',
+                        data: values,
+                        backgroundColor: bgColors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => `${item.raw}% (${funnelData[item.dataIndex].users}人)`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { beginAtZero: true, max: 100, title: { display: true, text: '转化率(%)' } }
+                    }
+                }
+            });
+        }
+
+        function renderUnlockTrendChart(data, path) {
+            const ctx = document.getElementById('unlockFunnelChart')?.getContext('2d');
+            if (!ctx) return;
+            if (charts.unlockFunnel) charts.unlockFunnel.destroy();
+
+            const trendData = data.data || [];
+            const labels = trendData.map(d => `第${d.day_num}天`);
+            
+            let values = [];
+            if (path === 'normal_hard_hell') {
+                values = trendData.map(d => d.normal_to_hard_rate || 0);
+            } else if (path === 'normal_hard') {
+                values = trendData.map(d => d.normal_to_hard_rate || 0);
+            } else if (path === 'hard_hell') {
+                values = trendData.map(d => d.hard_to_hell_rate || 0);
+            } else if (path === 'normal_copy') {
+                values = trendData.map(d => d.normal_to_copy_rate || 0);
+            }
+
+            charts.unlockFunnel = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: '转化率(%)',
+                        data: values,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: '注册后天数' } },
+                        y: { beginAtZero: true, max: 100, title: { display: true, text: '转化率(%)' } }
+                    }
+                }
+            });
+        }
+
+        // 图表4: 用户类别分布
+        async function updateUserDistChart() {
+            // 使用范围选择器的起始日期（和时间序列维度一致）
+            const registerDate = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
+            const maxDays = document.getElementById('userDistDaySelect')?.value || 7;
+            const metricType = document.getElementById('userDistMetricSelect')?.value || 'user_pct';
+            const chartType = document.getElementById('userDistChartType')?.value || 'bar';
+
+            try {
+                const response = await fetch(`/api/user_category_distribution?register_date=${registerDate}&max_days=${maxDays}`);
+                const data = await response.json();
+                renderUserDistChart(data, metricType, chartType);
+            } catch (error) {
+                console.error('加载用户类别分布失败:', error);
+            }
+        }
+
+        function renderUserDistChart(data, metricType = 'user_pct', chartType = 'bar') {
+            const ctx = document.getElementById('userDistChart')?.getContext('2d');
+            if (!ctx) return;
+            if (charts.userDist) charts.userDist.destroy();
+
+            // 获取最后一天的数据
+            const lastData = data.data[data.data.length - 1] || {};
+            const totalUsers = lastData.total_users || 1;
+
+            const categories = [
+                { key: 'newbie_users', label: '新手', color: '#95a5a6' },
+                { key: 'normal_users', label: '普通玩家', color: '#3498db' },
+                { key: 'hard_users', label: '困难玩家', color: '#e67e22' },
+                { key: 'hell_users', label: '地狱玩家', color: '#e74c3c' },
+                { key: 'copy_users', label: '副本玩家', color: '#9b59b6' }
+            ];
+
+            const labels = categories.map(c => c.label);
+            const values = categories.map(c => {
+                const count = lastData[c.key] || 0;
+                return metricType === 'user_pct' ? ((count / totalUsers) * 100).toFixed(2) : count;
+            });
+            const bgColors = categories.map(c => c.color);
+
+            if (chartType === 'pie') {
+                charts.userDist = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: bgColors,
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right' },
+                            tooltip: {
+                                callbacks: {
+                                    label: (item) => {
+                                        const count = lastData[categories[item.dataIndex].key] || 0;
+                                        const pct = ((count / totalUsers) * 100).toFixed(2);
+                                        return `${labels[item.dataIndex]}: ${pct}% (${count}人)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                charts.userDist = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: metricType === 'user_pct' ? '用户占比(%)' : '用户人数',
+                            data: values,
+                            backgroundColor: bgColors,
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (item) => {
+                                        const count = lastData[categories[item.dataIndex].key] || 0;
+                                        const pct = ((count / totalUsers) * 100).toFixed(2);
+                                        return `${labels[item.dataIndex]}: ${pct}% (${count}人)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: metricType === 'user_pct' ? '用户占比(%)' : '用户人数' }
+                            }
+                        }
+                    }
+                });
             }
         }
 
