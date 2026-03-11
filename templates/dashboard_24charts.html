@@ -2535,11 +2535,18 @@
                             
                             console.log('Clicked dataset:', datasetIndex, 'label:', dataset?.label);
                             
-                            // 严格检查：只处理平均最大波次曲线的点击
-                            // 渗透率曲线索引为偶数(0,2,4...)，平均最大波次曲线索引为奇数(1,3,5...)
-                            if (datasetIndex % 2 === 1 && dataset && dataset.label && dataset.label.includes('平均最大波次')) {
-                                const levelIndex = Math.floor(datasetIndex / 2);
-                                const levelData = levelsToShow[levelIndex];
+                            // 只处理平均最大波次曲线的点击
+                            if (dataset && dataset.label && dataset.label.includes('平均最大波次')) {
+                                // 从label中提取关卡名称（如"普通1平均最大波次" -> "普通1"）
+                                const labelMatch = dataset.label.match(/^(.*?)(?:平均最大波次|渗透率)$/);
+                                const levelName = labelMatch ? labelMatch[1] : dataset.label;
+                                
+                                // 在levelsToShow中找到对应的关卡
+                                const levelData = levelsToShow.find(l => {
+                                    const lLabel = getLevelLabel(l.level_id, l.level_type);
+                                    return lLabel === levelName;
+                                });
+                                
                                 const dayData = levelData && levelData.data ? levelData.data[dataIndex] : null;
                                 
                                 console.log('Opening modal for level:', levelData, 'day:', dayData);
