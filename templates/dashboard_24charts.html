@@ -275,7 +275,7 @@
                     <div class="tree-selector-wrapper" style="display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap;">
                         <div class="tree-dropdown-container" style="position: relative; min-width: 250px;">
                             <div class="tree-dropdown-trigger" onclick="toggleTreeDropdown(event)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                                <span id="treeDropdownText">普通1,困难1,地狱1,副本1</span>
+                                <span id="treeDropdownText">普通1,普通4</span>
                                 <span style="color: #999;">▼</span>
                             </div>
                             <div id="treeDropdownPanel" class="tree-dropdown-panel" onclick="event.stopPropagation()" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 350px; overflow-y: auto; z-index: 1000;">
@@ -300,7 +300,7 @@
                         </label>
                         <!-- Switch开关：显示波次 -->
                         <label class="switch">
-                            <input type="checkbox" id="waveToggle" checked onchange="updatePenetrationChart()">
+                            <input type="checkbox" id="waveToggle" onchange="updatePenetrationChart()">
                             <span class="slider"></span>
                             <span class="switch-label">显示波次</span>
                         </label>
@@ -313,12 +313,12 @@
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="penetrationChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li><strong>平均最大波次逻辑：</strong>统计到达该关卡的玩家当日最深到达的平均波次。例如平均3.5波表示玩家平均推进到第3.5波，反映关卡内的渗透深度</li><li><strong>最大波次分布逻辑：</strong>各波次作为玩家当日最深到达的人数分布。例如第5波580人表示有580名玩家最深到达第5波，可用于识别具体波次的流失点</li><li><strong>点击查看分布：</strong>点击平均最大波次曲线上的点，可查看该关卡该日期的最大波次分布详情</li></ul></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li><strong>平均最大波次逻辑：</strong>玩家到达本关卡最深波次的平均波次，去重。</li><li><strong>今日最大波次分布逻辑：</strong>玩家当日到达本关卡最深波次的人数分布，单日去重，多日不去重。</li><li><strong>累计最大波次分布逻辑：</strong>玩家截至当前日期到达本关卡最深波次的人数分布，去重。</li><li><strong>点击查看分布：</strong>点击平均最大波次曲线上的点，可查看该关卡当日和累计最大波次分布详情。</li></ul></div>
             </div>
 
             <!-- 最大波次分布图子页面（弹窗） -->
             <div id="waveDistModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
-                <div style="background: white; border-radius: 12px; padding: 20px; width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                <div style="background: white; border-radius: 12px; padding: 20px; width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h3 id="waveDistTitle" style="margin: 0; color: #333;">最大波次分布</h3>
                         <button onclick="closeWaveDistModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
@@ -2024,6 +2024,9 @@
         let expandedGroups = new Set();
         let expandedLevelGroups = new Set();
 
+        // 存储当前显示的关卡数据（用于点击事件）
+        let currentPenetrationLevels = [];
+
         // 渲染树形下拉框
         function renderTreeDropdown() {
             const panel = document.getElementById('treeDropdownPanel');
@@ -2278,9 +2281,9 @@
 
         // 初始化关卡选择器
         function initPenetrationLevelSelect() {
-            // 默认选中普通1、困难1、地狱1、副本1
+            // 默认选中普通1、普通4
             selectedLevelsGlobal = new Set([...defaultLevels]);
-            expandedGroups = new Set(['normal', 'hard', 'hell', 'dungeon']);
+            expandedGroups = new Set(['normal']);
             
             renderTreeDropdown();
             updateTreeDropdownText();
@@ -2395,7 +2398,10 @@
             } else if (responseData.data) {
                 levelsToShow = responseData.data;
             }
-            
+
+            // 保存到全局变量，供点击事件使用
+            currentPenetrationLevels = levelsToShow;
+
             console.log('Rendering chart with levels:', levelsToShow.length);
             console.log('First level data:', levelsToShow[0]);
             
@@ -2416,16 +2422,25 @@
             // 获取Switch开关状态
             const showPenetration = document.getElementById('penetrationToggle')?.checked ?? true;
             const showWave = document.getElementById('waveToggle')?.checked ?? true;
-            
+
+            // 按关卡类型排序：普通、困难、地狱、副本
+            const typeOrder = { '普通': 1, '困难': 2, '地狱': 3, '副本': 4 };
+            const sortedLevels = [...levelsToShow].sort((a, b) => {
+                const orderA = typeOrder[a.level_type] || 99;
+                const orderB = typeOrder[b.level_type] || 99;
+                if (orderA !== orderB) return orderA - orderB;
+                return a.level_id - b.level_id;
+            });
+
             // 为每个关卡创建曲线，根据开关控制显示
+            // 顺序：先所有渗透率，再所有平均最大波次
             const datasets = [];
-            
-            levelsToShow.forEach((level, index) => {
-                const label = getLevelLabel(level.level_id, level.level_type);
-                const color = colors[index % colors.length];
-                
-                // 渗透率曲线 - 左Y轴（根据开关控制）
-                if (showPenetration) {
+
+            // 第一步：生成所有渗透率曲线
+            if (showPenetration) {
+                sortedLevels.forEach((level, index) => {
+                    const label = getLevelLabel(level.level_id, level.level_type);
+                    const color = colors[index % colors.length];
                     const penetrationData = level.data ? level.data.map(d => d.penetration_rate || 0) : [];
                     datasets.push({
                         label: `${label}渗透率`,
@@ -2438,10 +2453,14 @@
                         yAxisID: 'y',
                         order: 1
                     });
-                }
-                
-                // 平均最大波次曲线 - 右Y轴（根据开关控制）
-                if (showWave) {
+                });
+            }
+
+            // 第二步：生成所有平均最大波次曲线
+            if (showWave) {
+                sortedLevels.forEach((level, index) => {
+                    const label = getLevelLabel(level.level_id, level.level_type);
+                    const color = colors[index % colors.length];
                     const waveData = level.data ? level.data.map(d => d.avg_wave_num || 0) : [];
                     datasets.push({
                         label: `${label}平均最大波次`,
@@ -2455,8 +2474,8 @@
                         yAxisID: 'y1',
                         order: 2
                     });
-                }
-            });
+                });
+            }
 
             const labels = levelsToShow[0]?.data?.map(d => `第${d.day_num}天`) || [];
             
@@ -2540,19 +2559,22 @@
                                 // 从label中提取关卡名称（如"普通1平均最大波次" -> "普通1"）
                                 const labelMatch = dataset.label.match(/^(.*?)(?:平均最大波次|渗透率)$/);
                                 const levelName = labelMatch ? labelMatch[1] : dataset.label;
-                                
-                                // 在levelsToShow中找到对应的关卡
-                                const levelData = levelsToShow.find(l => {
+
+                                // 使用全局变量 currentPenetrationLevels 查找对应的关卡
+                                const levelData = currentPenetrationLevels.find(l => {
                                     const lLabel = getLevelLabel(l.level_id, l.level_type);
                                     return lLabel === levelName;
                                 });
-                                
+
                                 const dayData = levelData && levelData.data ? levelData.data[dataIndex] : null;
-                                
+
                                 console.log('Opening modal for level:', levelData, 'day:', dayData);
-                                
+                                console.log('Current levels:', currentPenetrationLevels);
+
                                 if (levelData && dayData) {
                                     showWaveDistModal(levelData, dayData);
+                                } else {
+                                    console.error('Level or day data not found:', levelName, dataIndex);
                                 }
                             }
                         }
@@ -2590,7 +2612,7 @@
                     // 找到对应day_num的数据
                     const dayDataWithDist = result.data.curve_data.find(d => d.day_num === dayData.day_num);
                     
-                    if (dayDataWithDist && dayDataWithDist.wave_dist_json) {
+                    if (dayDataWithDist && (dayDataWithDist.daily_wave_dist || dayDataWithDist.cumulative_wave_dist)) {
                         renderWaveDistribution(dayDataWithDist, content);
                     } else {
                         content.innerHTML = '<div style="color: #999; padding: 20px;">暂无波次分布数据</div>';
@@ -2609,53 +2631,90 @@
             let html = '<div style="margin-bottom: 15px;">';
             html += `<div style="color: #666; font-size: 14px; margin-bottom: 10px;">`;
             html += `累计到达人数: ${dayData.cumulative_users}人 | `;
-            html += `平均最大波次: ${dayData.avg_wave_num}波 | `;
+            html += `今日进入人数: ${dayData.daily_arrival_users !== undefined ? dayData.daily_arrival_users : '-'}人 | `;
+            html += `平均最大波次: ${dayData.avg_wave_num}波`;
+            html += '</div>';
+            html += '</div>';
             
-            // 从波次分布计算最大波次
-            let maxWaveReached = 0;
-            let waveDistribution = [];
+            // 准备数据
+            let dailyWaveDist = [];
+            let cumulativeWaveDist = [];
             
-            if (dayData.wave_dist_json) {
-                try {
-                    waveDistribution = JSON.parse(dayData.wave_dist_json);
-                    maxWaveReached = Math.max(...waveDistribution.map(w => w.wave_num), 0);
-                } catch (e) {
-                    console.error('解析波次分布JSON失败:', e);
-                    maxWaveReached = Math.round(dayData.avg_wave_num || 0);
-                }
+            // 获取今日波次分布
+            if (dayData.daily_wave_dist && Array.isArray(dayData.daily_wave_dist)) {
+                dailyWaveDist = dayData.daily_wave_dist;
             }
             
-            html += `最大到达波次: ${maxWaveReached}波`;
-            html += '</div>';
-            html += '</div>';
+            // 获取累计波次分布
+            if (dayData.cumulative_wave_dist && Array.isArray(dayData.cumulative_wave_dist)) {
+                cumulativeWaveDist = dayData.cumulative_wave_dist;
+            }
             
-            if (!waveDistribution || waveDistribution.length === 0) {
-                html += '<div style="color: #999; padding: 20px;">暂无波次分布数据</div>';
+            html += '<div style="display: flex; gap: 20px;">';
+
+            // 左侧：累计最大波次分布
+            html += '<div style="flex: 1; min-width: 350px;">';
+            html += '<h4 style="margin: 0 0 10px 0; color: #333; font-size: 16px; border-bottom: 2px solid #43e97b; padding-bottom: 5px;">累计最大波次分布</h4>';
+
+            if (!cumulativeWaveDist || cumulativeWaveDist.length === 0) {
+                html += '<div style="color: #999; padding: 20px;">暂无数据</div>';
             } else {
-                const totalUsers = dayData.cumulative_users || 1;
-                
-                html += '<div style="max-height: 400px; overflow-y: auto;">';
-                
-                // 按波次排序
-                waveDistribution.sort((a, b) => a.wave_num - b.wave_num);
-                
-                waveDistribution.forEach(item => {
+                const cumulativeUsers = dayData.cumulative_users || 1;
+
+                html += '<div style="max-height: 350px; overflow-y: auto;">';
+                cumulativeWaveDist.sort((a, b) => a.wave_num - b.wave_num);
+
+                cumulativeWaveDist.forEach(item => {
+                    const waveNum = item.wave_num;
+                    const users = item.user_count;
+                    const percent = item.rate !== undefined ? item.rate : Math.round(users * 100 / cumulativeUsers);
+                    const barWidth = Math.min(percent, 100);
+
+                    html += `<div style="display: flex; align-items: center; margin-bottom: 8px;">`;
+                    html += `<span style="width: 60px; font-size: 13px; color: #666;">第${waveNum}波</span>`;
+                    html += `<div style="flex: 1; height: 24px; background: #f0f0f0; border-radius: 4px; overflow: hidden; margin: 0 10px;">`;
+                    html += `<div style="height: 100%; width: ${barWidth}%; background: linear-gradient(90deg, #43e97b, #38f9d7); border-radius: 4px;"></div>`;
+                    html += `</div>`;
+                    html += `<span style="width: 100px; font-size: 13px; color: #333; text-align: right;">${users}人 (${percent}%)</span>`;
+                    html += `</div>`;
+                });
+
+                html += '</div>';
+            }
+            html += '</div>';
+
+            // 右侧：今日最大波次分布
+            html += '<div style="flex: 1; min-width: 350px;">';
+            html += '<h4 style="margin: 0 0 10px 0; color: #333; font-size: 16px; border-bottom: 2px solid #667eea; padding-bottom: 5px;">今日最大波次分布</h4>';
+
+            if (!dailyWaveDist || dailyWaveDist.length === 0) {
+                html += '<div style="color: #999; padding: 20px;">暂无数据</div>';
+            } else {
+                const dailyArrivalUsers = dayData.daily_arrival_users || 1;
+
+                html += '<div style="max-height: 350px; overflow-y: auto;">';
+                dailyWaveDist.sort((a, b) => a.wave_num - b.wave_num);
+
+                dailyWaveDist.forEach(item => {
                     const waveNum = item.wave_num;
                     const users = item.arrival_users;
-                    const percent = Math.round(users * 100 / totalUsers);
-                    const barWidth = percent;
-                    
+                    const percent = item.rate !== undefined ? item.rate : Math.round(users * 100 / dailyArrivalUsers);
+                    const barWidth = Math.min(percent, 100);
+
                     html += `<div style="display: flex; align-items: center; margin-bottom: 8px;">`;
                     html += `<span style="width: 60px; font-size: 13px; color: #666;">第${waveNum}波</span>`;
                     html += `<div style="flex: 1; height: 24px; background: #f0f0f0; border-radius: 4px; overflow: hidden; margin: 0 10px;">`;
                     html += `<div style="height: 100%; width: ${barWidth}%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px;"></div>`;
                     html += `</div>`;
-                    html += `<span style="width: 80px; font-size: 13px; color: #333; text-align: right;">${users}人 (${percent}%)</span>`;
+                    html += `<span style="width: 100px; font-size: 13px; color: #333; text-align: right;">${users}人 (${percent}%)</span>`;
                     html += `</div>`;
                 });
-                
+
                 html += '</div>';
             }
+            html += '</div>';
+
+            html += '</div>';
             
             content.innerHTML = html;
         }
@@ -2669,7 +2728,7 @@
         }
 
         // 默认关卡列表
-        const defaultLevels = ['普通-1', '困难-1', '地狱-1', '副本-1'];
+        const defaultLevels = ['普通-1', '普通-4'];
         
         // 切换显示默认关卡
         function toggleDefaultLevels() {

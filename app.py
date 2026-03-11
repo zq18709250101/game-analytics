@@ -766,16 +766,17 @@ def api_level_penetration_curve():
         
         where_clause = " AND ".join(where_conditions)
         
-        # 查询数据
+        # 查询数据（使用新字段名：cumulative_users, daily_wave_dist, cumulative_wave_dist）
         cursor.execute(f"""
             SELECT 
                 level_type,
                 level_id,
                 day_num,
                 AVG(total_users) as avg_total_users,
-                AVG(cumulative_arrival_users) as avg_cumulative_users,
+                AVG(cumulative_users) as avg_cumulative_users,
                 AVG(penetration_rate) as avg_penetration_rate,
-                AVG(avg_wave_num) as avg_wave_num
+                AVG(avg_wave_num) as avg_wave_num,
+                AVG(daily_arrival_users) as avg_daily_arrival_users
             FROM mv_level_penetration_curve
             WHERE {where_clause}
             GROUP BY level_type, level_id, day_num
@@ -793,34 +794,63 @@ def api_level_penetration_curve():
                     'data': []
                 }
             
+            daily_arrival_users = int(row[7]) if row[7] else 0
+            
             data_point = {
                 'day_num': row[2],
                 'total_users': int(row[3]) if row[3] else 0,
                 'cumulative_users': int(row[4]) if row[4] else 0,
                 'penetration_rate': round(row[5], 2) if row[5] else 0,
-                'avg_wave_num': round(row[6], 2) if row[6] else 0
+                'avg_wave_num': round(row[6], 2) if row[6] else 0,
+                'daily_arrival_users': daily_arrival_users
             }
             
-            # 如果需要波次分布，单独查询
-            if include_wave_dist:
-                try:
-                    cursor.execute("""
-                        SELECT wave_dist_json 
-                        FROM mv_level_penetration_curve 
-                        WHERE register_date BETWEEN ? AND ? 
-                          AND level_type = ? 
-                          AND level_id = ? 
-                          AND day_num = ?
-                          AND wave_dist_json IS NOT NULL
-                        LIMIT 1
-                    """, [register_date_start, register_date_end, row[0], row[1], row[2]])
-                    wave_row = cursor.fetchone()
-                    if wave_row and wave_row[0]:
-                        data_point['wave_dist_json'] = wave_row[0]
-                except:
-                    pass
-            
             level_data_map[level_key]['data'].append(data_point)
+        
+        # 如果需要波次分布，批量查询所有记录的波次分布
+        if include_wave_dist and level_data_map:
+            try:
+                import json
+                # 为每个关卡-天数组合查询波次分布
+                for level_key, level_info in level_data_map.items():
+                    for data_point in level_info['data']:
+                        cursor.execute("""
+                            SELECT daily_wave_dist, cumulative_wave_dist
+                            FROM mv_level_penetration_curve 
+                            WHERE register_date BETWEEN ? AND ? 
+                              AND level_type = ? 
+                              AND level_id = ? 
+                              AND day_num = ?
+                              AND (daily_wave_dist IS NOT NULL OR cumulative_wave_dist IS NOT NULL)
+                            LIMIT 1
+                        """, [register_date_start, register_date_end, 
+                              level_info['level_type'], level_info['level_id'], 
+                              data_point['day_num']])
+                        wave_row = cursor.fetchone()
+                        if wave_row:
+                            daily_arrival_users = data_point['daily_arrival_users']
+                            cumulative_users = data_point['cumulative_users']
+                            # 当日波次分布
+                            if wave_row[0]:
+                                import json
+                                daily_wave_dist = json.loads(wave_row[0])
+                                # 计算占比：arrival_users / daily_arrival_users * 100
+                                for item in daily_wave_dist:
+                                    item['rate'] = round(item['arrival_users'] / daily_arrival_users * 100, 2) if daily_arrival_users > 0 else 0
+                                data_point['daily_wave_dist'] = daily_wave_dist
+                            # 累计波次分布
+                            if wave_row[1]:
+                                import json
+                                cumulative_wave_dist = json.loads(wave_row[1])
+                                # 计算占比：user_count / cumulative_users * 100
+                                for item in cumulative_wave_dist:
+                                    item['rate'] = round(item['user_count'] / cumulative_users * 100, 2) if cumulative_users > 0 else 0
+                                data_point['cumulative_wave_dist'] = cumulative_wave_dist
+            except Exception as e:
+                import traceback
+                print(f"查询波次分布失败: {e}")
+                print(traceback.format_exc())
+                pass
         
         # 构建结果
         if compare_mode == 'single' and len(level_data_map) == 1:
@@ -1076,4 +1106,4 @@ def api_user_category_distribution():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5035, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5036, host='0.0.0.0', threaded=True)
