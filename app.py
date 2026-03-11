@@ -693,41 +693,41 @@ def api_day1_comparison():
 # ========== 渗透维度四个图表API ==========
 
 # 图表1: 累计渗透率曲线
+# 新的API函数 - 累计渗透率趋势图 (API v2.0)
+# 将此内容替换到 app.py 中的 api_level_penetration_curve 函数
+
 @app.route('/api/level_penetration_curve')
 def api_level_penetration_curve():
     """
-    累计渗透率曲线 - 各关卡随时间累计到达的用户比例
+    累计渗透率曲线 - 各关卡随时间累计到达的用户比例 (API v2.0)
     
     参数：
     - register_date_start: 注册日期起始（格式：YYYYMMDD，默认20260110）
     - register_date_end: 注册日期结束（格式：YYYYMMDD，默认20260116）
-    - level_type: 关卡类型（可选，普通/困难/地狱/副本）
+    - level_type: 关卡类型（可选，普通/困难/地狱/副本，支持多选逗号分隔）
     - level_ids: 关卡ID列表（可选，逗号分隔，类别内实际ID如：1,2,3）
-    - level_type_ids: 类型+ID组合列表（可选，格式：普通-1,困难-1,地狱-1）
-    - max_days: 最大天数（默认30）
+    - max_day: 最大天数（默认30）
     - compare_mode: 对比模式（single/multi，默认multi）
+    - include_wave_dist: 是否返回波次分布（默认false）
     """
     try:
         register_date_start = request.args.get('register_date_start', '20260110', type=str)
         register_date_end = request.args.get('register_date_end', '20260116', type=str)
-        level_type = request.args.get('level_type', '', type=str)
-        max_days = request.args.get('max_days', 30, type=int)
+        level_type_param = request.args.get('level_type', '', type=str)
+        max_days = request.args.get('max_day', 30, type=int)
         level_ids_param = request.args.get('level_ids', '', type=str)
-        level_type_ids_param = request.args.get('level_type_ids', '', type=str)
         compare_mode = request.args.get('compare_mode', 'multi', type=str)
+        include_wave_dist = request.args.get('include_wave_dist', 'false', type=str).lower() == 'true'
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 解析类型+ID组合列表
-        target_type_ids = []  # [(type, id), ...]
-        if level_type_ids_param:
-            for item in level_type_ids_param.split(','):
-                parts = item.strip().split('-')
-                if len(parts) == 2:
-                    target_type_ids.append((parts[0], int(parts[1])))
+        # 解析关卡类型（支持多选）
+        target_level_types = []
+        if level_type_param:
+            target_level_types = [t.strip() for t in level_type_param.split(',') if t.strip()]
         
-        # 解析关卡ID列表（类别内实际ID）- 兼容旧版
+        # 解析关卡ID列表
         target_level_ids = []
         if level_ids_param:
             target_level_ids = [int(x.strip()) for x in level_ids_param.split(',') if x.strip().isdigit()]
@@ -736,143 +736,161 @@ def api_level_penetration_curve():
         where_conditions = ["register_date BETWEEN ? AND ?", "day_num <= ?"]
         params = [register_date_start, register_date_end, max_days]
         
-        if level_type:
-            where_conditions.append("level_type = ?")
-            params.append(level_type)
+        if target_level_types:
+            placeholders = ','.join(['?' for _ in target_level_types])
+            where_conditions.append(f"level_type IN ({placeholders})")
+            params.extend(target_level_types)
         
-        # 优先使用类型+ID组合查询
-        if target_type_ids:
-            type_id_conditions = []
-            for lt, lid in target_type_ids:
-                type_id_conditions.append("(level_type = ? AND level_id = ?)")
-                params.extend([lt, lid])
-            where_conditions.append(f"({' OR '.join(type_id_conditions)})")
-        elif target_level_ids:
+        if target_level_ids:
             placeholders = ','.join(['?' for _ in target_level_ids])
             where_conditions.append(f"level_id IN ({placeholders})")
             params.extend(target_level_ids)
         
         where_clause = " AND ".join(where_conditions)
         
-        # 查询数据（兼容没有max_wave_reached列的情况）
-        try:
-            cursor.execute(f"""
-                SELECT 
-                    level_type,
-                    level_id,
-                    day_num,
-                    AVG(total_users) as avg_total_users,
-                    AVG(cumulative_arrival_users) as avg_cumulative_users,
-                    AVG(penetration_rate) as avg_penetration_rate,
-                    AVG(avg_wave_num) as avg_wave_num,
-                    MAX(max_wave_reached) as max_wave_reached
-                FROM mv_level_penetration_curve
-                WHERE {where_clause}
-                GROUP BY level_type, level_id, day_num
-                ORDER BY level_type, level_id, day_num
-            """, params)
-        except sqlite3.OperationalError:
-            # 如果没有max_wave_reached列，使用avg_wave_num作为替代
-            cursor.execute(f"""
-                SELECT 
-                    level_type,
-                    level_id,
-                    day_num,
-                    AVG(total_users) as avg_total_users,
-                    AVG(cumulative_arrival_users) as avg_cumulative_users,
-                    AVG(penetration_rate) as avg_penetration_rate,
-                    AVG(avg_wave_num) as avg_wave_num,
-                    AVG(avg_wave_num) as max_wave_reached
-                FROM mv_level_penetration_curve
-                WHERE {where_clause}
-                GROUP BY level_type, level_id, day_num
-                ORDER BY level_type, level_id, day_num
-            """, params)
+        # 查询数据
+        cursor.execute(f"""
+            SELECT 
+                level_type,
+                level_id,
+                day_num,
+                AVG(total_users) as avg_total_users,
+                AVG(cumulative_arrival_users) as avg_cumulative_users,
+                AVG(penetration_rate) as avg_penetration_rate,
+                AVG(avg_wave_num) as avg_wave_num
+            FROM mv_level_penetration_curve
+            WHERE {where_clause}
+            GROUP BY level_type, level_id, day_num
+            ORDER BY level_type, level_id, day_num
+        """, params)
         
         # 整理数据
         level_data_map = {}
         for row in cursor.fetchall():
-            level_key = f"{row[0]}-{row[1]}"  # 类型-ID作为key
+            level_key = f"{row[0]}-{row[1]}"
             if level_key not in level_data_map:
                 level_data_map[level_key] = {
                     'level_type': row[0],
                     'level_id': row[1],
                     'data': []
                 }
-            level_data_map[level_key]['data'].append({
+            
+            data_point = {
                 'day_num': row[2],
                 'total_users': int(row[3]) if row[3] else 0,
                 'cumulative_users': int(row[4]) if row[4] else 0,
                 'penetration_rate': round(row[5], 2) if row[5] else 0,
-                'avg_wave_num': round(row[6], 2) if row[6] else 0,
-                'max_wave_reached': int(row[7]) if row[7] else 0,
-                'wave_dist_json': None  # 稍后单独查询
-            })
-        
-        # 单独查询波次分布JSON（如果表中有这个字段）
-        try:
-            cursor.execute(f"""
-                SELECT level_type, level_id, day_num, wave_dist_json
-                FROM mv_level_penetration_curve
-                WHERE {where_clause}
-                AND wave_dist_json IS NOT NULL
-            """, params)
+                'avg_wave_num': round(row[6], 2) if row[6] else 0
+            }
             
-            for row in cursor.fetchall():
-                level_key = f"{row[0]}-{row[1]}"
-                if level_key in level_data_map:
-                    day_data = next((d for d in level_data_map[level_key]['data'] if d['day_num'] == row[2]), None)
-                    if day_data:
-                        day_data['wave_dist_json'] = row[3]
-        except sqlite3.OperationalError:
-            # 如果没有wave_dist_json列，忽略
-            pass
+            # 如果需要波次分布，单独查询
+            if include_wave_dist:
+                try:
+                    cursor.execute("""
+                        SELECT wave_dist_json 
+                        FROM mv_level_penetration_curve 
+                        WHERE register_date BETWEEN ? AND ? 
+                          AND level_type = ? 
+                          AND level_id = ? 
+                          AND day_num = ?
+                          AND wave_dist_json IS NOT NULL
+                        LIMIT 1
+                    """, [register_date_start, register_date_end, row[0], row[1], row[2]])
+                    wave_row = cursor.fetchone()
+                    if wave_row and wave_row[0]:
+                        data_point['wave_dist_json'] = wave_row[0]
+                except:
+                    pass
+            
+            level_data_map[level_key]['data'].append(data_point)
         
         # 构建结果
-        result_data = []
-        for level_key, level_info in level_data_map.items():
+        if compare_mode == 'single' and len(level_data_map) == 1:
+            # 单条曲线模式
+            level_key = list(level_data_map.keys())[0]
+            level_info = level_data_map[level_key]
             level_data = level_info['data']
-            if not level_data:
-                continue
-                
-            # 计算关键指标
+            
+            # 计算汇总指标
+            total_users = level_data[0]['total_users'] if level_data else 0
             d1_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 1), 0)
             d7_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 7), 0)
             d30_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
+            avg_wave_d1 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == 1), 0)
+            avg_wave_d7 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == 7), 0)
             avg_wave_d30 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
             
-            result_data.append({
-                'curve_id': level_key,
-                'curve_name': f"{level_info['level_type']}{level_info['level_id']}",
-                'level_type': level_info['level_type'],
-                'level_id': level_info['level_id'],
-                'd1_penetration': d1_penetration,
-                'd7_penetration': d7_penetration,
-                'd30_penetration': d30_penetration,
-                'avg_wave_num_d30': avg_wave_d30,
-                'data': level_data
-            })
+            result = {
+                'code': 0,
+                'message': 'success',
+                'data': {
+                    'query_info': {
+                        'register_date_start': register_date_start,
+                        'register_date_end': register_date_end,
+                        'level_type': level_info['level_type'],
+                        'level_id': level_info['level_id'],
+                        'max_day': max_days,
+                        'include_wave_dist': include_wave_dist
+                    },
+                    'summary': {
+                        'total_users': total_users,
+                        'd1_penetration': d1_penetration,
+                        'd7_penetration': d7_penetration,
+                        'd30_penetration': d30_penetration,
+                        'avg_wave_num_d1': avg_wave_d1,
+                        'avg_wave_num_d7': avg_wave_d7,
+                        'avg_wave_num_d30': avg_wave_d30
+                    },
+                    'curve_data': level_data
+                }
+            }
+        else:
+            # 多条曲线对比模式
+            result_data = []
+            for level_key, level_info in level_data_map.items():
+                level_data = level_info['data']
+                if not level_data:
+                    continue
+                
+                # 计算关键指标
+                d1_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 1), 0)
+                d7_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 7), 0)
+                d30_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
+                avg_wave_d30 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
+                
+                curve_data = {
+                    'curve_id': level_key,
+                    'curve_name': f"{level_info['level_type']}{level_info['level_id']}",
+                    'level_type': level_info['level_type'],
+                    'level_id': level_info['level_id'],
+                    'd1_penetration': d1_penetration,
+                    'd7_penetration': d7_penetration,
+                    'd30_penetration': d30_penetration,
+                    'avg_wave_num_d30': avg_wave_d30,
+                    'data': level_data
+                }
+                result_data.append(curve_data)
+            
+            result = {
+                'code': 0,
+                'message': 'success',
+                'data': {
+                    'query_info': {
+                        'register_date_start': register_date_start,
+                        'register_date_end': register_date_end,
+                        'max_day': max_days,
+                        'curve_count': len(result_data)
+                    },
+                    'curves': result_data
+                }
+            }
         
         conn.close()
-        
-        return jsonify({
-            'code': 0,
-            'message': 'success',
-            'data': {
-                'query_info': {
-                    'register_date_start': register_date_start,
-                    'register_date_end': register_date_end,
-                    'level_type': level_type,
-                    'level_ids': target_level_ids,
-                    'max_days': max_days,
-                    'compare_mode': compare_mode
-                },
-                'curves': result_data
-            }
-        })
+        return jsonify(result)
         
     except Exception as e:
-        return jsonify({'code': -1, 'message': str(e), 'data': None}), 500
+        import traceback
+        return jsonify({'code': -1, 'message': str(e), 'traceback': traceback.format_exc(), 'data': None}), 500
 
 
 # 图表2: 类别进入统计
@@ -1040,4 +1058,4 @@ def api_user_category_distribution():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5034, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5035, host='0.0.0.0', threaded=True)
