@@ -2561,7 +2561,7 @@
         }
 
         // 显示最大波次分布弹窗
-        function showWaveDistModal(levelData, dayData) {
+        async function showWaveDistModal(levelData, dayData) {
             const modal = document.getElementById('waveDistModal');
             const title = document.getElementById('waveDistTitle');
             const content = document.getElementById('waveDistContent');
@@ -2571,38 +2571,63 @@
             // 设置标题
             title.textContent = `${levelData.level_type}${levelData.level_id} - 第${dayData.day_num}天 最大波次分布`;
             
-            // 生成分布图（使用进度条样式）
+            // 显示加载中
+            content.innerHTML = '<div style="color: #666; padding: 40px; text-align: center;">加载中...</div>';
+            modal.style.display = 'flex';
+            
+            // 重新查询API获取波次分布数据
+            const registerDateStart = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
+            const registerDateEnd = document.getElementById('tsEndDate')?.value?.replace(/-/g, '') || '20260116';
+            
+            try {
+                const url = `/api/level_penetration_curve?register_date_start=${registerDateStart}&register_date_end=${registerDateEnd}&max_day=${dayData.day_num}&level_type=${encodeURIComponent(levelData.level_type)}&level_ids=${levelData.level_id}&compare_mode=single&include_wave_dist=true`;
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.code === 0 && result.data && result.data.curve_data) {
+                    // 找到对应day_num的数据
+                    const dayDataWithDist = result.data.curve_data.find(d => d.day_num === dayData.day_num);
+                    
+                    if (dayDataWithDist && dayDataWithDist.wave_dist_json) {
+                        renderWaveDistribution(dayDataWithDist, content);
+                    } else {
+                        content.innerHTML = '<div style="color: #999; padding: 20px;">暂无波次分布数据</div>';
+                    }
+                } else {
+                    content.innerHTML = '<div style="color: #999; padding: 20px;">加载失败</div>';
+                }
+            } catch (error) {
+                console.error('获取波次分布数据失败:', error);
+                content.innerHTML = '<div style="color: #999; padding: 20px;">加载失败</div>';
+            }
+        }
+        
+        // 渲染波次分布
+        function renderWaveDistribution(dayData, content) {
             let html = '<div style="margin-bottom: 15px;">';
             html += `<div style="color: #666; font-size: 14px; margin-bottom: 10px;">`;
             html += `累计到达人数: ${dayData.cumulative_users}人 | `;
             html += `平均最大波次: ${dayData.avg_wave_num}波 | `;
+            
             // 从波次分布计算最大波次
             let maxWaveReached = 0;
+            let waveDistribution = [];
+            
             if (dayData.wave_dist_json) {
                 try {
-                    const waveDist = JSON.parse(dayData.wave_dist_json);
-                    maxWaveReached = Math.max(...waveDist.map(w => w.wave_num), 0);
+                    waveDistribution = JSON.parse(dayData.wave_dist_json);
+                    maxWaveReached = Math.max(...waveDistribution.map(w => w.wave_num), 0);
                 } catch (e) {
+                    console.error('解析波次分布JSON失败:', e);
                     maxWaveReached = Math.round(dayData.avg_wave_num || 0);
                 }
-            } else {
-                maxWaveReached = Math.round(dayData.avg_wave_num || 0);
             }
+            
             html += `最大到达波次: ${maxWaveReached}波`;
             html += '</div>';
             html += '</div>';
             
-            // 从API数据获取波次分布
-            let waveDistribution = [];
-            if (dayData.wave_dist_json) {
-                try {
-                    waveDistribution = JSON.parse(dayData.wave_dist_json);
-                } catch (e) {
-                    console.error('解析波次分布JSON失败:', e);
-                }
-            }
-            
-            // 如果没有波次分布数据，使用空数组
             if (!waveDistribution || waveDistribution.length === 0) {
                 html += '<div style="color: #999; padding: 20px;">暂无波次分布数据</div>';
             } else {
@@ -2632,7 +2657,6 @@
             }
             
             content.innerHTML = html;
-            modal.style.display = 'flex';
         }
 
         // 关闭最大波次分布弹窗
