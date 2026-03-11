@@ -2307,30 +2307,24 @@
                 return;
             }
 
-            // 解析选中的关卡，按类型分组
-            // API v2.0格式: level_type=普通,困难&level_ids=1,2,3
-            const levelTypes = new Set();
-            const levelIds = [];
+            // 解析选中的关卡
+            // 使用level_type_ids参数传递类型-关卡ID组合（如：普通-1,困难-2）
+            const levelTypeIds = [];
             
             levelsToShow.forEach(levelKey => {
                 // levelKey格式: "普通-1"、"困难-5"等
-                const parts = levelKey.split('-');
-                if (parts.length === 2) {
-                    levelTypes.add(parts[0]);
-                    levelIds.push(parts[1]);
+                if (levelKey.includes('-')) {
+                    levelTypeIds.push(levelKey);
                 }
             });
 
             // 调用API获取真实数据
             try {
-                // API v2.0参数格式
+                // 使用level_type_ids参数精确查询
                 let url = `/api/level_penetration_curve?register_date_start=${registerDateStart}&register_date_end=${registerDateEnd}&max_day=${maxDays}&compare_mode=multi`;
                 
-                if (levelTypes.size > 0) {
-                    url += `&level_type=${encodeURIComponent(Array.from(levelTypes).join(','))}`;
-                }
-                if (levelIds.length > 0) {
-                    url += `&level_ids=${encodeURIComponent(levelIds.join(','))}`;
+                if (levelTypeIds.length > 0) {
+                    url += `&level_type_ids=${encodeURIComponent(levelTypeIds.join(','))}`;
                 }
                 
                 const response = await fetch(url);

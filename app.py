@@ -716,11 +716,20 @@ def api_level_penetration_curve():
         level_type_param = request.args.get('level_type', '', type=str)
         max_days = request.args.get('max_day', 30, type=int)
         level_ids_param = request.args.get('level_ids', '', type=str)
+        level_type_ids_param = request.args.get('level_type_ids', '', type=str)
         compare_mode = request.args.get('compare_mode', 'multi', type=str)
         include_wave_dist = request.args.get('include_wave_dist', 'false', type=str).lower() == 'true'
         
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # 解析类型-关卡ID组合（如：普通-1,困难-2）
+        target_type_ids = []
+        if level_type_ids_param:
+            for item in level_type_ids_param.split(','):
+                parts = item.strip().split('-')
+                if len(parts) == 2:
+                    target_type_ids.append((parts[0], int(parts[1])))
         
         # 解析关卡类型（支持多选）
         target_level_types = []
@@ -736,15 +745,24 @@ def api_level_penetration_curve():
         where_conditions = ["register_date BETWEEN ? AND ?", "day_num <= ?"]
         params = [register_date_start, register_date_end, max_days]
         
-        if target_level_types:
-            placeholders = ','.join(['?' for _ in target_level_types])
-            where_conditions.append(f"level_type IN ({placeholders})")
-            params.extend(target_level_types)
-        
-        if target_level_ids:
-            placeholders = ','.join(['?' for _ in target_level_ids])
-            where_conditions.append(f"level_id IN ({placeholders})")
-            params.extend(target_level_ids)
+        # 优先使用类型-关卡ID组合查询（精确查询）
+        if target_type_ids:
+            type_id_conditions = []
+            for lt, lid in target_type_ids:
+                type_id_conditions.append("(level_type = ? AND level_id = ?)")
+                params.extend([lt, lid])
+            where_conditions.append(f"({' OR '.join(type_id_conditions)})")
+        else:
+            # 使用分开的level_type和level_ids查询
+            if target_level_types:
+                placeholders = ','.join(['?' for _ in target_level_types])
+                where_conditions.append(f"level_type IN ({placeholders})")
+                params.extend(target_level_types)
+            
+            if target_level_ids:
+                placeholders = ','.join(['?' for _ in target_level_ids])
+                where_conditions.append(f"level_id IN ({placeholders})")
+                params.extend(target_level_ids)
         
         where_clause = " AND ".join(where_conditions)
         
