@@ -2307,32 +2307,30 @@
                 return;
             }
 
-            // 解析选中的关卡，构建类型+ID的查询参数
-            // 格式: 普通-1,普通-2,困难-1 等
-            const levelTypeIds = [];
+            // 解析选中的关卡，按类型分组
+            // API v2.0格式: level_type=普通,困难&level_ids=1,2,3
+            const levelTypes = new Set();
+            const levelIds = [];
             
             levelsToShow.forEach(levelKey => {
                 // levelKey格式: "普通-1"、"困难-5"等
                 const parts = levelKey.split('-');
                 if (parts.length === 2) {
-                    // 已经是正确格式，直接使用
-                    levelTypeIds.push(levelKey);
-                } else {
-                    // 兼容旧格式
-                    const parsed = parseLevelId(levelKey);
-                    if (parsed) {
-                        levelTypeIds.push(`${parsed.categoryName}-${parsed.levelNum}`);
-                    }
+                    levelTypes.add(parts[0]);
+                    levelIds.push(parts[1]);
                 }
             });
 
             // 调用API获取真实数据
             try {
-                // 使用level_type_ids参数传递类型+ID组合
-                let url = `/api/level_penetration_curve?register_date_start=${registerDateStart}&register_date_end=${registerDateEnd}&max_days=${maxDays}&compare_mode=multi`;
+                // API v2.0参数格式
+                let url = `/api/level_penetration_curve?register_date_start=${registerDateStart}&register_date_end=${registerDateEnd}&max_day=${maxDays}&compare_mode=multi`;
                 
-                if (levelTypeIds.length > 0) {
-                    url += `&level_type_ids=${encodeURIComponent(levelTypeIds.join(','))}`;
+                if (levelTypes.size > 0) {
+                    url += `&level_type=${encodeURIComponent(Array.from(levelTypes).join(','))}`;
+                }
+                if (levelIds.length > 0) {
+                    url += `&level_ids=${encodeURIComponent(levelIds.join(','))}`;
                 }
                 
                 const response = await fetch(url);
@@ -2578,7 +2576,19 @@
             html += `<div style="color: #666; font-size: 14px; margin-bottom: 10px;">`;
             html += `累计到达人数: ${dayData.cumulative_users}人 | `;
             html += `平均最大波次: ${dayData.avg_wave_num}波 | `;
-            html += `最大到达波次: ${dayData.max_wave_reached}波`;
+            // 从波次分布计算最大波次
+            let maxWaveReached = 0;
+            if (dayData.wave_dist_json) {
+                try {
+                    const waveDist = JSON.parse(dayData.wave_dist_json);
+                    maxWaveReached = Math.max(...waveDist.map(w => w.wave_num), 0);
+                } catch (e) {
+                    maxWaveReached = Math.round(dayData.avg_wave_num || 0);
+                }
+            } else {
+                maxWaveReached = Math.round(dayData.avg_wave_num || 0);
+            }
+            html += `最大到达波次: ${maxWaveReached}波`;
             html += '</div>';
             html += '</div>';
             
