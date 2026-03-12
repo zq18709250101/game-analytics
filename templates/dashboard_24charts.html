@@ -3390,10 +3390,62 @@
                     renderCategoryEnterRatioCharts(result.data);
                 } else {
                     console.error('API错误:', result.message);
+                    // 显示空图表
+                    renderEmptyCategoryCharts(registerDates, dayStart, dayEnd);
                 }
             } catch (error) {
                 console.error('加载关卡类别进入占比失败:', error);
+                // API失败也显示空图表
+                renderEmptyCategoryCharts(registerDates, dayStart, dayEnd);
             }
+        }
+        
+        // 显示空图表（没有数据）
+        function renderEmptyCategoryCharts(registerDates, dayStart, dayEnd) {
+            const day_nums = [];
+            for (let i = dayStart; i <= dayEnd; i++) {
+                day_nums.push(i);
+            }
+            const x_axis_data = day_nums.map(day => `D${day}`);
+            
+            const categories = ['普通', '困难', '地狱', '副本'];
+            const color_map = {
+                '普通': '#5470c6',
+                '困难': '#91cc75',
+                '地狱': '#fac858',
+                '副本': '#ee6666'
+            };
+            
+            // 构建空数据
+            const emptySeriesGroups = registerDates.map(reg_date => {
+                return {
+                    group_name: String(reg_date),
+                    register_date: reg_date,
+                    total_users: 0,
+                    series: categories.map(cat => ({
+                        name: cat,
+                        data: day_nums.map(() => 0),
+                        color: color_map[cat]
+                    }))
+                };
+            });
+            
+            const emptyChartData = {
+                chart_id: 'empty',
+                chart_name: '',
+                x_axis: { data: x_axis_data },
+                series_groups: emptySeriesGroups
+            };
+            
+            renderStackedBarChart('categoryUserRatioChart', {
+                ...emptyChartData,
+                chart_name: '关卡类别进入占比（按人数）'
+            }, true);
+            
+            renderStackedBarChart('categoryCountRatioChart', {
+                ...emptyChartData,
+                chart_name: '关卡类别进入占比（按次数）'
+            }, false);
         }
         
         function renderCategoryEnterRatioCharts(data) {
