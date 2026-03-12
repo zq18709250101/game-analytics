@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>游戏数据分析 - 五维分析框架（24图表完整版 v3）</title>
+    <title>游戏数据分析 - 五维分析框架（24图表完整版 v4）</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -76,7 +76,8 @@
         .kpi-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
         .kpi-value { font-size: 1.8rem; font-weight: bold; color: #667eea; }
         .kpi-label { color: #666; font-size: 0.85rem; margin-top: 0.5rem; }
-        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 2rem; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; }
+        .chart-grid > .half-width { min-width: 0; width: 100%; }
         .chart-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .chart-card h3 { margin-bottom: 1rem; color: #333; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
         .chart-card h3 .priority { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 10px; font-weight: normal; }
@@ -91,6 +92,7 @@
         .insight-box h4 { color: #667eea; margin-bottom: 0.5rem; font-size: 0.95rem; }
         .insight-box ul { margin-left: 1.2rem; font-size: 0.85rem; }
         .full-width { grid-column: 1 / -1; }
+        .half-width { grid-column: span 1; }
         .section-title { grid-column: 1 / -1; font-size: 1.4rem; color: #667eea; margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #667eea; display: flex; align-items: center; gap: 0.5rem; }
         .chart-count { font-size: 0.8rem; color: #666; font-weight: normal; margin-left: auto; }
         @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -115,9 +117,9 @@
             </div>
             <div class="date-picker-wrapper" id="rangeDatePicker" style="display: none;">
                 <span>📅</span>
-                <input type="date" id="tsStartDate" value="2026-01-10">
+                <input type="date" id="tsStartDate" value="2026-01-10" onchange="handleDateRangeChange()">
                 <span>~</span>
-                <input type="date" id="tsEndDate" value="2026-01-25">
+                <input type="date" id="tsEndDate" value="2026-01-25" onchange="handleDateRangeChange()">
             </div>
             <button class="refresh-btn" id="refreshBtn" onclick="handleRefresh()">🔄 刷新</button>
         </div>
@@ -147,50 +149,51 @@
                 <div class="insight-box"><h4>分析要点</h4><ul><li>多线折线图对比首日用户数、首日IPU、首日看广率、次日留存</li><li>识别首日数据异常和趋势</li></ul></div>
             </div>
 
-            <!-- P0-1: 多日留存对比曲线 -->
-            <div class="chart-card" data-dimension="timeseries">
-                <h3>多日留存对比曲线 <span class="priority p0">P0</span></h3>
-                <div class="chart-selector">
-                    <select id="retentionRangeSelect" onchange="updateRetentionCurve()">
-                        <option value="3">3天留存</option>
-                        <option value="7">7天留存</option>
-                        <option value="14">14天留存</option>
-                        <option value="30" selected>30天留存</option>
-                        <option value="45">45天留存</option>
-                        <option value="60">60天留存</option>
-                        <option value="90">90天留存</option>
-                    </select>
-                    <label class="switch" style="margin-left: 10px;">
-                        <input type="checkbox" id="retentionToggle" checked onchange="toggleAllRetentionSwitch(this)">
-                        <span class="slider"></span>
-                        <span class="switch-label">显示全部</span>
-                    </label>
+            <!-- P0-1 & P0-2: 多日留存对比曲线 和 多日IPU对比曲线 -->
+            <div class="chart-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; grid-column: 1 / -1;">
+                <div class="chart-card" data-dimension="timeseries">
+                    <h3>多日留存对比曲线 <span class="priority p0">P0</span></h3>
+                    <div class="chart-selector">
+                        <select id="retentionRangeSelect" onchange="updateRetentionCurve()">
+                            <option value="3">3天留存</option>
+                            <option value="7">7天留存</option>
+                            <option value="14">14天留存</option>
+                            <option value="30" selected>30天留存</option>
+                            <option value="45">45天留存</option>
+                            <option value="60">60天留存</option>
+                            <option value="90">90天留存</option>
+                        </select>
+                        <label class="switch" style="margin-left: 10px;">
+                            <input type="checkbox" id="retentionToggle" checked onchange="toggleAllRetentionSwitch(this)">
+                            <span class="slider"></span>
+                            <span class="switch-label">显示全部</span>
+                        </label>
+                    </div>
+                    <div class="chart-container"><canvas id="tsRetentionChart"></canvas></div>
+                    <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同日期的1-90日留存曲线</li><li>识别留存异常的日期和趋势</li></ul></div>
                 </div>
-                <div class="chart-container"><canvas id="tsRetentionChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同日期的1-90日留存曲线</li><li>识别留存异常的日期和趋势</li></ul></div>
-            </div>
 
-            <!-- P0-2: 多日IPU对比曲线 -->
-            <div class="chart-card" data-dimension="timeseries">
-                <h3>多日IPU对比曲线 <span class="priority p1">P1</span></h3>
-                <div class="chart-selector">
-                    <select id="ipuRangeSelect" onchange="updateIpuCurve()">
-                        <option value="3">3天IPU</option>
-                        <option value="7">7天IPU</option>
-                        <option value="14">14天IPU</option>
-                        <option value="30" selected>30天IPU</option>
-                        <option value="45">45天IPU</option>
-                        <option value="60">60天IPU</option>
-                        <option value="90">90天IPU</option>
-                    </select>
-                    <label class="switch" style="margin-left: 10px;">
-                        <input type="checkbox" id="ipuToggle" checked onchange="toggleAllIpuSwitch(this)">
-                        <span class="slider"></span>
-                        <span class="switch-label">显示全部</span>
-                    </label>
+                <div class="chart-card" data-dimension="timeseries">
+                    <h3>多日IPU对比曲线 <span class="priority p1">P1</span></h3>
+                    <div class="chart-selector">
+                        <select id="ipuRangeSelect" onchange="updateIpuCurve()">
+                            <option value="3">3天IPU</option>
+                            <option value="7">7天IPU</option>
+                            <option value="14">14天IPU</option>
+                            <option value="30" selected>30天IPU</option>
+                            <option value="45">45天IPU</option>
+                            <option value="60">60天IPU</option>
+                            <option value="90">90天IPU</option>
+                        </select>
+                        <label class="switch" style="margin-left: 10px;">
+                            <input type="checkbox" id="ipuToggle" checked onchange="toggleAllIpuSwitch(this)">
+                            <span class="slider"></span>
+                            <span class="switch-label">显示全部</span>
+                        </label>
+                    </div>
+                    <div class="chart-container"><canvas id="tsIpuChart"></canvas></div>
+                    <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同日期的1-90日IPU曲线</li><li>识别变现能力异常的日期和趋势</li></ul></div>
                 </div>
-                <div class="chart-container"><canvas id="tsIpuChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>对比不同日期的1-90日IPU曲线</li><li>识别变现能力异常的日期和趋势</li></ul></div>
             </div>
 
             <!-- P1-3: 关键留存点对比 -->
@@ -272,10 +275,10 @@
                 <h3>累计渗透率趋势图 <span class="priority p0">P0</span></h3>
                 <div class="chart-selector">
                     <!-- 树形多选下拉框 -->
-                    <div class="tree-selector-wrapper" style="display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap;">
-                        <div class="tree-dropdown-container" style="position: relative; min-width: 250px;">
+                    <div class="tree-selector-wrapper" style="display: flex; gap: 15px; align-items: center; flex-wrap: nowrap; justify-content: center;">
+                        <div class="tree-dropdown-container" style="position: relative; min-width: 200px;">
                             <div class="tree-dropdown-trigger" onclick="toggleTreeDropdown(event)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                                <span id="treeDropdownText">普通1,普通4</span>
+                                <span id="treeDropdownText">请选择关卡...</span>
                                 <span style="color: #999;">▼</span>
                             </div>
                             <div id="treeDropdownPanel" class="tree-dropdown-panel" onclick="event.stopPropagation()" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 350px; overflow-y: auto; z-index: 1000;">
@@ -284,7 +287,7 @@
                         </div>
                         <!-- 天数选择 -->
                         <div class="selector-group">
-                            <select id="penetrationDaySelect" onchange="updatePenetrationChart()" style="min-width: 80px; padding: 8px;">
+                            <select id="penetrationDaySelect" onchange="updatePenetrationChart()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
                                 <option value="7">7天</option>
                                 <option value="14">14天</option>
                                 <option value="30" selected>30天</option>
@@ -292,23 +295,16 @@
                                 <option value="90">90天</option>
                             </select>
                         </div>
-                        <!-- Switch开关：显示渗透率 -->
-                        <label class="switch">
-                            <input type="checkbox" id="penetrationToggle" checked onchange="updatePenetrationChart()">
+                        <!-- 二选一Switch：渗透率/平均最大波次 -->
+                        <div class="toggle-switch-container" style="display: flex; align-items: center; gap: 0; background: #f0f0f0; padding: 3px; border-radius: 20px; height: 36px;">
+                            <button id="penetrationBtn" class="toggle-btn active" onclick="switchMetricType('penetration')" style="padding: 6px 14px; border: none; border-radius: 17px; background: #667eea; color: white; cursor: pointer; font-size: 0.8rem; transition: all 0.3s; height: 30px; line-height: 18px;">渗透率</button>
+                            <button id="waveBtn" class="toggle-btn" onclick="switchMetricType('wave')" style="padding: 6px 14px; border: none; border-radius: 17px; background: transparent; color: #666; cursor: pointer; font-size: 0.8rem; transition: all 0.3s; height: 30px; line-height: 18px;">平均最大波次</button>
+                        </div>
+                        <!-- Switch开关：显示全部 -->
+                        <label class="switch" style="margin: 0;">
+                            <input type="checkbox" id="showAllToggle" checked onchange="toggleShowAllLevels()">
                             <span class="slider"></span>
-                            <span class="switch-label">显示渗透率</span>
-                        </label>
-                        <!-- Switch开关：显示波次 -->
-                        <label class="switch">
-                            <input type="checkbox" id="waveToggle" onchange="updatePenetrationChart()">
-                            <span class="slider"></span>
-                            <span class="switch-label">显示波次</span>
-                        </label>
-                        <!-- Switch开关：默认选择 -->
-                        <label class="switch">
-                            <input type="checkbox" id="defaultToggle" checked onchange="toggleDefaultLevels()">
-                            <span class="slider"></span>
-                            <span class="switch-label">默认选择</span>
+                            <span class="switch-label" style="font-size: 0.8rem;">显示全部</span>
                         </label>
                     </div>
                 </div>
@@ -321,13 +317,43 @@
                 <div style="background: white; border-radius: 12px; padding: 20px; width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h3 id="waveDistTitle" style="margin: 0; color: #333;">最大波次分布</h3>
-                        <button onclick="closeWaveDistModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="openWaveDistDailyComparison()" style="padding: 6px 16px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">逐日对比</button>
+                            <button onclick="openWaveDistComparison()" style="padding: 6px 16px; background: #43e97b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">间隔对比</button>
+                            <button onclick="closeWaveDistModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">×</button>
+                        </div>
                     </div>
                     <div id="waveDistContent" style="margin-bottom: 15px;">
                         <!-- 分布图内容 -->
                     </div>
                     <div style="display: flex; justify-content: flex-end;">
                         <button onclick="closeWaveDistModal()" style="padding: 8px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">关闭</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最大波次分布对比页面（10个图表） -->
+            <div id="waveDistComparisonModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; overflow: auto;">
+                <div style="background: white; border-radius: 12px; padding: 30px; margin: 20px auto; max-width: 1600px; min-height: calc(100vh - 40px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; flex-shrink: 0;">
+                        <h3 id="waveDistComparisonTitle" style="margin: 0; color: #333; font-size: 1.5rem;">最大波次分布对比</h3>
+                        <button onclick="closeWaveDistComparison()" style="padding: 10px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem;">关闭</button>
+                    </div>
+                    <div id="waveDistComparisonContent" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(5, minmax(280px, auto)); gap: 20px;">
+                        <!-- 10个图表容器 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最大波次分布逐日对比页面（30个图表） -->
+            <div id="waveDistDailyComparisonModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; overflow: auto;">
+                <div style="background: white; border-radius: 12px; padding: 30px; margin: 20px auto; max-width: 1600px; min-height: calc(100vh - 40px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; flex-shrink: 0;">
+                        <h3 id="waveDistDailyComparisonTitle" style="margin: 0; color: #333; font-size: 1.5rem;">最大波次分布逐日对比</h3>
+                        <button onclick="closeWaveDistDailyComparison()" style="padding: 10px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem;">关闭</button>
+                    </div>
+                    <div id="waveDistDailyComparisonContent" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(15, minmax(280px, auto)); gap: 20px;">
+                        <!-- 30个图表容器 -->
                     </div>
                 </div>
             </div>
@@ -585,8 +611,29 @@
         function handleRefresh() {
             if (currentDimension === 'timeseries') {
                 validateAndLoadTimeSeries();
+            } else if (currentDimension === 'penetration') {
+                loadPenetrationCharts();
             } else {
                 refreshData();
+            }
+        }
+
+        // 日期范围变化处理
+        function handleDateRangeChange() {
+            const startDate = document.getElementById('tsStartDate').value;
+            const endDate = document.getElementById('tsEndDate').value;
+            
+            if (!startDate || !endDate) return;
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('结束日期不能早于开始日期');
+                return;
+            }
+            
+            // 根据当前维度加载对应数据
+            if (currentDimension === 'timeseries') {
+                validateAndLoadTimeSeries();
+            } else if (currentDimension === 'penetration') {
+                loadPenetrationCharts();
             }
         }
 
@@ -2044,13 +2091,12 @@
                     catLevels.push(`${config.name}-${i}`);  // 格式：类型-关卡ID
                 }
                 const catSelectedCount = catLevels.filter(l => selectedLevelsGlobal.has(l)).length;
-                const catAllSelected = catSelectedCount === catLevels.length && catLevels.length > 0;
-                
+
                 html += `<div class="tree-category-header" style="padding: 6px 12px; background: #f5f5f5; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleCategoryExpand('${catKey}')">`;
                 html += `<span style="width: 16px; display: inline-block;">${expandedGroups.has(catKey) ? '▼' : '▶'}</span>`;
-                html += `<input type="checkbox" ${catAllSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleCategoryAll('${catKey}')" style="cursor: pointer;">`;
                 html += `<span>${config.name}</span>`;
                 html += `<span style="color: #999; font-size: 11px; margin-left: auto;">${catSelectedCount}/${catLevels.length}</span>`;
+                html += `<button onclick="event.stopPropagation(); clearCategorySelection('${catKey}')" style="margin-left: 8px; padding: 2px 8px; font-size: 11px; background: #ff6b6b; color: white; border: none; border-radius: 3px; cursor: pointer;">清空</button>`;
                 html += `</div>`;
                 
                 // 分组和关卡（展开时显示）
@@ -2142,19 +2188,48 @@
             renderTreeDropdown();
         }
 
-        // 全选/取消全选某个类别的所有关卡
-        function toggleCategoryAll(catKey) {
+        // 清空某个类别的所有关卡选择
+        function clearCategorySelection(catKey) {
             const config = categoryConfig[catKey];
             if (!config) return;
-            
+
             const catLevels = [];
             for (let i = config.start; i <= config.end; i++) {
                 catLevels.push(`${config.name}-${i}`);  // 格式：类型-关卡ID
             }
-            
+
+            // 删除该类别下的所有关卡
+            catLevels.forEach(levelKey => {
+                selectedLevelsGlobal.delete(levelKey);
+            });
+
+            renderTreeDropdown();
+            updateTreeDropdownText();
+            updatePenetrationChart();
+        }
+
+        // 全选/取消全选某个类别的所有关卡
+        function toggleCategoryAll(catKey) {
+            const config = categoryConfig[catKey];
+            if (!config) return;
+
+            const catLevels = [];
+            for (let i = config.start; i <= config.end; i++) {
+                catLevels.push(`${config.name}-${i}`);  // 格式：类型-关卡ID
+            }
+
             const catSelectedCount = catLevels.filter(l => selectedLevelsGlobal.has(l)).length;
             const shouldSelect = catSelectedCount < catLevels.length;
-            
+
+            if (shouldSelect) {
+                // 检查是否超过20条限制
+                const newCount = selectedLevelsGlobal.size + (catLevels.length - catSelectedCount);
+                if (newCount > 20) {
+                    alert('最多只能选择20个关卡');
+                    return;
+                }
+            }
+
             catLevels.forEach(levelKey => {
                 if (shouldSelect) {
                     selectedLevelsGlobal.add(levelKey);
@@ -2162,7 +2237,7 @@
                     selectedLevelsGlobal.delete(levelKey);
                 }
             });
-            
+
             renderTreeDropdown();
             updateTreeDropdownText();
             updatePenetrationChart();
@@ -2172,15 +2247,24 @@
         function toggleGroupAll(catKey, start, end) {
             const config = categoryConfig[catKey];
             if (!config) return;
-            
+
             const groupLevels = [];
             for (let i = start; i <= end; i++) {
                 groupLevels.push(`${config.name}-${i}`);  // 格式：类型-关卡ID
             }
-            
+
             const groupSelectedCount = groupLevels.filter(l => selectedLevelsGlobal.has(l)).length;
             const shouldSelect = groupSelectedCount < groupLevels.length;
-            
+
+            if (shouldSelect) {
+                // 检查是否超过20条限制
+                const newCount = selectedLevelsGlobal.size + (groupLevels.length - groupSelectedCount);
+                if (newCount > 20) {
+                    alert('最多只能选择20个关卡');
+                    return;
+                }
+            }
+
             groupLevels.forEach(levelKey => {
                 if (shouldSelect) {
                     selectedLevelsGlobal.add(levelKey);
@@ -2188,7 +2272,7 @@
                     selectedLevelsGlobal.delete(levelKey);
                 }
             });
-            
+
             renderTreeDropdown();
             updateTreeDropdownText();
             updatePenetrationChart();
@@ -2199,9 +2283,14 @@
             if (selectedLevelsGlobal.has(levelId)) {
                 selectedLevelsGlobal.delete(levelId);
             } else {
+                // 限制最多选择20个关卡
+                if (selectedLevelsGlobal.size >= 20) {
+                    alert('最多只能选择20个关卡');
+                    return;
+                }
                 selectedLevelsGlobal.add(levelId);
             }
-            
+
             renderTreeDropdown();
             updateTreeDropdownText();
             updatePenetrationChart();
@@ -2281,39 +2370,33 @@
 
         // 初始化关卡选择器
         function initPenetrationLevelSelect() {
-            // 默认选中普通1、普通4
-            selectedLevelsGlobal = new Set([...defaultLevels]);
+            // 默认不选中任何关卡
+            selectedLevelsGlobal = new Set();
             expandedGroups = new Set(['normal']);
-            
+
             renderTreeDropdown();
             updateTreeDropdownText();
             updatePenetrationChart();
         }
 
+        // 当前图表数据（用于显示全部/隐藏功能）
+        let currentPenetrationChartData = null;
+
         async function updatePenetrationChart() {
             const maxDays = parseInt(document.getElementById('penetrationDaySelect')?.value || 30);
             const registerDateStart = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
             const registerDateEnd = document.getElementById('tsEndDate')?.value?.replace(/-/g, '') || '20260116';
-            
-            // 获取选中的关卡，如果没有选中则不显示任何曲线
+
+            // 获取选中的关卡
             let levelsToShow = Array.from(selectedLevelsGlobal);
-            
-            // 如果没有选中任何关卡，清空图表
-            if (levelsToShow.length === 0) {
-                // 清空图表
-                const ctx = document.getElementById('penetrationChart')?.getContext('2d');
-                if (ctx && charts.penetration) {
-                    charts.penetration.destroy();
-                    charts.penetration = null;
-                }
-                updateTreeDropdownText();
-                return;
-            }
+
+            console.log('Selected levels from global:', levelsToShow);
+            console.log('Selected levels count:', levelsToShow.length);
 
             // 解析选中的关卡
             // 使用level_type_ids参数传递类型-关卡ID组合（如：普通-1,困难-2）
             const levelTypeIds = [];
-            
+
             levelsToShow.forEach(levelKey => {
                 // levelKey格式: "普通-1"、"困难-5"等
                 if (levelKey.includes('-')) {
@@ -2321,31 +2404,48 @@
                 }
             });
 
+            // 检查是否有选中的关卡
+            if (levelTypeIds.length === 0) {
+                // 没有选中的关卡，显示空图表
+                console.log('No levels selected, displaying empty chart');
+                currentPenetrationChartData = { curves: [] };
+                renderPenetrationChart(currentPenetrationChartData);
+                return;
+            }
+
             // 调用API获取真实数据
             try {
-                // 使用level_type_ids参数精确查询
-                let url = `/api/level_penetration_curve?register_date_start=${registerDateStart}&register_date_end=${registerDateEnd}&max_day=${maxDays}&compare_mode=multi`;
-                
+                // 使用level_type_ids参数精确查询，compare_mode=date按日期分组
+                let url = `/api/level_penetration_curve?register_date_start=${registerDateStart}&register_date_end=${registerDateEnd}&max_day=${maxDays}&compare_mode=date`;
+
+                // 添加关卡过滤
                 if (levelTypeIds.length > 0) {
                     url += `&level_type_ids=${encodeURIComponent(levelTypeIds.join(','))}`;
                 }
-                
+
                 const response = await fetch(url);
                 const result = await response.json();
-                
+
+                console.log('API URL:', url);
+                console.log('API response code:', result.code);
+                console.log('API curves count:', result.data?.curves?.length);
+
                 if (result.code === 0 && result.data) {
-                    renderPenetrationChart(result.data);
+                    currentPenetrationChartData = result.data;
+                    renderPenetrationChart(currentPenetrationChartData);
                 } else {
                     console.error('API返回错误:', result.message);
                     // 降级使用模拟数据
                     const mockData = generateMockPenetrationData(levelsToShow, maxDays);
-                    renderPenetrationChart(mockData);
+                    currentPenetrationChartData = mockData;
+                    renderPenetrationChart(currentPenetrationChartData);
                 }
             } catch (error) {
                 console.error('加载累计渗透率数据失败:', error);
                 // 降级使用模拟数据
                 const mockData = generateMockPenetrationData(levelsToShow, maxDays);
-                renderPenetrationChart(mockData);
+                currentPenetrationChartData = mockData;
+                renderPenetrationChart(currentPenetrationChartData);
             }
         }
 
@@ -2382,15 +2482,19 @@
                 console.error('Canvas context not found');
                 return;
             }
-            
+
             // 销毁旧图表
             if (charts.penetration) {
                 charts.penetration.destroy();
                 charts.penetration = null;
             }
 
-            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#fa709a', '#38f9d7', '#ffecd2'];
-            
+            const colors = [
+                '#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#fa709a', '#38f9d7', '#ffecd2',
+                '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e91e63', '#ff5722', '#795548', '#607d8b',
+                '#ff9800', '#4caf50', '#2196f3', '#9c27b0', '#00bcd4', '#ffeb3b', '#8bc34a', '#ff5722', '#3f51b5', '#009688'
+            ];
+
             // 支持两种数据格式：API返回的data.curves 或 模拟数据的data.data
             let levelsToShow = [];
             if (responseData.curves) {
@@ -2403,29 +2507,119 @@
             currentPenetrationLevels = levelsToShow;
 
             console.log('Rendering chart with levels:', levelsToShow.length);
-            console.log('First level data:', levelsToShow[0]);
-            
+
+            // 如果没有数据，显示空图表
             if (!levelsToShow || levelsToShow.length === 0) {
-                console.warn('No levels to display');
+                console.log('No levels to display, showing empty chart');
+                
+                // 获取当前选择的天数，动态生成X轴标签
+                const maxDays = parseInt(document.getElementById('penetrationDaySelect')?.value || 30);
+                const emptyLabels = [];
+                for (let i = 1; i <= maxDays; i++) {
+                    emptyLabels.push(`第${i}天`);
+                }
+                
+                charts.penetration = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: emptyLabels,
+                        datasets: []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                title: { display: true, text: '注册后天数' },
+                                grid: {
+                                    display: true,
+                                    drawBorder: true,
+                                    drawOnChartArea: true,
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                beginAtZero: true,
+                                min: 0,
+                                max: 100,
+                                title: { display: true, text: '累计渗透率%' },
+                                ticks: {
+                                    stepSize: 20,
+                                    callback: function(value) {
+                                        return value % 20 === 0 ? value : '';
+                                    }
+                                },
+                                grid: {
+                                    display: true,
+                                    drawBorder: true,
+                                    drawOnChartArea: true,
+                                    drawTicks: true,
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: false,
+                                position: 'left',
+                                beginAtZero: true,
+                                min: 0,
+                                max: 30,
+                                title: { display: false, text: '波次次数' },
+                                ticks: {
+                                    stepSize: 5,
+                                    callback: function(value) {
+                                        return value % 5 === 0 ? value : '';
+                                    }
+                                },
+                                grid: {
+                                    display: false,
+                                    drawBorder: true,
+                                    drawOnChartArea: true,
+                                    drawTicks: true,
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            }
+                        }
+                    }
+                });
                 return;
             }
 
             // 提取关卡类别和序号用于标签显示
-            const getLevelLabel = (levelId, levelType) => {
+            const getLevelLabel = (levelId, levelType, registerDate) => {
                 const parsed = parseLevelId(String(levelId), levelType);
-                if (parsed) {
-                    return `${parsed.categoryName}${parsed.levelNum}`;
+                const levelName = parsed ? `${parsed.categoryName}${parsed.levelNum}` : `关卡${levelId}`;
+                // 如果有注册日期，显示日期+关卡名
+                if (registerDate) {
+                    return `${registerDate}_${levelName}`;
                 }
-                return `关卡${levelId}`;
+                return levelName;
             };
 
-            // 获取Switch开关状态
-            const showPenetration = document.getElementById('penetrationToggle')?.checked ?? true;
-            const showWave = document.getElementById('waveToggle')?.checked ?? true;
+            // 获取当前指标类型（二选一）
+            const showPenetration = currentMetricType === 'penetration';
+            const showWave = currentMetricType === 'wave';
 
-            // 按关卡类型排序：普通、困难、地狱、副本
-            const typeOrder = { '普通': 1, '困难': 2, '地狱': 3, '副本': 4 };
+            // 获取显示全部开关状态
+            const showAllToggle = document.getElementById('showAllToggle');
+            const showAll = showAllToggle?.checked ?? true;
+
+            // 按注册日期和关卡类型排序
             const sortedLevels = [...levelsToShow].sort((a, b) => {
+                // 先按注册日期排序
+                if (a.register_date && b.register_date) {
+                    if (a.register_date !== b.register_date) {
+                        return a.register_date.localeCompare(b.register_date);
+                    }
+                }
+                // 再按关卡类型排序
+                const typeOrder = { '普通': 1, '困难': 2, '地狱': 3, '副本': 4 };
                 const orderA = typeOrder[a.level_type] || 99;
                 const orderB = typeOrder[b.level_type] || 99;
                 if (orderA !== orderB) return orderA - orderB;
@@ -2439,9 +2633,10 @@
             // 第一步：生成所有渗透率曲线
             if (showPenetration) {
                 sortedLevels.forEach((level, index) => {
-                    const label = getLevelLabel(level.level_id, level.level_type);
+                    const label = getLevelLabel(level.level_id, level.level_type, level.register_date);
                     const color = colors[index % colors.length];
                     const penetrationData = level.data ? level.data.map(d => d.penetration_rate || 0) : [];
+                    console.log(`Dataset ${index}: ${label}, color: ${color}, data points: ${penetrationData.length}, first value: ${penetrationData[0]}`);
                     datasets.push({
                         label: `${label}渗透率`,
                         data: penetrationData,
@@ -2450,8 +2645,11 @@
                         fill: false,
                         tension: 0.3,
                         borderWidth: 2,
+                        pointRadius: 3,  // 添加数据点标记
+                        pointHoverRadius: 5,
                         yAxisID: 'y',
-                        order: 1
+                        order: 1,
+                        hidden: !showAll  // 显示全部关闭时，隐藏曲线
                     });
                 });
             }
@@ -2459,7 +2657,7 @@
             // 第二步：生成所有平均最大波次曲线
             if (showWave) {
                 sortedLevels.forEach((level, index) => {
-                    const label = getLevelLabel(level.level_id, level.level_type);
+                    const label = getLevelLabel(level.level_id, level.level_type, level.register_date);
                     const color = colors[index % colors.length];
                     const waveData = level.data ? level.data.map(d => d.avg_wave_num || 0) : [];
                     datasets.push({
@@ -2472,18 +2670,25 @@
                         borderWidth: 2,
                         borderDash: [5, 5], // 虚线区分
                         yAxisID: 'y1',
-                        order: 2
+                        order: 2,
+                        hidden: !showAll  // 显示全部关闭时，隐藏曲线
                     });
                 });
             }
 
             const labels = levelsToShow[0]?.data?.map(d => `第${d.day_num}天`) || [];
-            
+
             console.log('Chart datasets:', datasets.length);
             console.log('Chart labels:', labels.length);
+            console.log('Levels to show count:', levelsToShow.length);
+            console.log('Show penetration:', showPenetration);
+            console.log('Show wave:', showWave);
+            console.log('Dataset labels:', datasets.map(d => d.label));
+            console.log('First dataset data:', datasets[0]?.data);
+            console.log('Second dataset data:', datasets[1]?.data);
 
-            // 根据关卡数量决定是否显示图例（超过9关隐藏）
-            const showLegend = levelsToShow.length <= 9;
+            // 根据曲线数量决定是否显示图例（超过15条隐藏，避免图例过多）
+            const showLegend = datasets.length <= 15;
 
             charts.penetration = new Chart(ctx, {
                 type: 'line',
@@ -2521,49 +2726,90 @@
                         }
                     },
                     scales: {
-                        x: { 
-                            title: { display: true, text: '注册后天数' }
+                        x: {
+                            title: { display: true, text: '注册后天数' },
+                            grid: {
+                                display: true,
+                                drawBorder: true,
+                                drawOnChartArea: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
                         },
                         y: {
                             type: 'linear',
-                            display: true,
+                            display: showPenetration,
                             position: 'left',
                             beginAtZero: true,
-                            title: { display: true, text: '累计渗透率(%)' }
+                            title: { display: showPenetration, text: '累计渗透率%' },
+                            ticks: {
+                                stepSize: 20,
+                                callback: function(value) {
+                                    return value % 20 === 0 ? value : '';
+                                }
+                            },
+                            grid: {
+                                display: showPenetration,
+                                drawBorder: true,
+                                drawOnChartArea: true,
+                                drawTicks: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
                         },
                         y1: {
                             type: 'linear',
-                            display: true,
-                            position: 'right',
+                            display: showWave,
+                            position: 'left',
                             beginAtZero: true,
-                            title: { display: true, text: '平均最大波次' },
+                            title: { display: showWave, text: '波次次数' },
+                            ticks: {
+                                stepSize: 5,
+                                callback: function(value) {
+                                    return value % 5 === 0 ? value : '';
+                                }
+                            },
                             grid: {
-                                drawOnChartArea: false // 不绘制网格线，避免重叠
+                                display: showWave,
+                                drawBorder: true,
+                                drawOnChartArea: true,
+                                drawTicks: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
                             }
                         }
                     },
                     onClick: (e, elements, chart) => {
                         // 获取点击位置的精确数据
                         const points = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
-                        
+
                         if (points && points.length > 0) {
                             const point = points[0];
                             const datasetIndex = point.datasetIndex;
                             const dataIndex = point.index;
                             const dataset = chart.data.datasets[datasetIndex];
-                            
+
                             console.log('Clicked dataset:', datasetIndex, 'label:', dataset?.label);
-                            
-                            // 只处理平均最大波次曲线的点击
-                            if (dataset && dataset.label && dataset.label.includes('平均最大波次')) {
-                                // 从label中提取关卡名称（如"普通1平均最大波次" -> "普通1"）
+
+                            // 处理渗透率曲线和平均最大波次曲线的点击
+                            if (dataset && dataset.label && (dataset.label.includes('平均最大波次') || dataset.label.includes('渗透率'))) {
+                                // 从label中提取关卡名称（如"20260110_普通1渗透率" -> "20260110_普通1"）
                                 const labelMatch = dataset.label.match(/^(.*?)(?:平均最大波次|渗透率)$/);
                                 const levelName = labelMatch ? labelMatch[1] : dataset.label;
 
+                                console.log('Looking for level:', levelName);
+                                console.log('Available levels:', currentPenetrationLevels.map(l => ({
+                                    curve_name: l.curve_name,
+                                    level_type: l.level_type,
+                                    level_id: l.level_id,
+                                    register_date: l.register_date
+                                })));
+
                                 // 使用全局变量 currentPenetrationLevels 查找对应的关卡
+                                // 匹配 curve_name 或组合字段
                                 const levelData = currentPenetrationLevels.find(l => {
-                                    const lLabel = getLevelLabel(l.level_id, l.level_type);
-                                    return lLabel === levelName;
+                                    // 优先匹配 curve_name
+                                    if (l.curve_name === levelName) return true;
+                                    // 兼容旧格式：组合 register_date + level_type + level_id
+                                    const expectedName = `${l.register_date}_${l.level_type}${l.level_id}`;
+                                    return expectedName === levelName;
                                 });
 
                                 const dayData = levelData && levelData.data ? levelData.data[dataIndex] : null;
@@ -2583,27 +2829,39 @@
             });
         }
 
+        // 当前波次分布的关卡和天数信息（用于对比功能）
+        let currentWaveDistLevelData = null;
+        let currentWaveDistDayData = null;
+
         // 显示最大波次分布弹窗
         async function showWaveDistModal(levelData, dayData) {
             const modal = document.getElementById('waveDistModal');
             const title = document.getElementById('waveDistTitle');
             const content = document.getElementById('waveDistContent');
-            
+
             if (!modal || !title || !content) return;
-            
-            // 设置标题
-            title.textContent = `${levelData.level_type}${levelData.level_id} - 第${dayData.day_num}天 最大波次分布`;
+
+            // 保存当前信息（用于对比功能）
+            currentWaveDistLevelData = levelData;
+            currentWaveDistDayData = dayData;
+
+            // 设置标题 - 格式：日期 关卡 day 标题
+            // levelData.register_date 格式：20260110，需要转换为 2026-01-10
+            const formattedDate = levelData.register_date ?
+                `${levelData.register_date.slice(0,4)}-${levelData.register_date.slice(4,6)}-${levelData.register_date.slice(6,8)}` :
+                '';
+            title.textContent = `${formattedDate} ${levelData.level_type}${levelData.level_id} 第${dayData.day_num}天 最大波次分布`;
             
             // 显示加载中
             content.innerHTML = '<div style="color: #666; padding: 40px; text-align: center;">加载中...</div>';
             modal.style.display = 'flex';
             
             // 重新查询API获取波次分布数据
-            const registerDateStart = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
-            const registerDateEnd = document.getElementById('tsEndDate')?.value?.replace(/-/g, '') || '20260116';
-            
+            // 使用具体的注册日期（从levelData中获取），而不是日期范围
+            const registerDate = levelData.register_date || '20260110';
+
             try {
-                const url = `/api/level_penetration_curve?register_date_start=${registerDateStart}&register_date_end=${registerDateEnd}&max_day=${dayData.day_num}&level_type=${encodeURIComponent(levelData.level_type)}&level_ids=${levelData.level_id}&compare_mode=single&include_wave_dist=true`;
+                const url = `/api/level_penetration_curve?register_date_start=${registerDate}&register_date_end=${registerDate}&max_day=${dayData.day_num}&level_type=${encodeURIComponent(levelData.level_type)}&level_ids=${levelData.level_id}&compare_mode=single&include_wave_dist=true`;
                 
                 const response = await fetch(url);
                 const result = await response.json();
@@ -2654,12 +2912,12 @@
 
             // 左侧：累计最大波次分布
             html += '<div style="flex: 1; min-width: 350px;">';
-            html += '<h4 style="margin: 0 0 10px 0; color: #333; font-size: 16px; border-bottom: 2px solid #43e97b; padding-bottom: 5px;">累计最大波次分布</h4>';
+            html += '<h4 style="margin: 0 0 10px 0; color: #000; font-size: 16px; border-bottom: 2px solid #43e97b; padding-bottom: 5px;">累计最大波次分布</h4>';
 
             if (!cumulativeWaveDist || cumulativeWaveDist.length === 0) {
                 html += '<div style="color: #999; padding: 20px;">暂无数据</div>';
             } else {
-                const cumulativeUsers = dayData.cumulative_users || 1;
+                const cumulativeUsers = dayData.cumulative_users || 0;
 
                 html += '<div style="max-height: 350px; overflow-y: auto;">';
                 cumulativeWaveDist.sort((a, b) => a.wave_num - b.wave_num);
@@ -2667,7 +2925,10 @@
                 cumulativeWaveDist.forEach(item => {
                     const waveNum = item.wave_num;
                     const users = item.user_count;
-                    const percent = item.rate !== undefined ? item.rate : Math.round(users * 100 / cumulativeUsers);
+                    // 百分比基于累计到达人数计算
+                    const percent = cumulativeUsers > 0
+                        ? (item.rate !== undefined ? item.rate : Math.round(users * 100 / cumulativeUsers))
+                        : 0;
                     const barWidth = Math.min(percent, 100);
 
                     html += `<div style="display: flex; align-items: center; margin-bottom: 8px;">`;
@@ -2685,12 +2946,12 @@
 
             // 右侧：今日最大波次分布
             html += '<div style="flex: 1; min-width: 350px;">';
-            html += '<h4 style="margin: 0 0 10px 0; color: #333; font-size: 16px; border-bottom: 2px solid #667eea; padding-bottom: 5px;">今日最大波次分布</h4>';
+            html += '<h4 style="margin: 0 0 10px 0; color: #000; font-size: 16px; border-bottom: 2px solid #667eea; padding-bottom: 5px;">今日最大波次分布</h4>';
 
             if (!dailyWaveDist || dailyWaveDist.length === 0) {
-                html += '<div style="color: #999; padding: 20px;">暂无数据</div>';
+                html += '<div style="color: #999; padding: 20px;">暂无数据（今日无用户进入）</div>';
             } else {
-                const dailyArrivalUsers = dayData.daily_arrival_users || 1;
+                const dailyArrivalUsers = dayData.daily_arrival_users || 0;
 
                 html += '<div style="max-height: 350px; overflow-y: auto;">';
                 dailyWaveDist.sort((a, b) => a.wave_num - b.wave_num);
@@ -2698,7 +2959,10 @@
                 dailyWaveDist.forEach(item => {
                     const waveNum = item.wave_num;
                     const users = item.arrival_users;
-                    const percent = item.rate !== undefined ? item.rate : Math.round(users * 100 / dailyArrivalUsers);
+                    // 百分比基于今日进入人数计算
+                    const percent = dailyArrivalUsers > 0
+                        ? (item.rate !== undefined ? item.rate : Math.round(users * 100 / dailyArrivalUsers))
+                        : 0;
                     const barWidth = Math.min(percent, 100);
 
                     html += `<div style="display: flex; align-items: center; margin-bottom: 8px;">`;
@@ -2727,29 +2991,336 @@
             }
         }
 
+        // 打开最大波次分布对比页面
+        async function openWaveDistComparison() {
+            if (!currentWaveDistLevelData || !currentWaveDistDayData) {
+                alert('请先查看某个日期的波次分布');
+                return;
+            }
+
+            const modal = document.getElementById('waveDistComparisonModal');
+            const title = document.getElementById('waveDistComparisonTitle');
+            const content = document.getElementById('waveDistComparisonContent');
+
+            if (!modal || !title || !content) return;
+
+            // 设置标题
+            const registerDate = currentWaveDistLevelData.register_date;
+            const formattedRegisterDate = `${registerDate.slice(0, 4)}-${registerDate.slice(4, 6)}-${registerDate.slice(6, 8)}`;
+            title.textContent = `${formattedRegisterDate} ${currentWaveDistLevelData.level_type}${currentWaveDistLevelData.level_id} 最大波次分布对比`;
+
+            // 显示加载中
+            content.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #666;">加载中...</div>';
+            modal.style.display = 'block';
+
+            // 注册日期保持不变，day_num递增：当前day，+1，+3，+5，+7，+15，+30，+45，+60，+89
+            const baseDayNum = currentWaveDistDayData.day_num;
+            const levelType = currentWaveDistLevelData.level_type;
+            const levelId = currentWaveDistLevelData.level_id;
+
+            const dayOffsets = [0, 1, 3, 5, 7, 15, 30, 45, 60, 89];
+            
+            // 生成10个day_num（基于当前day_num）
+            const dayNums = dayOffsets.map(offset => baseDayNum + offset);
+
+            // 并行加载9个day_num的数据（同一注册日期）
+            try {
+                const promises = dayNums.map(async (dayNum, index) => {
+                    try {
+                        const response = await fetch(`/api/level_penetration_curve?register_date_start=${registerDate}&register_date_end=${registerDate}&max_day=${dayNum}&level_type=${encodeURIComponent(levelType)}&level_ids=${levelId}&compare_mode=single&include_wave_dist=true`);
+                        if (!response.ok) {
+                            return { dayNum, index, error: `HTTP ${response.status}` };
+                        }
+                        const data = await response.json();
+                        return { dayNum, index, data };
+                    } catch (err) {
+                        return { dayNum, index, error: err.message };
+                    }
+                });
+
+                const results = await Promise.all(promises);
+
+                // 渲染9个图表
+                let html = '';
+                results.forEach((result) => {
+                    const offsetLabel = dayOffsets[result.index] === 0 ? '当前' : `+${dayOffsets[result.index]}`;
+
+                    html += `<div class="wave-comparison-item" style="background: #f8f9fa; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; height: 100%; min-height: 280px; font-size: 14px;">`;
+                    html += `<h4 style="margin: 0 0 10px 0; color: #000; font-size: 16px; border-bottom: 2px solid #ddd; padding-bottom: 8px; flex-shrink: 0;">第${result.dayNum}天 (${offsetLabel})</h4>`;
+                    html += `<div id="waveComparison_${result.index}" style="flex: 1; overflow: auto;">`;
+
+                    console.log(`Comparison chart ${result.dayNum}:`, {
+                        error: result.error,
+                        code: result.data?.code,
+                        hasData: !!result.data?.data,
+                        curveDataLength: result.data?.data?.curve_data?.length,
+                        dayData: result.data?.data?.curve_data?.find(d => d.day_num === result.dayNum)
+                    });
+
+                    if (result.error) {
+                        html += renderEmptyWaveComparisonChart(`加载失败: ${result.error}`);
+                    } else if (result.data.code === 0 && result.data.data && result.data.data.curve_data && result.data.data.curve_data.length > 0) {
+                        const dayData = result.data.data.curve_data.find(d => d.day_num === result.dayNum);
+                        if (dayData) {
+                            // 始终使用 renderWaveDistributionCompact，让它内部处理无数据的情况
+                            html += renderWaveDistributionCompact(dayData);
+                        } else {
+                            html += renderEmptyWaveComparisonChart('暂无数据（无用户进入）');
+                        }
+                    } else {
+                        html += renderEmptyWaveComparisonChart('暂无数据（无用户进入）');
+                    }
+
+                    html += `</div></div>`;
+                });
+
+                content.innerHTML = html;
+            } catch (error) {
+                console.error('加载对比数据失败:', error);
+                content.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #999;">加载失败</div>';
+            }
+        }
+
+        // 关闭最大波次分布对比页面
+        function closeWaveDistComparison() {
+            const modal = document.getElementById('waveDistComparisonModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 打开最大波次分布逐日对比页面（30个图表，day+0到day+29）
+        async function openWaveDistDailyComparison() {
+            if (!currentWaveDistLevelData || !currentWaveDistDayData) {
+                alert('请先查看某个日期的波次分布');
+                return;
+            }
+
+            const modal = document.getElementById('waveDistDailyComparisonModal');
+            const title = document.getElementById('waveDistDailyComparisonTitle');
+            const content = document.getElementById('waveDistDailyComparisonContent');
+
+            if (!modal || !title || !content) return;
+
+            // 设置标题
+            const registerDate = currentWaveDistLevelData.register_date;
+            const formattedRegisterDate = `${registerDate.slice(0, 4)}-${registerDate.slice(4, 6)}-${registerDate.slice(6, 8)}`;
+            title.textContent = `${formattedRegisterDate} ${currentWaveDistLevelData.level_type}${currentWaveDistLevelData.level_id} 最大波次分布逐日对比`;
+
+            // 显示加载中
+            content.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #666;">加载中...</div>';
+            modal.style.display = 'block';
+
+            // 注册日期保持不变，day_num从当前day开始，逐天递增：day+0, day+1, ..., day+29
+            const baseDayNum = currentWaveDistDayData.day_num;
+            const levelType = currentWaveDistLevelData.level_type;
+            const levelId = currentWaveDistLevelData.level_id;
+
+            // 生成30个day_num（day+0到day+29）
+            const dayNums = Array.from({length: 30}, (_, i) => baseDayNum + i);
+
+            // 并行加载30个day_num的数据（同一注册日期）
+            try {
+                const promises = dayNums.map(async (dayNum, index) => {
+                    try {
+                        const response = await fetch(`/api/level_penetration_curve?register_date_start=${registerDate}&register_date_end=${registerDate}&max_day=${dayNum}&level_type=${encodeURIComponent(levelType)}&level_ids=${levelId}&compare_mode=single&include_wave_dist=true`);
+                        if (!response.ok) {
+                            return { dayNum, index, error: `HTTP ${response.status}` };
+                        }
+                        const data = await response.json();
+                        return { dayNum, index, data };
+                    } catch (err) {
+                        return { dayNum, index, error: err.message };
+                    }
+                });
+
+                const results = await Promise.all(promises);
+
+                // 渲染30个图表
+                let html = '';
+                results.forEach((result) => {
+                    const offsetLabel = result.index === 0 ? '当前' : `+${result.index}`;
+
+                    html += `<div class="wave-comparison-item" style="background: #f8f9fa; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; height: 100%; min-height: 280px; font-size: 14px;">`;
+                    html += `<h4 style="margin: 0 0 10px 0; color: #000; font-size: 16px; border-bottom: 2px solid #ddd; padding-bottom: 8px; flex-shrink: 0;">第${result.dayNum}天 (${offsetLabel})</h4>`;
+                    html += `<div id="waveDailyComparison_${result.index}" style="flex: 1; overflow: auto;">`;
+
+                    if (result.error) {
+                        html += renderEmptyWaveComparisonChart(`加载失败: ${result.error}`);
+                    } else if (result.data.code === 0 && result.data.data && result.data.data.curve_data && result.data.data.curve_data.length > 0) {
+                        const dayData = result.data.data.curve_data.find(d => d.day_num === result.dayNum);
+                        if (dayData) {
+                            html += renderWaveDistributionCompact(dayData);
+                        } else {
+                            html += renderEmptyWaveComparisonChart('暂无数据（无用户进入）');
+                        }
+                    } else {
+                        html += renderEmptyWaveComparisonChart('暂无数据（无用户进入）');
+                    }
+
+                    html += `</div></div>`;
+                });
+
+                content.innerHTML = html;
+            } catch (error) {
+                console.error('加载逐日对比数据失败:', error);
+                content.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #999;">加载失败</div>';
+            }
+        }
+
+        // 关闭最大波次分布逐日对比页面
+        function closeWaveDistDailyComparison() {
+            const modal = document.getElementById('waveDistDailyComparisonModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 渲染紧凑版波次分布（用于对比页面）
+        function renderWaveDistributionCompact(dayData) {
+            let html = '<div style="font-size: 14px; height: 100%; display: flex; flex-direction: column;">';
+
+            // 统计信息
+            html += `<div style="color: #666; margin-bottom: 8px; font-size: 13px; flex-shrink: 0;">`;
+            html += `累计:${dayData.cumulative_users}人 | 今日:${dayData.daily_arrival_users || 0}人 | 平均:${dayData.avg_wave_num}波`;
+            html += '</div>';
+
+            // 左右分栏容器
+            html += '<div style="display: flex; gap: 15px; flex: 1; min-height: 0;">';
+
+            // 左侧：累计最大波次分布
+            const cumulativeWaveDist = dayData.cumulative_wave_dist || [];
+            html += '<div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">';
+            html += '<div style="font-weight: bold; color: #000; margin-bottom: 6px; font-size: 14px; flex-shrink: 0;">累计最大波次分布</div>';
+            if (cumulativeWaveDist.length > 0) {
+                html += '<div style="flex: 1; overflow-y: auto;">';
+
+                const cumulativeUsers = dayData.cumulative_users || 0;
+                cumulativeWaveDist.sort((a, b) => a.wave_num - b.wave_num);
+
+                cumulativeWaveDist.forEach(item => {
+                    const percent = cumulativeUsers > 0
+                        ? (item.rate !== undefined ? item.rate : Math.round(item.user_count * 100 / cumulativeUsers))
+                        : 0;
+                    html += `<div style="display: flex; align-items: flex-start; margin-bottom: 6px;">`;
+                    html += `<span style="width: 50px; font-size: 13px; color: #666; flex-shrink: 0;">第${item.wave_num}波</span>`;
+                    html += `<div style="flex: 0 0 200px; height: 28px; background: #f0f0f0; border-radius: 4px; overflow: hidden; margin: 0 8px;">`;
+                    html += `<div style="height: 100%; width: ${Math.min(percent, 100)}%; background: linear-gradient(90deg, #43e97b, #38f9d7); border-radius: 4px;"></div>`;
+                    html += `</div>`;
+                    html += `<div style="font-size: 12px; color: #333; line-height: 1.4;">`;
+                    html += `<div>${item.user_count}人</div>`;
+                    html += `<div>(${percent}%)</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                });
+
+                html += '</div>';
+            } else {
+                html += '<div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px;">暂无数据（无用户进入）</div>';
+            }
+            html += '</div>';
+
+            // 右侧：今日最大波次分布
+            const dailyWaveDist = dayData.daily_wave_dist || [];
+            html += '<div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">';
+            html += '<div style="font-weight: bold; color: #000; margin-bottom: 6px; font-size: 14px; flex-shrink: 0;">今日最大波次分布</div>';
+            if (dailyWaveDist.length > 0) {
+                html += '<div style="flex: 1; overflow-y: auto;">';
+
+                const dailyArrivalUsers = dayData.daily_arrival_users || 0;
+                dailyWaveDist.sort((a, b) => a.wave_num - b.wave_num);
+
+                dailyWaveDist.forEach(item => {
+                    const percent = dailyArrivalUsers > 0
+                        ? (item.rate !== undefined ? item.rate : Math.round(item.arrival_users * 100 / dailyArrivalUsers))
+                        : 0;
+                    html += `<div style="display: flex; align-items: flex-start; margin-bottom: 6px;">`;
+                    html += `<span style="width: 50px; font-size: 13px; color: #666; flex-shrink: 0;">第${item.wave_num}波</span>`;
+                    html += `<div style="flex: 0 0 200px; height: 28px; background: #f0f0f0; border-radius: 4px; overflow: hidden; margin: 0 8px;">`;
+                    html += `<div style="height: 100%; width: ${Math.min(percent, 100)}%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px;"></div>`;
+                    html += `</div>`;
+                    html += `<div style="font-size: 12px; color: #333; line-height: 1.4;">`;
+                    html += `<div>${item.arrival_users}人</div>`;
+                    html += `<div>(${percent}%)</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                });
+
+                html += '</div>';
+            } else {
+                html += '<div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px;">暂无数据（无用户进入）</div>';
+            }
+            html += '</div>';
+
+            html += '</div></div>';
+            return html;
+        }
+
         // 默认关卡列表
         const defaultLevels = ['普通-1', '普通-4'];
-        
-        // 切换显示默认关卡
-        function toggleDefaultLevels() {
-            const defaultToggle = document.getElementById('defaultToggle');
-            const isChecked = defaultToggle?.checked ?? true;
-            
-            if (isChecked) {
-                // 添加默认关卡（如果还没有）
-                defaultLevels.forEach(level => {
-                    selectedLevelsGlobal.add(level);
-                });
+
+        // 当前显示的指标类型：'penetration' 或 'wave'
+        let currentMetricType = 'penetration';
+
+        // 切换指标类型（二选一）
+        function switchMetricType(type) {
+            currentMetricType = type;
+
+            // 更新按钮样式
+            const penetrationBtn = document.getElementById('penetrationBtn');
+            const waveBtn = document.getElementById('waveBtn');
+
+            if (type === 'penetration') {
+                penetrationBtn.style.background = '#667eea';
+                penetrationBtn.style.color = 'white';
+                waveBtn.style.background = 'transparent';
+                waveBtn.style.color = '#666';
             } else {
-                // 只移除默认关卡，保留用户选择的其他关卡
-                defaultLevels.forEach(level => {
-                    selectedLevelsGlobal.delete(level);
-                });
+                penetrationBtn.style.background = 'transparent';
+                penetrationBtn.style.color = '#666';
+                waveBtn.style.background = '#667eea';
+                waveBtn.style.color = 'white';
             }
-            
-            renderTreeDropdown();
-            updateTreeDropdownText();
+
             updatePenetrationChart();
+        }
+
+        // 渲染空数据对比图表（显示图表框架和中心文字）
+        function renderEmptyWaveComparisonChart(message) {
+            let html = '<div style="height: 100%; display: flex; flex-direction: column; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;">';
+            // 图表框架区域
+            html += '<div style="flex: 1; display: flex; position: relative; padding: 15px;">';
+            // Y轴标签区域
+            html += '<div style="width: 40px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 8px; color: #999; font-size: 11px;">';
+            html += '<span>100%</span><span>80%</span><span>60%</span><span>40%</span><span>20%</span><span>0%</span>';
+            html += '</div>';
+            // 图表主体区域（带网格线）
+            html += '<div style="flex: 1; position: relative; border-left: 1px solid #ccc; border-bottom: 1px solid #ccc; background: linear-gradient(to top, rgba(200,200,200,0.1) 1px, transparent 1px), linear-gradient(to right, rgba(200,200,200,0.1) 1px, transparent 1px); background-size: 100% 20%, 20% 100%;">';
+            // 中心文字
+            html += `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #999; font-size: 14px; text-align: center; background: rgba(255,255,255,0.8); padding: 10px 15px; border-radius: 4px;">${message}</div>`;
+            html += '</div>';
+            html += '</div>';
+            // X轴标签区域
+            html += '<div style="height: 25px; display: flex; padding-left: 48px; justify-content: space-between; color: #999; font-size: 11px;">';
+            html += '<span>第1波</span><span>第5波</span><span>第10波</span><span>第15波</span><span>第20波</span>';
+            html += '</div>';
+            html += '</div>';
+            return html;
+        }
+
+        // 切换显示全部关卡（显示/隐藏已选关卡的曲线）
+        function toggleShowAllLevels() {
+            const showAllToggle = document.getElementById('showAllToggle');
+            const showAll = showAllToggle?.checked ?? true;
+
+            // 如果有图表数据，更新图表显示状态
+            if (charts.penetration && charts.penetration.data && charts.penetration.data.datasets) {
+                charts.penetration.data.datasets.forEach((dataset, index) => {
+                    // showAll为true时显示所有曲线，为false时隐藏所有曲线（但保留图例）
+                    charts.penetration.setDatasetVisibility(index, showAll);
+                });
+                charts.penetration.update();
+            }
         }
 
         // 图表2: 关卡类别进入占比

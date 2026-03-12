@@ -699,15 +699,18 @@ def api_day1_comparison():
 @app.route('/api/level_penetration_curve')
 def api_level_penetration_curve():
     """
-    累计渗透率曲线 - 各关卡随时间累计到达的用户比例 (API v2.0)
-    
+    累计渗透率曲线 - 各关卡随时间累计到达的用户比例 (API v2.1)
+
     参数：
     - register_date_start: 注册日期起始（格式：YYYYMMDD，默认20260110）
     - register_date_end: 注册日期结束（格式：YYYYMMDD，默认20260116）
     - level_type: 关卡类型（可选，普通/困难/地狱/副本，支持多选逗号分隔）
     - level_ids: 关卡ID列表（可选，逗号分隔，类别内实际ID如：1,2,3）
     - max_day: 最大天数（默认30）
-    - compare_mode: 对比模式（single/multi，默认multi）
+    - compare_mode: 对比模式（single/multi/date，默认multi）
+      - single: 单条曲线（平均）
+      - multi: 多条关卡曲线对比（平均）
+      - date: 按注册日期分组，每天一条曲线
     - include_wave_dist: 是否返回波次分布（默认false）
     """
     try:
@@ -719,10 +722,10 @@ def api_level_penetration_curve():
         level_type_ids_param = request.args.get('level_type_ids', '', type=str)
         compare_mode = request.args.get('compare_mode', 'multi', type=str)
         include_wave_dist = request.args.get('include_wave_dist', 'false', type=str).lower() == 'true'
-        
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
         # 解析类型-关卡ID组合（如：普通-1,困难-2）
         target_type_ids = []
         if level_type_ids_param:
@@ -730,21 +733,21 @@ def api_level_penetration_curve():
                 parts = item.strip().split('-')
                 if len(parts) == 2:
                     target_type_ids.append((parts[0], int(parts[1])))
-        
+
         # 解析关卡类型（支持多选）
         target_level_types = []
         if level_type_param:
             target_level_types = [t.strip() for t in level_type_param.split(',') if t.strip()]
-        
+
         # 解析关卡ID列表
         target_level_ids = []
         if level_ids_param:
             target_level_ids = [int(x.strip()) for x in level_ids_param.split(',') if x.strip().isdigit()]
-        
+
         # 构建查询条件
         where_conditions = ["register_date BETWEEN ? AND ?", "day_num <= ?"]
         params = [register_date_start, register_date_end, max_days]
-        
+
         # 优先使用类型-关卡ID组合查询（精确查询）
         if target_type_ids:
             type_id_conditions = []
@@ -758,157 +761,82 @@ def api_level_penetration_curve():
                 placeholders = ','.join(['?' for _ in target_level_types])
                 where_conditions.append(f"level_type IN ({placeholders})")
                 params.extend(target_level_types)
-            
+
             if target_level_ids:
                 placeholders = ','.join(['?' for _ in target_level_ids])
                 where_conditions.append(f"level_id IN ({placeholders})")
                 params.extend(target_level_ids)
-        
+
+        # 检查是否有关卡过滤条件
+        has_level_filter = len(target_type_ids) > 0 or len(target_level_types) > 0 or len(target_level_ids) > 0
+        print(f"DEBUG: target_type_ids={target_type_ids}, target_level_types={target_level_types}, target_level_ids={target_level_ids}, has_level_filter={has_level_filter}")
+
         where_clause = " AND ".join(where_conditions)
-        
-        # 查询数据（使用新字段名：cumulative_users, daily_wave_dist, cumulative_wave_dist）
-        cursor.execute(f"""
-            SELECT 
-                level_type,
-                level_id,
-                day_num,
-                AVG(total_users) as avg_total_users,
-                AVG(cumulative_users) as avg_cumulative_users,
-                AVG(penetration_rate) as avg_penetration_rate,
-                AVG(avg_wave_num) as avg_wave_num,
-                AVG(daily_arrival_users) as avg_daily_arrival_users
-            FROM mv_level_penetration_curve
-            WHERE {where_clause}
-            GROUP BY level_type, level_id, day_num
-            ORDER BY level_type, level_id, day_num
-        """, params)
-        
-        # 整理数据
-        level_data_map = {}
-        for row in cursor.fetchall():
-            level_key = f"{row[0]}-{row[1]}"
-            if level_key not in level_data_map:
-                level_data_map[level_key] = {
-                    'level_type': row[0],
-                    'level_id': row[1],
-                    'data': []
+
+        # 根据对比模式选择查询方式
+        if compare_mode == 'date':
+            # 按注册日期分组，每天一条曲线
+            cursor.execute(f"""
+                SELECT
+                    register_date,
+                    level_type,
+                    level_id,
+                    day_num,
+                    total_users,
+                    cumulative_users,
+                    penetration_rate,
+                    avg_wave_num,
+                    daily_arrival_users
+                FROM mv_level_penetration_curve
+                WHERE {where_clause}
+                ORDER BY register_date, level_type, level_id, day_num
+            """, params)
+
+            # 整理数据 - 按注册日期和关卡分组
+            date_level_data_map = {}
+            for row in cursor.fetchall():
+                date_key = str(row[0])  # register_date
+                level_key = f"{row[1]}-{row[2]}"  # level_type-level_id
+                combined_key = f"{date_key}_{level_key}"
+
+                if combined_key not in date_level_data_map:
+                    date_level_data_map[combined_key] = {
+                        'register_date': date_key,
+                        'level_type': row[1],
+                        'level_id': row[2],
+                        'data': []
+                    }
+
+                daily_arrival_users = int(row[8]) if row[8] else 0
+
+                data_point = {
+                    'day_num': row[3],
+                    'total_users': int(row[4]) if row[4] else 0,
+                    'cumulative_users': int(row[5]) if row[5] else 0,
+                    'penetration_rate': round(row[6], 2) if row[6] else 0,
+                    'avg_wave_num': round(row[7], 2) if row[7] else 0,
+                    'daily_arrival_users': daily_arrival_users
                 }
-            
-            daily_arrival_users = int(row[7]) if row[7] else 0
-            
-            data_point = {
-                'day_num': row[2],
-                'total_users': int(row[3]) if row[3] else 0,
-                'cumulative_users': int(row[4]) if row[4] else 0,
-                'penetration_rate': round(row[5], 2) if row[5] else 0,
-                'avg_wave_num': round(row[6], 2) if row[6] else 0,
-                'daily_arrival_users': daily_arrival_users
-            }
-            
-            level_data_map[level_key]['data'].append(data_point)
-        
-        # 如果需要波次分布，批量查询所有记录的波次分布
-        if include_wave_dist and level_data_map:
-            try:
-                import json
-                # 为每个关卡-天数组合查询波次分布
-                for level_key, level_info in level_data_map.items():
-                    for data_point in level_info['data']:
-                        cursor.execute("""
-                            SELECT daily_wave_dist, cumulative_wave_dist
-                            FROM mv_level_penetration_curve 
-                            WHERE register_date BETWEEN ? AND ? 
-                              AND level_type = ? 
-                              AND level_id = ? 
-                              AND day_num = ?
-                              AND (daily_wave_dist IS NOT NULL OR cumulative_wave_dist IS NOT NULL)
-                            LIMIT 1
-                        """, [register_date_start, register_date_end, 
-                              level_info['level_type'], level_info['level_id'], 
-                              data_point['day_num']])
-                        wave_row = cursor.fetchone()
-                        if wave_row:
-                            daily_arrival_users = data_point['daily_arrival_users']
-                            cumulative_users = data_point['cumulative_users']
-                            # 当日波次分布
-                            if wave_row[0]:
-                                import json
-                                daily_wave_dist = json.loads(wave_row[0])
-                                # 计算占比：arrival_users / daily_arrival_users * 100
-                                for item in daily_wave_dist:
-                                    item['rate'] = round(item['arrival_users'] / daily_arrival_users * 100, 2) if daily_arrival_users > 0 else 0
-                                data_point['daily_wave_dist'] = daily_wave_dist
-                            # 累计波次分布
-                            if wave_row[1]:
-                                import json
-                                cumulative_wave_dist = json.loads(wave_row[1])
-                                # 计算占比：user_count / cumulative_users * 100
-                                for item in cumulative_wave_dist:
-                                    item['rate'] = round(item['user_count'] / cumulative_users * 100, 2) if cumulative_users > 0 else 0
-                                data_point['cumulative_wave_dist'] = cumulative_wave_dist
-            except Exception as e:
-                import traceback
-                print(f"查询波次分布失败: {e}")
-                print(traceback.format_exc())
-                pass
-        
-        # 构建结果
-        if compare_mode == 'single' and len(level_data_map) == 1:
-            # 单条曲线模式
-            level_key = list(level_data_map.keys())[0]
-            level_info = level_data_map[level_key]
-            level_data = level_info['data']
-            
-            # 计算汇总指标
-            total_users = level_data[0]['total_users'] if level_data else 0
-            d1_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 1), 0)
-            d7_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 7), 0)
-            d30_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
-            avg_wave_d1 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == 1), 0)
-            avg_wave_d7 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == 7), 0)
-            avg_wave_d30 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
-            
-            result = {
-                'code': 0,
-                'message': 'success',
-                'data': {
-                    'query_info': {
-                        'register_date_start': register_date_start,
-                        'register_date_end': register_date_end,
-                        'level_type': level_info['level_type'],
-                        'level_id': level_info['level_id'],
-                        'max_day': max_days,
-                        'include_wave_dist': include_wave_dist
-                    },
-                    'summary': {
-                        'total_users': total_users,
-                        'd1_penetration': d1_penetration,
-                        'd7_penetration': d7_penetration,
-                        'd30_penetration': d30_penetration,
-                        'avg_wave_num_d1': avg_wave_d1,
-                        'avg_wave_num_d7': avg_wave_d7,
-                        'avg_wave_num_d30': avg_wave_d30
-                    },
-                    'curve_data': level_data
-                }
-            }
-        else:
-            # 多条曲线对比模式
+
+                date_level_data_map[combined_key]['data'].append(data_point)
+
+            # 构建结果 - 每条曲线代表一个注册日期的一个关卡
             result_data = []
-            for level_key, level_info in level_data_map.items():
+            for combined_key, level_info in date_level_data_map.items():
                 level_data = level_info['data']
                 if not level_data:
                     continue
-                
+
                 # 计算关键指标
                 d1_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 1), 0)
                 d7_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 7), 0)
                 d30_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
                 avg_wave_d30 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
-                
+
                 curve_data = {
-                    'curve_id': level_key,
-                    'curve_name': f"{level_info['level_type']}{level_info['level_id']}",
+                    'curve_id': combined_key,
+                    'curve_name': f"{level_info['register_date']}_{level_info['level_type']}{level_info['level_id']}",
+                    'register_date': level_info['register_date'],
                     'level_type': level_info['level_type'],
                     'level_id': level_info['level_id'],
                     'd1_penetration': d1_penetration,
@@ -918,7 +846,7 @@ def api_level_penetration_curve():
                     'data': level_data
                 }
                 result_data.append(curve_data)
-            
+
             result = {
                 'code': 0,
                 'message': 'success',
@@ -927,15 +855,219 @@ def api_level_penetration_curve():
                         'register_date_start': register_date_start,
                         'register_date_end': register_date_end,
                         'max_day': max_days,
+                        'compare_mode': 'date',
                         'curve_count': len(result_data)
                     },
                     'curves': result_data
                 }
             }
-        
+
+        else:
+            # 检查是否是单个日期查询
+            is_single_date = register_date_start == register_date_end
+
+            if is_single_date:
+                # 单个日期查询：返回具体数据（不使用平均值）
+                cursor.execute(f"""
+                    SELECT
+                        level_type,
+                        level_id,
+                        day_num,
+                        total_users,
+                        cumulative_users,
+                        penetration_rate,
+                        avg_wave_num,
+                        daily_arrival_users
+                    FROM mv_level_penetration_curve
+                    WHERE {where_clause}
+                    ORDER BY level_type, level_id, day_num
+                """, params)
+            else:
+                # 多个日期查询：按关卡分组，返回平均数据
+                cursor.execute(f"""
+                    SELECT
+                        level_type,
+                        level_id,
+                        day_num,
+                        AVG(total_users) as avg_total_users,
+                        AVG(cumulative_users) as avg_cumulative_users,
+                        AVG(penetration_rate) as avg_penetration_rate,
+                        AVG(avg_wave_num) as avg_wave_num,
+                        AVG(daily_arrival_users) as avg_daily_arrival_users
+                    FROM mv_level_penetration_curve
+                    WHERE {where_clause}
+                    GROUP BY level_type, level_id, day_num
+                    ORDER BY level_type, level_id, day_num
+                """, params)
+
+            # 整理数据
+            level_data_map = {}
+            for row in cursor.fetchall():
+                level_key = f"{row[0]}-{row[1]}"
+                if level_key not in level_data_map:
+                    level_data_map[level_key] = {
+                        'level_type': row[0],
+                        'level_id': row[1],
+                        'data': []
+                    }
+
+                daily_arrival_users = int(row[7]) if row[7] else 0
+
+                data_point = {
+                    'day_num': row[2],
+                    'total_users': int(row[3]) if row[3] else 0,
+                    'cumulative_users': int(row[4]) if row[4] else 0,
+                    'penetration_rate': round(row[5], 2) if row[5] else 0,
+                    'avg_wave_num': round(row[6], 2) if row[6] else 0,
+                    'daily_arrival_users': daily_arrival_users
+                }
+
+                level_data_map[level_key]['data'].append(data_point)
+
+            # 如果需要波次分布，批量查询所有记录的波次分布
+            if include_wave_dist and level_data_map:
+                try:
+                    import json
+                    # 为每个关卡-天数组合查询波次分布
+                    for level_key, level_info in level_data_map.items():
+                        for data_point in level_info['data']:
+                            # 单个日期查询时，直接查询该日期的波次分布
+                            # 多个日期查询时，使用 LIMIT 1（取任意一条）
+                            if is_single_date:
+                                cursor.execute("""
+                                    SELECT daily_wave_dist, cumulative_wave_dist
+                                    FROM mv_level_penetration_curve
+                                    WHERE register_date = ?
+                                      AND level_type = ?
+                                      AND level_id = ?
+                                      AND day_num = ?
+                                      AND (daily_wave_dist IS NOT NULL OR cumulative_wave_dist IS NOT NULL)
+                                """, [register_date_start,
+                                      level_info['level_type'], level_info['level_id'],
+                                      data_point['day_num']])
+                            else:
+                                cursor.execute("""
+                                    SELECT daily_wave_dist, cumulative_wave_dist
+                                    FROM mv_level_penetration_curve
+                                    WHERE register_date BETWEEN ? AND ?
+                                      AND level_type = ?
+                                      AND level_id = ?
+                                      AND day_num = ?
+                                      AND (daily_wave_dist IS NOT NULL OR cumulative_wave_dist IS NOT NULL)
+                                    LIMIT 1
+                                """, [register_date_start, register_date_end,
+                                      level_info['level_type'], level_info['level_id'],
+                                      data_point['day_num']])
+                            wave_row = cursor.fetchone()
+                            if wave_row:
+                                daily_arrival_users = data_point['daily_arrival_users']
+                                cumulative_users = data_point['cumulative_users']
+                                # 当日波次分布
+                                if wave_row[0]:
+                                    import json
+                                    daily_wave_dist = json.loads(wave_row[0])
+                                    # 计算占比：arrival_users / daily_arrival_users * 100
+                                    for item in daily_wave_dist:
+                                        item['rate'] = round(item['arrival_users'] / daily_arrival_users * 100, 2) if daily_arrival_users > 0 else 0
+                                    data_point['daily_wave_dist'] = daily_wave_dist
+                                # 累计波次分布
+                                if wave_row[1]:
+                                    import json
+                                    cumulative_wave_dist = json.loads(wave_row[1])
+                                    # 计算占比：user_count / cumulative_users * 100
+                                    for item in cumulative_wave_dist:
+                                        item['rate'] = round(item['user_count'] / cumulative_users * 100, 2) if cumulative_users > 0 else 0
+                                    data_point['cumulative_wave_dist'] = cumulative_wave_dist
+                except Exception as e:
+                    import traceback
+                    print(f"查询波次分布失败: {e}")
+                    print(traceback.format_exc())
+                    pass
+
+            # 构建结果
+            if compare_mode == 'single' and len(level_data_map) == 1:
+                # 单条曲线模式
+                level_key = list(level_data_map.keys())[0]
+                level_info = level_data_map[level_key]
+                level_data = level_info['data']
+
+                # 计算汇总指标
+                total_users = level_data[0]['total_users'] if level_data else 0
+                d1_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 1), 0)
+                d7_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 7), 0)
+                d30_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
+                avg_wave_d1 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == 1), 0)
+                avg_wave_d7 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == 7), 0)
+                avg_wave_d30 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
+
+                result = {
+                    'code': 0,
+                    'message': 'success',
+                    'data': {
+                        'query_info': {
+                            'register_date_start': register_date_start,
+                            'register_date_end': register_date_end,
+                            'level_type': level_info['level_type'],
+                            'level_id': level_info['level_id'],
+                            'max_day': max_days,
+                            'include_wave_dist': include_wave_dist
+                        },
+                        'summary': {
+                            'total_users': total_users,
+                            'd1_penetration': d1_penetration,
+                            'd7_penetration': d7_penetration,
+                            'd30_penetration': d30_penetration,
+                            'avg_wave_num_d1': avg_wave_d1,
+                            'avg_wave_num_d7': avg_wave_d7,
+                            'avg_wave_num_d30': avg_wave_d30
+                        },
+                        'curve_data': level_data
+                    }
+                }
+            else:
+                # 多条曲线对比模式
+                result_data = []
+                for level_key, level_info in level_data_map.items():
+                    level_data = level_info['data']
+                    if not level_data:
+                        continue
+
+                    # 计算关键指标
+                    d1_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 1), 0)
+                    d7_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == 7), 0)
+                    d30_penetration = next((d['penetration_rate'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
+                    avg_wave_d30 = next((d['avg_wave_num'] for d in level_data if d['day_num'] == min(30, max_days)), 0)
+
+                    curve_data = {
+                        'curve_id': level_key,
+                        'curve_name': f"{level_info['level_type']}{level_info['level_id']}",
+                        'level_type': level_info['level_type'],
+                        'level_id': level_info['level_id'],
+                        'd1_penetration': d1_penetration,
+                        'd7_penetration': d7_penetration,
+                        'd30_penetration': d30_penetration,
+                        'avg_wave_num_d30': avg_wave_d30,
+                        'data': level_data
+                    }
+                    result_data.append(curve_data)
+
+                result = {
+                    'code': 0,
+                    'message': 'success',
+                    'data': {
+                        'query_info': {
+                            'register_date_start': register_date_start,
+                            'register_date_end': register_date_end,
+                            'max_day': max_days,
+                            'curve_count': len(result_data)
+                        },
+                        'curves': result_data
+                    }
+                }
+
         conn.close()
         return jsonify(result)
-        
+
     except Exception as e:
         import traceback
         return jsonify({'code': -1, 'message': str(e), 'traceback': traceback.format_exc(), 'data': None}), 500
@@ -1106,4 +1238,4 @@ def api_user_category_distribution():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5036, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5034, host='0.0.0.0', threaded=True)
