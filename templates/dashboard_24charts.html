@@ -339,7 +339,7 @@
                         <h3 id="waveDistComparisonTitle" style="margin: 0; color: #333; font-size: 1.5rem;">最大波次分布对比</h3>
                         <button onclick="closeWaveDistComparison()" style="padding: 10px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem;">关闭</button>
                     </div>
-                    <div id="waveDistComparisonContent" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(5, minmax(280px, auto)); gap: 20px;">
+                    <div id="waveDistComparisonContent" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(5, minmax(280px, auto)); grid-auto-flow: column; gap: 20px 40px; position: relative; background: linear-gradient(to right, transparent calc(50% - 1px), #667eea calc(50% - 1px), #667eea calc(50% + 1px), transparent calc(50% + 1px));">
                         <!-- 10个图表容器 -->
                     </div>
                 </div>
@@ -352,7 +352,7 @@
                         <h3 id="waveDistDailyComparisonTitle" style="margin: 0; color: #333; font-size: 1.5rem;">最大波次分布逐日对比</h3>
                         <button onclick="closeWaveDistDailyComparison()" style="padding: 10px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem;">关闭</button>
                     </div>
-                    <div id="waveDistDailyComparisonContent" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(15, minmax(280px, auto)); gap: 20px;">
+                    <div id="waveDistDailyComparisonContent" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(15, minmax(280px, auto)); grid-auto-flow: column; gap: 20px 40px; position: relative; background: linear-gradient(to right, transparent calc(50% - 1px), #667eea calc(50% - 1px), #667eea calc(50% + 1px), transparent calc(50% + 1px));">
                         <!-- 30个图表容器 -->
                     </div>
                 </div>
