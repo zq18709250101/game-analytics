@@ -3518,38 +3518,33 @@
             
             const datasets = [];
             
-            // X轴显示方式：注册日期作为X轴，每个日期显示各类别占比（参考关键留存点对比图表）
-            // 构建x轴标签：注册日期列表
-            const labels = seriesGroups.map(group => group.group_name);
+            // X轴显示方式：D1-DN（N是时间范围选择的天数）
+            // 每个X轴位置有多个柱子（每个注册日期一个柱子）
+            // 每个柱子是堆叠的（四类关卡按比例分颜色显示）
             
-            // 为每个类别创建一个dataset（每个注册日期一个数据点，取最后一天的数据）
-            categories.forEach((category) => {
-                const data = [];
-                
-                seriesGroups.forEach(group => {
+            // 构建x轴标签：D1, D2, ..., DN
+            const dayCount = xAxisData.length;
+            const labels = xAxisData; // ["D1", "D2", ..., "DN"]
+            
+            // 为每个注册日期创建一组dataset（4个类别）
+            // 每个dataset对应一个注册日期的一个类别
+            seriesGroups.forEach((group, groupIndex) => {
+                categories.forEach((category) => {
                     const series = group.series?.find(s => s.name === category);
-                    if (series && series.data && series.data.length > 0) {
-                        // 取最后一天的数据
-                        const lastValue = series.data[series.data.length - 1];
-                        data.push(lastValue);
-                    } else {
-                        data.push(0);
-                    }
-                });
-                
-                datasets.push({
-                    label: category,
-                    data: data,
-                    backgroundColor: colors[category],
-                    borderColor: colors[category],
-                    borderWidth: 1,
-                    stack: 'total'
+                    const data = series?.data || new Array(dayCount).fill(0);
+                    
+                    datasets.push({
+                        label: `${group.group_name} ${category}`,
+                        data: data,
+                        backgroundColor: colors[category],
+                        borderColor: colors[category],
+                        borderWidth: 1,
+                        stack: `stack_${groupIndex}` // 每个注册日期一个独立的stack
+                    });
                 });
             });
             
             console.log('datasets:', datasets);
-            console.log('labels:', labels);
-            
             console.log('labels:', labels);
             
             charts[canvasId] = new Chart(ctx, {
