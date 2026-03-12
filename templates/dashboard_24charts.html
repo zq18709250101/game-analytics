@@ -3327,26 +3327,36 @@
         // 图表2: 关卡类别进入占比 - 双堆叠柱状图
         async function updateCategoryEnterRatio() {
             // 使用渗透维度的时间范围选择器（tsStartDate/tsEndDate）
-            const startDateStr = document.getElementById('tsStartDate')?.value || '2026-01-10';
-            const endDateStr = document.getElementById('tsEndDate')?.value || '2026-01-25';
+            // 如果元素不存在或值为空，使用默认值
+            let startDateStr = document.getElementById('tsStartDate')?.value;
+            let endDateStr = document.getElementById('tsEndDate')?.value;
+            
+            // 默认值处理
+            if (!startDateStr || !endDateStr) {
+                startDateStr = '2026-01-10';
+                endDateStr = '2026-01-11';
+            }
             
             // 生成注册日期列表（从起始日期到结束日期）
             const registerDates = [];
             const startDate = new Date(startDateStr);
             const endDate = new Date(endDateStr);
             
-            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            // 限制最多查询30天（避免数据量过大）
+            const maxDateRange = 30;
+            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            const actualEndDate = daysDiff > maxDateRange 
+                ? new Date(startDate.getTime() + (maxDateRange - 1) * 24 * 60 * 60 * 1000)
+                : endDate;
+            
+            for (let d = new Date(startDate); d <= actualEndDate; d.setDate(d.getDate() + 1)) {
                 const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
                 registerDates.push(parseInt(dateStr));
             }
             
             if (registerDates.length === 0) {
-                alert('请设置有效的时间范围');
-                return;
-            }
-            if (registerDates.length > 10) {
-                alert('时间范围不能超过10天');
-                return;
+                console.warn('关卡类别进入占比：未生成有效的注册日期列表，使用默认值');
+                registerDates.push(20260110, 20260111);
             }
             
             // 使用下拉选择的天数（同累计渗透率趋势图）
@@ -3371,11 +3381,11 @@
                     renderCategoryEnterRatioCharts(result.data);
                 } else {
                     console.error('API错误:', result.message);
-                    alert('加载数据失败: ' + result.message);
+                    // 不弹出alert，只在控制台输出错误
                 }
             } catch (error) {
                 console.error('加载关卡类别进入占比失败:', error);
-                alert('加载数据失败，请检查网络连接');
+                // 不弹出alert，只在控制台输出错误，避免影响用户体验
             }
         }
         
