@@ -3589,7 +3589,11 @@
                     scales: {
                         x: {
                             stacked: true,
-                            grid: { display: false }
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)',
+                                drawOnChartArea: true
+                            }
                         },
                         y: {
                             stacked: true,
@@ -3598,6 +3602,10 @@
                             title: {
                                 display: true,
                                 text: '占比(%)'
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
                             }
                         }
                     }

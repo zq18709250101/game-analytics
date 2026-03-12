@@ -1322,9 +1322,7 @@ def api_category_enter_ratio():
             day_num = row[1]
             category = row[2]
             user_count = row[3]
-            user_ratio = row[4]
             enter_count = row[5]
-            count_ratio = row[6]
             
             key = (reg_date, day_num)
             if key not in raw_data:
@@ -1335,10 +1333,20 @@ def api_category_enter_ratio():
                 }
             raw_data[key]['categories'][category] = {
                 'user_count': user_count,
-                'user_ratio': user_ratio,
-                'enter_count': enter_count,
-                'count_ratio': count_ratio
+                'enter_count': enter_count
             }
+        
+        # 计算占比：该类别 / 所有类别总和
+        for key in raw_data:
+            total_user_count = sum(cat['user_count'] for cat in raw_data[key]['categories'].values())
+            total_enter_count = sum(cat['enter_count'] for cat in raw_data[key]['categories'].values())
+            
+            for category in raw_data[key]['categories']:
+                cat_data = raw_data[key]['categories'][category]
+                # 人数占比 = 该类别累计进入人数 / 所有类别累计进入人数
+                cat_data['user_ratio'] = round(cat_data['user_count'] * 100.0 / total_user_count, 2) if total_user_count > 0 else 0
+                # 次数占比 = 该类别累计进入次数 / 所有类别累计进入次数
+                cat_data['count_ratio'] = round(cat_data['enter_count'] * 100.0 / total_enter_count, 2) if total_enter_count > 0 else 0
         
         conn.close()
         
