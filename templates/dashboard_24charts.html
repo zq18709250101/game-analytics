@@ -362,19 +362,22 @@
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别进入占比 <span class="priority p1">P1</span></h3>
                 <div class="chart-selector">
-                    <select id="categoryDaySelect" onchange="updateCategoryChart()">
-                        <option value="1">1天</option>
-                        <option value="7" selected>7天</option>
-                        <option value="14">14天</option>
-                        <option value="30">30天</option>
-                    </select>
-                    <select id="categoryMetricSelect" onchange="updateCategoryChart()">
-                        <option value="enter_count" selected>进入次数占比</option>
-                        <option value="enter_user">进入人数占比</option>
-                    </select>
+                    <label style="font-size: 0.9rem; margin-right: 5px;">注册日期:</label>
+                    <div id="categoryRegisterDates" style="display: inline-flex; gap: 10px; margin-right: 15px;">
+                        <label style="font-size: 0.85rem;"><input type="checkbox" value="20260110" checked> 2026-01-10</label>
+                        <label style="font-size: 0.85rem;"><input type="checkbox" value="20260111" checked> 2026-01-11</label>
+                    </div>
+                    <label style="font-size: 0.9rem; margin-right: 5px;">时间范围:</label>
+                    <input type="number" id="categoryDayStart" value="1" min="1" max="90" style="width: 50px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <span style="margin: 0 5px;">至</span>
+                    <input type="number" id="categoryDayEnd" value="7" min="1" max="90" style="width: 50px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <button onclick="updateCategoryEnterRatio()" style="padding: 6px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-left: 10px;">查询</button>
                 </div>
-                <div class="chart-container"><canvas id="categoryShareChart"></canvas></div>
-                <div class="insight-box"><h4>健康标准</h4><ul><li>普通：60%、困难：25%、地狱：10%、副本：5%</li></ul></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
+                    <div class="chart-container" style="height: 350px;"><canvas id="categoryUserRatioChart"></canvas></div>
+                    <div class="chart-container" style="height: 350px;"><canvas id="categoryCountRatioChart"></canvas></div>
+                </div>
+                <div class="insight-box"><h4>健康标准</h4><ul><li>按人数：普通60%、困难25%、地狱10%、副本5%</li><li>按次数：根据用户活跃度，通常普通占70%以上</li></ul></div>
             </div>
 
             <!-- P1-11: 解锁转化率分析 -->
@@ -3323,69 +3326,185 @@
             }
         }
 
-        // 图表2: 关卡类别进入占比
-        async function updateCategoryChart() {
-            // 使用范围选择器的起始日期（和时间序列维度一致）
-            const registerDate = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
-            const maxDays = document.getElementById('categoryDaySelect')?.value || 7;
-            const metricType = document.getElementById('categoryMetricSelect')?.value || 'enter_count';
-
+        // 图表2: 关卡类别进入占比 - 双堆叠柱状图
+        async function updateCategoryEnterRatio() {
+            // 获取选中的注册日期
+            const checkboxes = document.querySelectorAll('#categoryRegisterDates input[type="checkbox"]:checked');
+            const registerDates = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            
+            if (registerDates.length === 0) {
+                alert('请至少选择一个注册日期');
+                return;
+            }
+            if (registerDates.length > 10) {
+                alert('最多只能选择10个注册日期');
+                return;
+            }
+            
+            const dayStart = parseInt(document.getElementById('categoryDayStart')?.value || 1);
+            const dayEnd = parseInt(document.getElementById('categoryDayEnd')?.value || 7);
+            
+            if (dayStart < 1 || dayStart > 90 || dayEnd < 1 || dayEnd > 90 || dayEnd < dayStart) {
+                alert('时间范围无效，请检查输入');
+                return;
+            }
+            
             try {
-                const response = await fetch(`/api/category_enter_stats?register_date=${registerDate}&max_days=${maxDays}`);
-                const data = await response.json();
-                renderCategoryChart(data, metricType);
+                const response = await fetch('/api/v1/level/category-enter-ratio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        register_dates: registerDates,
+                        day_num_start: dayStart,
+                        day_num_end: dayEnd,
+                        categories: ['普通', '困难', '地狱', '副本']
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.code === 0) {
+                    renderCategoryEnterRatioCharts(result.data);
+                } else {
+                    console.error('API错误:', result.message);
+                    alert('加载数据失败: ' + result.message);
+                }
             } catch (error) {
                 console.error('加载关卡类别进入占比失败:', error);
+                alert('加载数据失败，请检查网络连接');
             }
         }
-
-        function renderCategoryChart(data, metricType = 'enter_count') {
-            const ctx = document.getElementById('categoryShareChart')?.getContext('2d');
+        
+        function renderCategoryEnterRatioCharts(data) {
+            const chartsData = data.charts || [];
+            const queryInfo = data.query_info || {};
+            
+            // 图表1: 按人数占比
+            const userRatioChart = chartsData.find(c => c.chart_id === 'user_ratio');
+            if (userRatioChart) {
+                renderStackedBarChart('categoryUserRatioChart', userRatioChart, true);
+            }
+            
+            // 图表2: 按次数占比
+            const countRatioChart = chartsData.find(c => c.chart_id === 'count_ratio');
+            if (countRatioChart) {
+                renderStackedBarChart('categoryCountRatioChart', countRatioChart, false);
+            }
+        }
+        
+        function renderStackedBarChart(canvasId, chartData, isUserRatio) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
             if (!ctx) return;
-            if (charts.categoryShare) charts.categoryShare.destroy();
-
-            // 获取最后一天的数据
-            const categories = data.data || [];
-            const lastDayData = categories.map(cat => {
-                const lastData = cat.data[cat.data.length - 1] || {};
-                return {
-                    category: cat.category,
-                    value: metricType === 'enter_count' ? (lastData.enter_count_rate || 0) : (lastData.enter_user_rate || 0),
-                    count: metricType === 'enter_count' ? (lastData.enter_count || 0) : (lastData.enter_users || 0)
-                };
+            
+            // 销毁旧图表
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+            
+            const xAxisData = chartData.x_axis?.data || [];
+            const seriesGroups = chartData.series_groups || [];
+            
+            // 构建datasets - 每个类别一个dataset，包含所有注册日期的数据
+            const categories = ['普通', '困难', '地狱', '副本'];
+            const colors = {
+                '普通': '#5470c6',
+                '困难': '#91cc75',
+                '地狱': '#fac858',
+                '副本': '#ee6666'
+            };
+            
+            const datasets = [];
+            
+            // 为每个类别创建一个dataset
+            categories.forEach((category, catIndex) => {
+                const data = [];
+                
+                // 遍历所有注册日期和天数
+                seriesGroups.forEach(group => {
+                    const series = group.series?.find(s => s.name === category);
+                    if (series) {
+                        data.push(...series.data);
+                    }
+                });
+                
+                datasets.push({
+                    label: category,
+                    data: data,
+                    backgroundColor: colors[category],
+                    borderColor: colors[category],
+                    borderWidth: 1,
+                    stack: 'total'
+                });
             });
-
-            const labels = lastDayData.map(c => c.category);
-            const values = lastDayData.map(c => c.value);
-            const bgColors = ['#3498db', '#e74c3c', '#9b59b6', '#f39c12'];
-
-            charts.categoryShare = new Chart(ctx, {
-                type: 'doughnut',
+            
+            // 构建x轴标签（包含注册日期分组）
+            const labels = [];
+            seriesGroups.forEach(group => {
+                xAxisData.forEach(dayLabel => {
+                    labels.push(`${group.group_name} ${dayLabel}`);
+                });
+            });
+            
+            charts[canvasId] = new Chart(ctx, {
+                type: 'bar',
                 data: {
-                    labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: bgColors,
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
+                    labels: labels,
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'right' },
+                        title: {
+                            display: true,
+                            text: chartData.chart_name,
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: { usePointStyle: true }
+                        },
                         tooltip: {
+                            mode: 'index',
+                            intersect: false,
                             callbacks: {
+                                title: (items) => {
+                                    return items[0]?.label || '';
+                                },
                                 label: (item) => {
-                                    const cat = lastDayData[item.dataIndex];
-                                    return `${cat.category}: ${cat.value}% (${cat.count})`;
+                                    return `${item.dataset.label}: ${item.raw}%`;
+                                },
+                                footer: (items) => {
+                                    let total = 0;
+                                    items.forEach(item => {
+                                        total += parseFloat(item.raw) || 0;
+                                    });
+                                    return `总计: ${total.toFixed(2)}%`;
                                 }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { display: false }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            max: isUserRatio ? 100 : undefined,
+                            title: {
+                                display: true,
+                                text: '占比(%)'
                             }
                         }
                     }
                 }
             });
+        }
+        
+        // 保持旧函数名兼容（初始化时调用新函数）
+        async function updateCategoryChart() {
+            await updateCategoryEnterRatio();
         }
 
         // 图表3: 解锁转化率分析

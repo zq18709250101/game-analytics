@@ -1237,5 +1237,217 @@ def api_user_category_distribution():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/v1/level/category-enter-ratio', methods=['POST'])
+def api_category_enter_ratio():
+    """
+    关卡类别进入占比查询 - 按人数和按次数的堆叠柱状图数据
+    
+    请求参数：
+    - register_dates: 注册日期列表（YYYYMMDD），最多10个
+    - day_num_start: 时间范围起始（1-90，默认1）
+    - day_num_end: 时间范围结束（1-90，默认7）
+    - categories: 关卡类别列表（默认["普通","困难","地狱","副本"]）
+    """
+    try:
+        data = request.get_json() or {}
+        
+        # 获取参数
+        register_dates = data.get('register_dates', [20260110])
+        day_num_start = data.get('day_num_start', 1)
+        day_num_end = data.get('day_num_end', 7)
+        categories = data.get('categories', ['普通', '困难', '地狱', '副本'])
+        
+        # 参数校验
+        if not register_dates or len(register_dates) == 0:
+            return jsonify({'code': 400, 'message': '注册日期不能为空'}), 400
+        if len(register_dates) > 10:
+            return jsonify({'code': 400, 'message': '注册日期数量不能超过10个'}), 400
+        if day_num_start < 1 or day_num_start > 90:
+            return jsonify({'code': 400, 'message': 'day_num_start范围必须是1-90'}), 400
+        if day_num_end < 1 or day_num_end > 90:
+            return jsonify({'code': 400, 'message': 'day_num_end范围必须是1-90'}), 400
+        if day_num_end < day_num_start:
+            return jsonify({'code': 400, 'message': 'day_num_end必须大于等于day_num_start'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 查询各注册日期的总用户数
+        total_users_map = {}
+        for reg_date in register_dates:
+            cursor.execute("""
+                SELECT DISTINCT total_users 
+                FROM mv_level_penetration_curve 
+                WHERE register_date = ? AND day_num = 1
+                LIMIT 1
+            """, (reg_date,))
+            row = cursor.fetchone()
+            total_users_map[str(reg_date)] = row[0] if row else 0
+        
+        # 查询数据
+        placeholders_dates = ','.join(['?' for _ in register_dates])
+        placeholders_categories = ','.join(['?' for _ in categories])
+        
+        query = f"""
+            SELECT 
+                register_date,
+                day_num,
+                level_type as category,
+                SUM(cumulative_users) as user_count,
+                ROUND(SUM(cumulative_users) * 100.0 / MAX(total_users), 2) as user_ratio,
+                SUM(cumulative_enter_count) as enter_count,
+                ROUND(SUM(cumulative_enter_count) * 100.0 / MAX(total_users), 2) as count_ratio
+            FROM mv_level_penetration_curve
+            WHERE register_date IN ({placeholders_dates})
+              AND day_num BETWEEN ? AND ?
+              AND level_type IN ({placeholders_categories})
+            GROUP BY register_date, day_num, level_type
+            ORDER BY register_date, day_num,
+                CASE level_type 
+                    WHEN '普通' THEN 1 
+                    WHEN '困难' THEN 2 
+                    WHEN '地狱' THEN 3 
+                    WHEN '副本' THEN 4 
+                    ELSE 5 
+                END
+        """
+        
+        params = register_dates + [day_num_start, day_num_end] + categories
+        cursor.execute(query, params)
+        
+        # 整理数据
+        raw_data = {}
+        for row in cursor.fetchall():
+            reg_date = str(row[0])
+            day_num = row[1]
+            category = row[2]
+            user_count = row[3]
+            user_ratio = row[4]
+            enter_count = row[5]
+            count_ratio = row[6]
+            
+            key = (reg_date, day_num)
+            if key not in raw_data:
+                raw_data[key] = {
+                    'register_date': reg_date,
+                    'day_num': day_num,
+                    'categories': {}
+                }
+            raw_data[key]['categories'][category] = {
+                'user_count': user_count,
+                'user_ratio': user_ratio,
+                'enter_count': enter_count,
+                'count_ratio': count_ratio
+            }
+        
+        conn.close()
+        
+        # 构建响应数据
+        day_nums = list(range(day_num_start, day_num_end + 1))
+        x_axis_data = [f'D{day}' for day in day_nums]
+        
+        # 图表1：按人数占比
+        user_ratio_chart = {
+            'chart_id': 'user_ratio',
+            'chart_name': '关卡类别进入占比（按人数）',
+            'metric': 'user_ratio',
+            'unit': '%',
+            'x_axis': {
+                'name': '注册后天数',
+                'data': x_axis_data
+            },
+            'series_groups': []
+        }
+        
+        # 图表2：按次数占比
+        count_ratio_chart = {
+            'chart_id': 'count_ratio',
+            'chart_name': '关卡类别进入占比（按次数）',
+            'metric': 'count_ratio',
+            'unit': '%',
+            'x_axis': {
+                'name': '注册后天数',
+                'data': x_axis_data
+            },
+            'series_groups': []
+        }
+        
+        # 颜色映射
+        color_map = {
+            '普通': '#5470c6',
+            '困难': '#91cc75',
+            '地狱': '#fac858',
+            '副本': '#ee6666'
+        }
+        
+        # 为每个注册日期构建series
+        for reg_date in register_dates:
+            reg_date_str = str(reg_date)
+            total_users = total_users_map.get(reg_date_str, 0)
+            
+            # 人数占比series group
+            user_series_group = {
+                'group_name': reg_date_str,
+                'register_date': reg_date,
+                'total_users': total_users,
+                'series': []
+            }
+            
+            # 次数占比series group
+            count_series_group = {
+                'group_name': reg_date_str,
+                'register_date': reg_date,
+                'total_users': total_users,
+                'series': []
+            }
+            
+            for category in categories:
+                user_data = []
+                count_data = []
+                
+                for day_num in day_nums:
+                    key = (reg_date_str, day_num)
+                    if key in raw_data and category in raw_data[key]['categories']:
+                        user_data.append(raw_data[key]['categories'][category]['user_ratio'])
+                        count_data.append(raw_data[key]['categories'][category]['count_ratio'])
+                    else:
+                        user_data.append(0)
+                        count_data.append(0)
+                
+                user_series_group['series'].append({
+                    'name': category,
+                    'data': user_data,
+                    'color': color_map.get(category, '#999')
+                })
+                
+                count_series_group['series'].append({
+                    'name': category,
+                    'data': count_data,
+                    'color': color_map.get(category, '#999')
+                })
+            
+            user_ratio_chart['series_groups'].append(user_series_group)
+            count_ratio_chart['series_groups'].append(count_series_group)
+        
+        return jsonify({
+            'code': 0,
+            'message': 'success',
+            'data': {
+                'query_info': {
+                    'register_dates': register_dates,
+                    'day_num_start': day_num_start,
+                    'day_num_end': day_num_end,
+                    'categories': categories,
+                    'total_users_map': total_users_map
+                },
+                'charts': [user_ratio_chart, count_ratio_chart]
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
 if __name__ == '__main__':
-    app.run(debug=False, port=5034, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5040, host='0.0.0.0', threaded=True)
