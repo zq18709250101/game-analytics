@@ -671,10 +671,12 @@
 
         // 加载渗透维度所有图表
         async function loadPenetrationCharts() {
+            console.log('loadPenetrationCharts: 开始加载渗透维度图表');
             updatePenetrationChart();
-            updateCategoryChart();
+            await updateCategoryChart();
             updateUnlockChart();
             updateUserDistChart();
+            console.log('loadPenetrationCharts: 渗透维度图表加载完成');
         }
 
         // 图表渲染函数占位
@@ -3326,13 +3328,18 @@
 
         // 图表2: 关卡类别进入占比 - 双堆叠柱状图
         async function updateCategoryEnterRatio() {
+            console.log('updateCategoryEnterRatio: 开始加载图表');
+            
             // 使用渗透维度的时间范围选择器（tsStartDate/tsEndDate）
             // 如果元素不存在或值为空，使用默认值
             let startDateStr = document.getElementById('tsStartDate')?.value;
             let endDateStr = document.getElementById('tsEndDate')?.value;
             
+            console.log('日期选择器值:', startDateStr, endDateStr);
+            
             // 默认值处理
             if (!startDateStr || !endDateStr) {
+                console.log('使用默认日期');
                 startDateStr = '2026-01-10';
                 endDateStr = '2026-01-11';
             }
@@ -3354,6 +3361,8 @@
                 registerDates.push(parseInt(dateStr));
             }
             
+            console.log('生成的注册日期:', registerDates);
+            
             if (registerDates.length === 0) {
                 console.warn('关卡类别进入占比：未生成有效的注册日期列表，使用默认值');
                 registerDates.push(20260110, 20260111);
@@ -3363,6 +3372,8 @@
             const maxDays = parseInt(document.getElementById('categoryDaySelect')?.value || 30);
             const dayStart = 1;
             const dayEnd = maxDays;
+            
+            console.log('查询参数:', { registerDates, dayStart, dayEnd });
             
             try {
                 const response = await fetch('/api/v1/level/category-enter-ratio', {
@@ -3377,15 +3388,15 @@
                 });
                 
                 const result = await response.json();
+                console.log('API响应:', result);
+                
                 if (result.code === 0) {
                     renderCategoryEnterRatioCharts(result.data);
                 } else {
                     console.error('API错误:', result.message);
-                    // 不弹出alert，只在控制台输出错误
                 }
             } catch (error) {
                 console.error('加载关卡类别进入占比失败:', error);
-                // 不弹出alert，只在控制台输出错误，避免影响用户体验
             }
         }
         
