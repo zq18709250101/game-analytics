@@ -364,9 +364,9 @@
                 <div class="chart-selector">
                     <label style="font-size: 0.9rem; margin-right: 5px;">时间范围:</label>
                     <select id="categoryDaySelect" onchange="updateCategoryEnterRatio()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
-                        <option value="7">7天</option>
+                        <option value="7" selected>7天</option>
                         <option value="14">14天</option>
-                        <option value="30" selected>30天</option>
+                        <option value="30">30天</option>
                         <option value="60">60天</option>
                         <option value="90">90天</option>
                     </select>
@@ -3518,15 +3518,22 @@
             
             const datasets = [];
             
-            // 为每个类别创建一个dataset
-            categories.forEach((category, catIndex) => {
+            // X轴显示方式：注册日期作为X轴，每个日期显示各类别占比（参考关键留存点对比图表）
+            // 构建x轴标签：注册日期列表
+            const labels = seriesGroups.map(group => group.group_name);
+            
+            // 为每个类别创建一个dataset（每个注册日期一个数据点，取最后一天的数据）
+            categories.forEach((category) => {
                 const data = [];
                 
-                // 遍历所有注册日期和天数
                 seriesGroups.forEach(group => {
                     const series = group.series?.find(s => s.name === category);
-                    if (series && series.data) {
-                        data.push(...series.data);
+                    if (series && series.data && series.data.length > 0) {
+                        // 取最后一天的数据
+                        const lastValue = series.data[series.data.length - 1];
+                        data.push(lastValue);
+                    } else {
+                        data.push(0);
                     }
                 });
                 
@@ -3541,14 +3548,7 @@
             });
             
             console.log('datasets:', datasets);
-            
-            // 构建x轴标签（包含注册日期分组）
-            const labels = [];
-            seriesGroups.forEach(group => {
-                xAxisData.forEach(dayLabel => {
-                    labels.push(`${group.group_name} ${dayLabel}`);
-                });
-            });
+            console.log('labels:', labels);
             
             console.log('labels:', labels);
             
