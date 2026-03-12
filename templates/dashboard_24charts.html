@@ -362,16 +362,14 @@
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别进入占比 <span class="priority p1">P1</span></h3>
                 <div class="chart-selector">
-                    <label style="font-size: 0.9rem; margin-right: 5px;">注册日期:</label>
-                    <div id="categoryRegisterDates" style="display: inline-flex; gap: 10px; margin-right: 15px;">
-                        <label style="font-size: 0.85rem;"><input type="checkbox" value="20260110" checked> 2026-01-10</label>
-                        <label style="font-size: 0.85rem;"><input type="checkbox" value="20260111" checked> 2026-01-11</label>
-                    </div>
                     <label style="font-size: 0.9rem; margin-right: 5px;">时间范围:</label>
-                    <input type="number" id="categoryDayStart" value="1" min="1" max="90" style="width: 50px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;">
-                    <span style="margin: 0 5px;">至</span>
-                    <input type="number" id="categoryDayEnd" value="7" min="1" max="90" style="width: 50px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;">
-                    <button onclick="updateCategoryEnterRatio()" style="padding: 6px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-left: 10px;">查询</button>
+                    <select id="categoryDaySelect" onchange="updateCategoryEnterRatio()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="7">7天</option>
+                        <option value="14">14天</option>
+                        <option value="30" selected>30天</option>
+                        <option value="60">60天</option>
+                        <option value="90">90天</option>
+                    </select>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
                     <div class="chart-container" style="height: 350px;"><canvas id="categoryUserRatioChart"></canvas></div>
@@ -3328,26 +3326,33 @@
 
         // 图表2: 关卡类别进入占比 - 双堆叠柱状图
         async function updateCategoryEnterRatio() {
-            // 获取选中的注册日期
-            const checkboxes = document.querySelectorAll('#categoryRegisterDates input[type="checkbox"]:checked');
-            const registerDates = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            // 使用渗透维度的时间范围选择器（tsStartDate/tsEndDate）
+            const startDateStr = document.getElementById('tsStartDate')?.value || '2026-01-10';
+            const endDateStr = document.getElementById('tsEndDate')?.value || '2026-01-25';
+            
+            // 生成注册日期列表（从起始日期到结束日期）
+            const registerDates = [];
+            const startDate = new Date(startDateStr);
+            const endDate = new Date(endDateStr);
+            
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
+                registerDates.push(parseInt(dateStr));
+            }
             
             if (registerDates.length === 0) {
-                alert('请至少选择一个注册日期');
+                alert('请设置有效的时间范围');
                 return;
             }
             if (registerDates.length > 10) {
-                alert('最多只能选择10个注册日期');
+                alert('时间范围不能超过10天');
                 return;
             }
             
-            const dayStart = parseInt(document.getElementById('categoryDayStart')?.value || 1);
-            const dayEnd = parseInt(document.getElementById('categoryDayEnd')?.value || 7);
-            
-            if (dayStart < 1 || dayStart > 90 || dayEnd < 1 || dayEnd > 90 || dayEnd < dayStart) {
-                alert('时间范围无效，请检查输入');
-                return;
-            }
+            // 使用下拉选择的天数（同累计渗透率趋势图）
+            const maxDays = parseInt(document.getElementById('categoryDaySelect')?.value || 30);
+            const dayStart = 1;
+            const dayEnd = maxDays;
             
             try {
                 const response = await fetch('/api/v1/level/category-enter-ratio', {
