@@ -3349,12 +3349,8 @@
             const startDate = new Date(startDateStr);
             const endDate = new Date(endDateStr);
             
-            // 限制最多查询30天（避免数据量过大）
-            const maxDateRange = 30;
-            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-            const actualEndDate = daysDiff > maxDateRange 
-                ? new Date(startDate.getTime() + (maxDateRange - 1) * 24 * 60 * 60 * 1000)
-                : endDate;
+            // 不限制查询天数
+            const actualEndDate = endDate;
             
             for (let d = new Date(startDate); d <= actualEndDate; d.setDate(d.getDate() + 1)) {
                 const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
@@ -3418,8 +3414,26 @@
         }
         
         function renderStackedBarChart(canvasId, chartData, isUserRatio) {
-            const ctx = document.getElementById(canvasId)?.getContext('2d');
-            if (!ctx) return;
+            console.log(`renderStackedBarChart: ${canvasId}`, chartData);
+            
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error(`Canvas ${canvasId} 不存在`);
+                return;
+            }
+            
+            // 确保canvas有尺寸
+            if (canvas.width === 0 || canvas.height === 0) {
+                console.warn(`Canvas ${canvasId} 尺寸为0，设置默认尺寸`);
+                canvas.style.width = '100%';
+                canvas.style.height = '350px';
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error(`Canvas ${canvasId} 无法获取2d上下文`);
+                return;
+            }
             
             // 销毁旧图表
             if (charts[canvasId]) {
@@ -3428,6 +3442,14 @@
             
             const xAxisData = chartData.x_axis?.data || [];
             const seriesGroups = chartData.series_groups || [];
+            
+            console.log('xAxisData:', xAxisData);
+            console.log('seriesGroups:', seriesGroups);
+            
+            if (seriesGroups.length === 0 || xAxisData.length === 0) {
+                console.warn('没有数据可显示');
+                return;
+            }
             
             // 构建datasets - 每个类别一个dataset，包含所有注册日期的数据
             const categories = ['普通', '困难', '地狱', '副本'];
@@ -3447,7 +3469,7 @@
                 // 遍历所有注册日期和天数
                 seriesGroups.forEach(group => {
                     const series = group.series?.find(s => s.name === category);
-                    if (series) {
+                    if (series && series.data) {
                         data.push(...series.data);
                     }
                 });
@@ -3462,6 +3484,8 @@
                 });
             });
             
+            console.log('datasets:', datasets);
+            
             // 构建x轴标签（包含注册日期分组）
             const labels = [];
             seriesGroups.forEach(group => {
@@ -3469,6 +3493,8 @@
                     labels.push(`${group.group_name} ${dayLabel}`);
                 });
             });
+            
+            console.log('labels:', labels);
             
             charts[canvasId] = new Chart(ctx, {
                 type: 'bar',
