@@ -1286,7 +1286,7 @@ def api_category_enter_ratio():
         
         total_users_map = {str(row[0]): row[1] for row in cursor.fetchall()}
         
-        # 查询数据（按文档SQL方式）
+        # 查询数据（按文档SQL方式）- 包含累计和当日指标
         query = f"""
             SELECT 
                 register_date,
@@ -1294,7 +1294,9 @@ def api_category_enter_ratio():
                 level_type as category,
                 category_users,
                 category_enter_count,
-                user_ratio
+                user_ratio,
+                daily_users,
+                daily_enter_count
             FROM mv_level_category_enter_ratio
             WHERE register_date IN ({placeholders_dates})
               AND day_num BETWEEN ? AND ?
@@ -1321,6 +1323,8 @@ def api_category_enter_ratio():
             category_users = row[3]
             category_enter_count = row[4]
             user_ratio = row[5]
+            daily_users = row[6]
+            daily_enter_count = row[7]
             
             key = (reg_date, day_num)
             if key not in raw_data:
@@ -1334,7 +1338,9 @@ def api_category_enter_ratio():
             raw_data[key]['categories'][category] = {
                 'user_count': category_users,
                 'enter_count': category_enter_count,
-                'user_ratio': user_ratio
+                'user_ratio': user_ratio,
+                'daily_users': daily_users,
+                'daily_enter_count': daily_enter_count
             }
         
         # 计算次数占比（需要动态计算）
@@ -1362,7 +1368,8 @@ def api_category_enter_ratio():
         # 为每个注册日期构建series_groups
         user_series_groups = []
         count_series_groups = []
-        avg_count_series_groups = []
+        cumulative_avg_series_groups = []
+        daily_avg_series_groups = []
         
         for reg_date in register_dates:
             reg_date_str = str(reg_date)
@@ -1370,27 +1377,36 @@ def api_category_enter_ratio():
             # 该注册日期的series
             user_series = []
             count_series = []
-            avg_count_series = []
+            cumulative_avg_series = []
+            daily_avg_series = []
             
             for category in categories:
                 user_data = []
                 count_data = []
-                avg_count_data = []
+                cumulative_avg_data = []
+                daily_avg_data = []
                 
                 for day_num in day_nums:
                     key = (reg_date_str, day_num)
                     if key in raw_data and category in raw_data[key]['categories']:
                         user_count = raw_data[key]['categories'][category]['user_count']
                         enter_count = raw_data[key]['categories'][category]['enter_count']
+                        daily_users = raw_data[key]['categories'][category]['daily_users']
+                        daily_enter_count = raw_data[key]['categories'][category]['daily_enter_count']
+                        
                         user_data.append(user_count)
                         count_data.append(enter_count)
-                        # 人均进入次数 = 进入次数 / 进入人数
-                        avg_count = round(enter_count / user_count, 2) if user_count > 0 else 0
-                        avg_count_data.append(avg_count)
+                        # 累计人均进入次数 = 累计次数 / 累计人数
+                        cumulative_avg = round(enter_count / user_count, 2) if user_count > 0 else 0
+                        cumulative_avg_data.append(cumulative_avg)
+                        # 当日人均进入次数 = 当日次数 / 当日人数
+                        daily_avg = round(daily_enter_count / daily_users, 2) if daily_users > 0 else 0
+                        daily_avg_data.append(daily_avg)
                     else:
                         user_data.append(0)
                         count_data.append(0)
-                        avg_count_data.append(0)
+                        cumulative_avg_data.append(0)
+                        daily_avg_data.append(0)
                 
                 user_series.append({
                     'name': category,
@@ -1404,9 +1420,15 @@ def api_category_enter_ratio():
                     'color': color_map.get(category, '#999')
                 })
                 
-                avg_count_series.append({
+                cumulative_avg_series.append({
                     'name': category,
-                    'data': avg_count_data,
+                    'data': cumulative_avg_data,
+                    'color': color_map.get(category, '#999')
+                })
+                
+                daily_avg_series.append({
+                    'name': category,
+                    'data': daily_avg_data,
                     'color': color_map.get(category, '#999')
                 })
             
@@ -1424,11 +1446,18 @@ def api_category_enter_ratio():
                 'series': count_series
             })
             
-            avg_count_series_groups.append({
+            cumulative_avg_series_groups.append({
                 'group_name': reg_date_str,
                 'register_date': reg_date,
                 'total_users': total_users_map.get(reg_date_str, 0),
-                'series': avg_count_series
+                'series': cumulative_avg_series
+            })
+            
+            daily_avg_series_groups.append({
+                'group_name': reg_date_str,
+                'register_date': reg_date,
+                'total_users': total_users_map.get(reg_date_str, 0),
+                'series': daily_avg_series
             })
         
         # 图表1：按人数
@@ -1457,17 +1486,30 @@ def api_category_enter_ratio():
             'series_groups': count_series_groups
         }
         
-        # 图表3：人均进入次数
-        avg_count_chart = {
-            'chart_id': 'avg_count',
-            'chart_name': '关卡类别人均进入次数对比（不去重）',
-            'metric': 'avg_count',
+        # 图表3：累计人均进入次数
+        cumulative_avg_chart = {
+            'chart_id': 'cumulative_avg',
+            'chart_name': '关卡类别累计人均进入次数对比',
+            'metric': 'cumulative_avg',
             'unit': '次/人',
             'x_axis': {
                 'name': '注册后天数',
                 'data': x_axis_data
             },
-            'series_groups': avg_count_series_groups
+            'series_groups': cumulative_avg_series_groups
+        }
+        
+        # 图表4：当日人均进入次数
+        daily_avg_chart = {
+            'chart_id': 'daily_avg',
+            'chart_name': '关卡类别当日人均进入次数对比',
+            'metric': 'daily_avg',
+            'unit': '次/人',
+            'x_axis': {
+                'name': '注册后天数',
+                'data': x_axis_data
+            },
+            'series_groups': daily_avg_series_groups
         }
         
         return jsonify({
@@ -1481,7 +1523,7 @@ def api_category_enter_ratio():
                     'categories': categories,
                     'total_users_map': total_users_map
                 },
-                'charts': [user_chart, count_chart, avg_count_chart]
+                'charts': [user_chart, count_chart, cumulative_avg_chart, daily_avg_chart]
             }
         })
         

@@ -444,27 +444,51 @@
                 </div>
             </div>
 
-            <!-- P1-10c: 关卡类别人均进入次数对比（不去重） -->
+            <!-- P1-10c: 关卡类别累计人均进入次数对比 -->
             <div class="chart-card full-width" data-dimension="penetration">
-                <h3>关卡类别人均进入次数对比（不去重） <span class="priority p1">P1</span></h3>
-                <div class="chart-container" style="height: 350px;"><canvas id="categoryAvgCountChart"></canvas></div>
+                <h3>关卡类别累计人均进入次数对比 <span class="priority p1">P1</span></h3>
+                <div class="chart-container" style="height: 350px;"><canvas id="categoryCumulativeAvgChart"></canvas></div>
                 <div class="insight-box">
                     <h4>分析要点</h4>
                     <ul>
-                        <li><strong>计算公式：</strong>人均进入次数 = 进入该类别的累计次数（不去重） / 进入该类别的累计用户数（去重）</li>
-                        <li><strong>统计逻辑：</strong>统计在指定天数内，平均每个进入该类别用户会进入多少次，反映用户对该类别的参与深度</li>
+                        <li><strong>计算公式：</strong>累计人均进入次数 = 进入该类别的累计次数（不去重） / 进入该类别的累计用户数（去重）</li>
+                        <li><strong>统计逻辑：</strong>统计在指定天数内，平均每个进入该类别用户累计会进入多少次，反映用户对该类别的长期参与深度</li>
                     </ul>
                     <h4 style="margin-top: 10px;">数据价值</h4>
                     <ul>
-                        <li>反映用户对各类别的<strong>参与深度和粘性</strong>，是衡量内容吸引力的核心指标</li>
-                        <li>识别<strong>核心玩法</strong>：人均次数高的类别是用户最愿意重复体验的内容</li>
-                        <li>评估<strong>难度平衡性</strong>：困难/地狱类别人均次数过低可能意味着难度过高导致用户放弃</li>
-                        <li>发现<strong>付费潜力</strong>：高人均次数类别的用户更愿意为相关内容付费</li>
-                        <li>优化<strong>资源投放</strong>：优先在高人均次数类别投放新内容和活动</li>
-                        <li>预警<strong>内容疲劳</strong>：人均次数持续下降预示该类别内容可能需要更新</li>
+                        <li>反映用户对各类别的<strong>长期参与深度和粘性</strong>，是衡量内容吸引力的核心指标</li>
+                        <li>识别<strong>核心玩法</strong>：累计人均次数高的类别是用户最愿意重复体验的内容</li>
+                        <li>评估<strong>难度平衡性</strong>：困难/地狱类别累计人均次数过低可能意味着难度过高导致用户放弃</li>
+                        <li>发现<strong>付费潜力</strong>：高累计人均次数类别的用户更愿意为相关内容付费</li>
+                        <li>优化<strong>资源投放</strong>：优先在高累计人均次数类别投放新内容和活动</li>
+                        <li>预警<strong>内容疲劳</strong>：累计人均次数持续下降预示该类别内容可能需要更新</li>
                     </ul>
                     <h4 style="margin-top: 10px;">健康标准</h4>
-                    <ul><li>人均进入次数反映用户粘性和关卡吸引力</li></ul>
+                    <ul><li>累计人均进入次数反映用户长期粘性和关卡吸引力</li></ul>
+                </div>
+            </div>
+
+            <!-- P1-10d: 关卡类别当日人均进入次数对比 -->
+            <div class="chart-card full-width" data-dimension="penetration">
+                <h3>关卡类别当日人均进入次数对比 <span class="priority p1">P1</span></h3>
+                <div class="chart-container" style="height: 350px;"><canvas id="categoryDailyAvgChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>计算公式：</strong>当日人均进入次数 = 当日进入该类别的次数（不去重） / 当日进入该类别的用户数（去重）</li>
+                        <li><strong>统计逻辑：</strong>统计每一天，平均每个当日进入该类别的用户会进入多少次，反映用户对该类别的当日参与热度</li>
+                    </ul>
+                    <h4 style="margin-top: 10px;">数据价值</h4>
+                    <ul>
+                        <li>反映用户对各类别的<strong>当日参与热度和即时粘性</strong>，是衡量内容即时吸引力的指标</li>
+                        <li>识别<strong>每日热点玩法</strong>：当日人均次数高的类别是用户当天最活跃的内容</li>
+                        <li>评估<strong>每日内容消耗</strong>：当日人均次数可以帮助判断用户每天在各类型内容上的投入分布</li>
+                        <li>优化<strong>每日任务设计</strong>：根据当日人均次数调整每日任务的目标次数设置</li>
+                        <li>发现<strong>短期趋势</strong>：当日人均次数的变化趋势可以及时发现用户偏好的短期变化</li>
+                        <li>指导<strong>限时活动</strong>：在当日人均次数高的类别开展限时活动效果更佳</li>
+                    </ul>
+                    <h4 style="margin-top: 10px;">健康标准</h4>
+                    <ul><li>当日人均进入次数反映用户当日活跃度和内容即时吸引力</li></ul>
                 </div>
             </div>
 
@@ -3539,9 +3563,14 @@
                 chart_name: '关卡类别进入次数占比（不去重）'
             }, false);
             
-            renderStackedBarChart('categoryAvgCountChart', {
+            renderStackedBarChart('categoryCumulativeAvgChart', {
                 ...emptyChartData,
-                chart_name: '关卡类别人均进入次数对比（不去重）'
+                chart_name: '关卡类别累计人均进入次数对比'
+            }, false);
+            
+            renderStackedBarChart('categoryDailyAvgChart', {
+                ...emptyChartData,
+                chart_name: '关卡类别当日人均进入次数对比'
             }, false);
         }
         
@@ -3549,7 +3578,8 @@
         const categoryChartDateStates = {
             user: { dates: [], visible: {} },
             count: { dates: [], visible: {} },
-            avg: { dates: [], visible: {} }
+            cumulative_avg: { dates: [], visible: {} },
+            daily_avg: { dates: [], visible: {} }
         };
 
         // 生成日期图例HTML（只生成一份，控制三个图表）
@@ -3576,7 +3606,7 @@
             const newVisible = currentVisible === false ? true : false;
 
             // 更新所有图表类型的状态
-            ['user', 'count', 'avg'].forEach(type => {
+            ['user', 'count', 'cumulative_avg', 'daily_avg'].forEach(type => {
                 categoryChartDateStates[type].visible[date] = newVisible;
             });
 
@@ -3587,9 +3617,9 @@
                 legendItem.classList.toggle('hidden', !newVisible);
             }
 
-            // 更新三个图表的显示
-            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryAvgCountChart'];
-            const chartTypes = ['user', 'count', 'avg'];
+            // 更新四个图表的显示
+            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryCumulativeAvgChart', 'categoryDailyAvgChart'];
+            const chartTypes = ['user', 'count', 'cumulative_avg', 'daily_avg'];
 
             canvasIds.forEach((canvasId, idx) => {
                 const chart = charts[canvasId];
@@ -3614,7 +3644,7 @@
             const showAll = document.getElementById('categoryShowAll')?.checked ?? true;
 
             // 更新所有图表类型的状态
-            ['user', 'count', 'avg'].forEach(type => {
+            ['user', 'count', 'cumulative_avg', 'daily_avg'].forEach(type => {
                 categoryChartDateStates[type].dates.forEach(date => {
                     categoryChartDateStates[type].visible[date] = showAll;
                 });
@@ -3627,8 +3657,8 @@
                 item.classList.toggle('hidden', !showAll);
             });
 
-            // 更新三个图表的显示
-            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryAvgCountChart'];
+            // 更新四个图表的显示
+            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryCumulativeAvgChart', 'categoryDailyAvgChart'];
             canvasIds.forEach(canvasId => {
                 const chart = charts[canvasId];
                 if (!chart) return;
@@ -3661,7 +3691,8 @@
             // 保存日期列表和初始化可见性状态
             categoryChartDateStates.user.dates = [...registerDates];
             categoryChartDateStates.count.dates = [...registerDates];
-            categoryChartDateStates.avg.dates = [...registerDates];
+            categoryChartDateStates.cumulative_avg.dates = [...registerDates];
+            categoryChartDateStates.daily_avg.dates = [...registerDates];
             registerDates.forEach(date => {
                 if (categoryChartDateStates.user.visible[date] === undefined) {
                     categoryChartDateStates.user.visible[date] = true;
@@ -3669,8 +3700,11 @@
                 if (categoryChartDateStates.count.visible[date] === undefined) {
                     categoryChartDateStates.count.visible[date] = true;
                 }
-                if (categoryChartDateStates.avg.visible[date] === undefined) {
-                    categoryChartDateStates.avg.visible[date] = true;
+                if (categoryChartDateStates.cumulative_avg.visible[date] === undefined) {
+                    categoryChartDateStates.cumulative_avg.visible[date] = true;
+                }
+                if (categoryChartDateStates.daily_avg.visible[date] === undefined) {
+                    categoryChartDateStates.daily_avg.visible[date] = true;
                 }
             });
 
@@ -3689,10 +3723,16 @@
                 renderCategoryBarChart('categoryCountRatioChart', countChart, false);
             }
             
-            // 图表3: 人均进入次数
-            const avgCountChart = chartsData.find(c => c.chart_id === 'avg_count');
-            if (avgCountChart) {
-                renderCategoryBarChart('categoryAvgCountChart', avgCountChart, false);
+            // 图表3: 累计人均进入次数
+            const cumulativeAvgChart = chartsData.find(c => c.chart_id === 'cumulative_avg');
+            if (cumulativeAvgChart) {
+                renderCategoryBarChart('categoryCumulativeAvgChart', cumulativeAvgChart, false);
+            }
+
+            // 图表4: 当日人均进入次数
+            const dailyAvgChart = chartsData.find(c => c.chart_id === 'daily_avg');
+            if (dailyAvgChart) {
+                renderCategoryBarChart('categoryDailyAvgChart', dailyAvgChart, false);
             }
         }
         
@@ -3725,11 +3765,12 @@
             }
 
             // 判断是否是人均次数图表
-            const isAvgCount = chartData.chart_id === 'avg_count';
+            const isAvgCount = chartData.chart_id === 'cumulative_avg' || chartData.chart_id === 'daily_avg';
 
             // 获取图表类型对应的日期状态
             const chartTypeKey = canvasId === 'categoryUserRatioChart' ? 'user' :
-                                canvasId === 'categoryCountRatioChart' ? 'count' : 'avg';
+                                canvasId === 'categoryCountRatioChart' ? 'count' :
+                                canvasId === 'categoryCumulativeAvgChart' ? 'cumulative_avg' : 'daily_avg';
             
             // 构建datasets - 每个注册日期的每个类别一个dataset
             const datasets = [];
