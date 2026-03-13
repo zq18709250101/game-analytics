@@ -4024,6 +4024,9 @@
             if (dailyAvgChart) {
                 renderCategoryBarChart('categoryDailyAvgChart', dailyAvgChart, false);
             }
+            
+            // 同时加载用户类别分布图表
+            updateUserCategoryDistribution();
         }
         
         // 渲染类别柱状图（每个注册日期独立显示）
