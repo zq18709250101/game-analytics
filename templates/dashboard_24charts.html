@@ -3363,13 +3363,23 @@
             // 最多生成10个注册日期（API限制）
             const maxDateCount = 10;
             const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-            const step = daysDiff > maxDateCount ? Math.ceil(daysDiff / maxDateCount) : 1;
             
-            for (let i = 0; i < daysDiff && registerDates.length < maxDateCount; i += step) {
-                const d = new Date(startDate);
-                d.setDate(d.getDate() + i);
-                const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
-                registerDates.push(parseInt(dateStr));
+            // 如果日期范围超过10天，均匀采样10个日期；否则使用所有日期
+            if (daysDiff > maxDateCount) {
+                const step = (daysDiff - 1) / (maxDateCount - 1);
+                for (let i = 0; i < maxDateCount; i++) {
+                    const d = new Date(startDate);
+                    d.setDate(d.getDate() + Math.round(i * step));
+                    const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
+                    registerDates.push(parseInt(dateStr));
+                }
+            } else {
+                for (let i = 0; i < daysDiff; i++) {
+                    const d = new Date(startDate);
+                    d.setDate(d.getDate() + i);
+                    const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
+                    registerDates.push(parseInt(dateStr));
+                }
             }
             
             console.log('生成的注册日期:', registerDates);
@@ -3659,6 +3669,7 @@
                                 if (targetStack) {
                                     return tooltipItem.dataset.stack === targetStack;
                                 }
+                                // 如果没有记录的stack，显示所有数据（避免数据为0时无法显示）
                                 return true;
                             }
                         }
