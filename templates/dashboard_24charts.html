@@ -3574,8 +3574,8 @@
                             }
                         },
                         tooltip: {
-                            mode: 'nearest',
-                            intersect: true,
+                            mode: 'index',
+                            intersect: false,
                             callbacks: {
                                 title: (items) => {
                                     const item = items[0];
@@ -3599,13 +3599,6 @@
                                     const total = stackTotals[dataIndex];
                                     return `━━━━━━━━━━━━━━\n总计: ${total.toFixed(0)} ${isUserRatio ? '人' : '次'}`;
                                 }
-                            },
-                            // 获取同一stack的所有dataset
-                            filter: function(tooltipItem, data) {
-                                // 获取当前悬停的dataset的stack
-                                const currentStack = tooltipItem.dataset.stack;
-                                // 只显示同一stack的dataset
-                                return tooltipItem.dataset.stack === currentStack;
                             },
                             itemSort: function(a, b) {
                                 // 按类别顺序排序：普通、困难、地狱、副本
