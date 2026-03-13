@@ -848,146 +848,42 @@
             <!-- 图表2: 各关卡完成率对比 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>各关卡完成率对比 <span class="priority p0">P0</span></h3>
-                <div class="chart-selector">
-                    <select id="completionCompareLevelType" onchange="updateCompletionCompareChart()">
-                        <option value="普通">普通</option>
-                        <option value="困难">困难</option>
-                        <option value="地狱">地狱</option>
-                        <option value="副本">副本</option>
-                    </select>
-                    <select id="completionCompareDayNumSpan" onchange="updateCompletionCompareChart()">
-                        <option value="1">第1天</option>
-                        <option value="7">7天平均</option>
-                        <option value="14">14天平均</option>
-                        <option value="30" selected>30天平均</option>
-                        <option value="90">90天平均</option>
-                    </select>
-                </div>
                 <div class="chart-container"><canvas id="completionCompareChart"></canvas></div>
             </div>
 
             <!-- 图表3: 难度等级分布 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>难度等级分布 <span class="priority p1">P1</span></h3>
-                <div class="chart-selector">
-                    <select id="difficultyDistLevelType" onchange="updateDifficultyDistChart()">
-                        <option value="">全部类型</option>
-                        <option value="普通">普通</option>
-                        <option value="困难">困难</option>
-                        <option value="地狱">地狱</option>
-                        <option value="副本">副本</option>
-                    </select>
-                    <select id="difficultyDistDayNumSpan" onchange="updateDifficultyDistChart()">
-                        <option value="1">第1天</option>
-                        <option value="7">7天平均</option>
-                        <option value="30" selected>30天平均</option>
-                        <option value="90">90天平均</option>
-                    </select>
-                </div>
                 <div class="chart-container"><canvas id="difficultyDistChart"></canvas></div>
             </div>
 
             <!-- 图表4: 完成率 vs 卡死率散点图 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>完成率 vs 卡死率散点图 <span class="priority p1">P1</span></h3>
-                <div class="chart-selector">
-                    <select id="scatterLevelType" onchange="updateScatterChart()">
-                        <option value="">全部类型</option>
-                        <option value="普通">普通</option>
-                        <option value="困难">困难</option>
-                        <option value="地狱">地狱</option>
-                    </select>
-                    <select id="scatterDayNumSpan" onchange="updateScatterChart()">
-                        <option value="1">第1天</option>
-                        <option value="7">7天平均</option>
-                        <option value="30" selected>30天平均</option>
-                    </select>
-                </div>
                 <div class="chart-container"><canvas id="scatterChart"></canvas></div>
             </div>
 
             <!-- 图表5: 关卡流失漏斗 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>关卡流失漏斗 <span class="priority p1">P1</span></h3>
-                <div class="chart-selector">
-                    <select id="funnelLevelType" onchange="updateFunnelChart()">
-                        <option value="普通">普通</option>
-                        <option value="困难">困难</option>
-                        <option value="地狱">地狱</option>
-                        <option value="副本">副本</option>
-                    </select>
-                    <select id="funnelLevelId" onchange="updateFunnelChart()">
-                        <option value="1">关卡 1</option>
-                        <option value="2">关卡 2</option>
-                        <option value="3">关卡 3</option>
-                        <option value="4">关卡 4</option>
-                        <option value="5">关卡 5</option>
-                    </select>
-                    <select id="funnelDayNumSpan" onchange="updateFunnelChart()">
-                        <option value="1">第1天</option>
-                        <option value="7">7天累计</option>
-                        <option value="30" selected>30天累计</option>
-                    </select>
-                </div>
                 <div class="chart-container"><canvas id="funnelChart"></canvas></div>
             </div>
 
             <!-- 图表6: 关卡-day_num完成率热力图 -->
             <div class="chart-card full-width" data-dimension="completion">
                 <h3>关卡完成率热力图 <span class="priority p2">P2</span></h3>
-                <div class="chart-selector">
-                    <select id="heatmapLevelType" onchange="updateHeatmapChart()">
-                        <option value="普通">普通</option>
-                        <option value="困难">困难</option>
-                        <option value="地狱">地狱</option>
-                    </select>
-                    <select id="heatmapLevelIds" multiple onchange="updateHeatmapChart()" style="min-width: 150px;">
-                        <option value="1,2,3,4,5" selected>关卡 1-5</option>
-                        <option value="6,7,8,9,10">关卡 6-10</option>
-                        <option value="11,12,13,14,15">关卡 11-15</option>
-                    </select>
-                </div>
                 <div class="chart-container"><canvas id="completionHeatmapChart"></canvas></div>
             </div>
 
             <!-- 图表7: 完成率最低TOP10 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>完成率最低TOP10 <span class="priority p1">P1</span></h3>
-                <div class="chart-selector">
-                    <select id="lowestLevelType" onchange="updateLowestCompletionChart()">
-                        <option value="">全部类型</option>
-                        <option value="普通">普通</option>
-                        <option value="困难">困难</option>
-                        <option value="地狱">地狱</option>
-                    </select>
-                    <select id="lowestDayNumSpan" onchange="updateLowestCompletionChart()">
-                        <option value="1">第1天</option>
-                        <option value="7">7天平均</option>
-                        <option value="30" selected>30天平均</option>
-                        <option value="90">90天平均</option>
-                    </select>
-                </div>
                 <div class="chart-container"><canvas id="lowestCompletionChart"></canvas></div>
             </div>
 
             <!-- 图表8: 广告率趋势图 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>广告率趋势图 <span class="priority p2">P2</span></h3>
-                <div class="chart-selector">
-                    <select id="adTrendLevelType" onchange="updateAdTrendChart()">
-                        <option value="普通">普通</option>
-                        <option value="困难">困难</option>
-                        <option value="地狱">地狱</option>
-                        <option value="副本">副本</option>
-                    </select>
-                    <select id="adTrendLevelId" onchange="updateAdTrendChart()">
-                        <option value="1">关卡 1</option>
-                        <option value="2">关卡 2</option>
-                        <option value="3">关卡 3</option>
-                        <option value="4">关卡 4</option>
-                        <option value="5">关卡 5</option>
-                    </select>
-                </div>
                 <div class="chart-container"><canvas id="adTrendChart"></canvas></div>
             </div>
 
@@ -1700,8 +1596,9 @@
 
         // 图表2: 各关卡完成率对比
         async function updateCompletionCompareChart() {
-            const levelType = document.getElementById('completionCompareLevelType')?.value || '普通';
-            const dayNumSpan = document.getElementById('completionCompareDayNumSpan')?.value || '30';
+            // 使用关卡完成率趋势图的参数
+            const levelType = singleSelectedLevel?.type || '普通';
+            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -1776,8 +1673,9 @@
 
         // 图表3: 难度等级分布
         async function updateDifficultyDistChart() {
-            const levelType = document.getElementById('difficultyDistLevelType')?.value || '';
-            const dayNumSpan = document.getElementById('difficultyDistDayNumSpan')?.value || '30';
+            // 使用关卡完成率趋势图的参数
+            const levelType = singleSelectedLevel?.type || '';
+            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -1835,8 +1733,9 @@
 
         // 图表4: 完成率 vs 卡死率散点图
         async function updateScatterChart() {
-            const levelType = document.getElementById('scatterLevelType')?.value || '';
-            const dayNumSpan = document.getElementById('scatterDayNumSpan')?.value || '30';
+            // 使用关卡完成率趋势图的参数
+            const levelType = singleSelectedLevel?.type || '';
+            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -1914,9 +1813,10 @@
 
         // 图表5: 关卡流失漏斗
         async function updateFunnelChart() {
-            const levelType = document.getElementById('funnelLevelType')?.value || '普通';
-            const levelId = document.getElementById('funnelLevelId')?.value || '1';
-            const dayNumSpan = document.getElementById('funnelDayNumSpan')?.value || '30';
+            // 使用关卡完成率趋势图的参数
+            const levelType = singleSelectedLevel?.type || '普通';
+            const levelId = singleSelectedLevel?.id || 1;
+            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -1980,9 +1880,10 @@
 
         // 图表6: 关卡完成率热力图
         async function updateHeatmapChart() {
-            const levelType = document.getElementById('heatmapLevelType')?.value || '普通';
-            const levelIdsSelect = document.getElementById('heatmapLevelIds');
-            const levelIds = levelIdsSelect?.value || '1,2,3,4,5';
+            // 使用关卡完成率趋势图的参数
+            const levelType = singleSelectedLevel?.type || '普通';
+            const levelId = singleSelectedLevel?.id || 1;
+            const levelIds = `${levelId}`;
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -2066,8 +1967,9 @@
 
         // 图表7: 完成率最低TOP10
         async function updateLowestCompletionChart() {
-            const levelType = document.getElementById('lowestLevelType')?.value || '';
-            const dayNumSpan = document.getElementById('lowestDayNumSpan')?.value || '30';
+            // 使用关卡完成率趋势图的参数
+            const levelType = singleSelectedLevel?.type || '';
+            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -2136,8 +2038,9 @@
 
         // 图表8: 广告率趋势图
         async function updateAdTrendChart() {
-            const levelType = document.getElementById('adTrendLevelType')?.value || '普通';
-            const levelId = document.getElementById('adTrendLevelId')?.value || '1';
+            // 使用关卡完成率趋势图的参数
+            const levelType = singleSelectedLevel?.type || '普通';
+            const levelId = singleSelectedLevel?.id || 1;
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
