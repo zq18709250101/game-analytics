@@ -3604,6 +3604,18 @@
                                 // 按类别顺序排序：普通、困难、地狱、副本
                                 const order = { '普通': 1, '困难': 2, '地狱': 3, '副本': 4 };
                                 return (order[a.dataset.label] || 99) - (order[b.dataset.label] || 99);
+                            },
+                            filter: function(tooltipItem, data) {
+                                // 获取当前激活的元素
+                                const chart = tooltipItem.chart;
+                                const activeElements = chart.getActiveElements();
+                                if (activeElements.length > 0) {
+                                    // 获取当前悬停的dataset的stack
+                                    const activeStack = activeElements[0].dataset.stack;
+                                    // 只显示同一stack的dataset
+                                    return tooltipItem.dataset.stack === activeStack;
+                                }
+                                return true;
                             }
                         }
                     },
