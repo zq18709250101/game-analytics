@@ -1636,7 +1636,14 @@
                         maintainAspectRatio: false,
                         plugins: {
                             title: { display: true, text: `${levelType}关卡${levelId}完成率趋势` },
-                            legend: { position: 'top' }
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y + '%';
+                                    }
+                                }
+                            }
                         },
                         scales: {
                             y: {
@@ -1713,7 +1720,14 @@
                         maintainAspectRatio: false,
                         plugins: {
                             title: { display: true, text: `${levelType}关卡完成率对比 (${dayNumSpan}天平均)` },
-                            legend: { position: 'top' }
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y + '%';
+                                    }
+                                }
+                            }
                         },
                         scales: {
                             y: {
