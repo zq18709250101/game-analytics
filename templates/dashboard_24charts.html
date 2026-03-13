@@ -3623,7 +3623,14 @@
                             const activeElement = activeElements[0];
                             const datasetIndex = activeElement.datasetIndex;
                             const currentStack = chart.data.datasets[datasetIndex].stack;
-                            chart._currentHoverStack = currentStack;
+                            // 只有当stack变化时才更新，避免不必要的重绘
+                            if (chart._currentHoverStack !== currentStack) {
+                                chart._currentHoverStack = currentStack;
+                                // 强制更新tooltip
+                                if (chart.tooltip) {
+                                    chart.tooltip.update();
+                                }
+                            }
                         }
                     },
                     scales: {
