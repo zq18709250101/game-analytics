@@ -1735,5 +1735,197 @@ def api_user_category_distribution_v1():
         return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
 
 
+@app.route('/api/v1/unlock/conversion-analysis', methods=['POST'])
+def api_unlock_conversion_analysis():
+    """
+    解锁转化率分析查询
+    
+    请求参数：
+    - register_date_start: 注册日期起始（YYYYMMDD）
+    - register_date_end: 注册日期结束（YYYYMMDD）
+    - day_num: 时间范围天数（1-90，默认7）
+    - view_type: 视图类型（funnel/trend，默认funnel）
+    - funnel_path: 漏斗路径（normal_hard_hell/normal_copy，默认normal_hard_hell）
+    - trend_path: 趋势路径（normal_hard/hard_hell/normal_copy，默认normal_hard）
+    """
+    try:
+        data = request.get_json() or {}
+        
+        # 获取参数
+        register_date_start = data.get('register_date_start', 20260110)
+        register_date_end = data.get('register_date_end', 20260111)
+        day_num = data.get('day_num', 7)
+        view_type = data.get('view_type', 'funnel')
+        funnel_path = data.get('funnel_path', 'normal_hard_hell')
+        trend_path = data.get('trend_path', 'normal_hard')
+        
+        # 参数校验
+        if day_num < 1 or day_num > 90:
+            return jsonify({'code': 400, 'message': 'day_num范围必须是1-90'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if view_type == 'funnel':
+            # 漏斗图查询
+            if funnel_path == 'normal_hard_hell':
+                # 普通 → 困难 → 地狱
+                cursor.execute("""
+                    SELECT 
+                        '普通' as stage,
+                        SUM(normal_users) as users,
+                        100.0 as rate
+                    FROM mv_unlock_conversion_stats
+                    WHERE register_date BETWEEN ? AND ?
+                      AND day_num = ?
+                    
+                    UNION ALL
+                    
+                    SELECT 
+                        '困难',
+                        SUM(hard_users),
+                        ROUND(SUM(hard_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
+                    FROM mv_unlock_conversion_stats
+                    WHERE register_date BETWEEN ? AND ?
+                      AND day_num = ?
+                    
+                    UNION ALL
+                    
+                    SELECT 
+                        '地狱',
+                        SUM(hell_users),
+                        ROUND(SUM(hell_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
+                    FROM mv_unlock_conversion_stats
+                    WHERE register_date BETWEEN ? AND ?
+                      AND day_num = ?
+                    
+                    ORDER BY 
+                        CASE stage WHEN '普通' THEN 1 WHEN '困难' THEN 2 WHEN '地狱' THEN 3 END
+                """, [register_date_start, register_date_end, day_num] * 3)
+            else:
+                # 普通 → 副本
+                cursor.execute("""
+                    SELECT 
+                        '普通' as stage,
+                        SUM(normal_users) as users,
+                        100.0 as rate
+                    FROM mv_unlock_conversion_stats
+                    WHERE register_date BETWEEN ? AND ?
+                      AND day_num = ?
+                    
+                    UNION ALL
+                    
+                    SELECT 
+                        '副本',
+                        SUM(copy_users),
+                        ROUND(SUM(copy_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
+                    FROM mv_unlock_conversion_stats
+                    WHERE register_date BETWEEN ? AND ?
+                      AND day_num = ?
+                    
+                    ORDER BY 
+                        CASE stage WHEN '普通' THEN 1 WHEN '副本' THEN 2 END
+                """, [register_date_start, register_date_end, day_num] * 2)
+            
+            funnel_data = []
+            for row in cursor.fetchall():
+                funnel_data.append({
+                    'stage': row[0],
+                    'users': row[1],
+                    'rate': row[2]
+                })
+            
+            conn.close()
+            
+            return jsonify({
+                'code': 0,
+                'message': 'success',
+                'data': {
+                    'query_info': {
+                        'register_date_start': register_date_start,
+                        'register_date_end': register_date_end,
+                        'day_num': day_num,
+                        'view_type': view_type,
+                        'funnel_path': funnel_path
+                    },
+                    'view_type': 'funnel',
+                    'funnel_data': funnel_data
+                }
+            })
+        
+        else:
+            # 趋势图查询
+            if trend_path == 'normal_hard':
+                cursor.execute("""
+                    SELECT 
+                        day_num,
+                        ROUND(AVG(normal_to_hard_rate), 2) as conversion_rate,
+                        SUM(normal_users) as from_users,
+                        SUM(hard_users) as to_users
+                    FROM mv_unlock_conversion_stats
+                    WHERE register_date BETWEEN ? AND ?
+                      AND day_num <= ?
+                    GROUP BY day_num
+                    ORDER BY day_num
+                """, [register_date_start, register_date_end, day_num])
+            elif trend_path == 'hard_hell':
+                cursor.execute("""
+                    SELECT 
+                        day_num,
+                        ROUND(AVG(hard_to_hell_rate), 2) as conversion_rate,
+                        SUM(hard_users) as from_users,
+                        SUM(hell_users) as to_users
+                    FROM mv_unlock_conversion_stats
+                    WHERE register_date BETWEEN ? AND ?
+                      AND day_num <= ?
+                    GROUP BY day_num
+                    ORDER BY day_num
+                """, [register_date_start, register_date_end, day_num])
+            else:
+                cursor.execute("""
+                    SELECT 
+                        day_num,
+                        ROUND(AVG(normal_to_copy_rate), 2) as conversion_rate,
+                        SUM(normal_users) as from_users,
+                        SUM(copy_users) as to_users
+                    FROM mv_unlock_conversion_stats
+                    WHERE register_date BETWEEN ? AND ?
+                      AND day_num <= ?
+                    GROUP BY day_num
+                    ORDER BY day_num
+                """, [register_date_start, register_date_end, day_num])
+            
+            trend_data = []
+            for row in cursor.fetchall():
+                trend_data.append({
+                    'day_num': row[0],
+                    'conversion_rate': row[1],
+                    'from_users': row[2],
+                    'to_users': row[3]
+                })
+            
+            conn.close()
+            
+            return jsonify({
+                'code': 0,
+                'message': 'success',
+                'data': {
+                    'query_info': {
+                        'register_date_start': register_date_start,
+                        'register_date_end': register_date_end,
+                        'day_num': day_num,
+                        'view_type': view_type,
+                        'trend_path': trend_path
+                    },
+                    'view_type': 'trend',
+                    'trend_data': trend_data
+                }
+            })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=False, port=5056, host='0.0.0.0', threaded=True)
