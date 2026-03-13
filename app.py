@@ -1260,8 +1260,6 @@ def api_category_enter_ratio():
         # 参数校验
         if not register_dates or len(register_dates) == 0:
             return jsonify({'code': 400, 'message': '注册日期不能为空'}), 400
-        if len(register_dates) > 20:
-            return jsonify({'code': 400, 'message': '注册日期数量不能超过20个'}), 400
         if day_num_start < 1 or day_num_start > 90:
             return jsonify({'code': 400, 'message': 'day_num_start范围必须是1-90'}), 400
         if day_num_end < 1 or day_num_end > 90:
