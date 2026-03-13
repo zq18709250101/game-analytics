@@ -1740,12 +1740,13 @@ def api_user_category_distribution_v1():
 @app.route('/api/v1/unlock/conversion-analysis', methods=['POST'])
 def api_unlock_conversion_analysis():
     """
-    解锁转化率分析查询 - v1.1
+    解锁转化率分析查询 - v1.2
     支持漏斗图（多注册日期X轴）和趋势图（时间范围X轴）切换
     
     请求参数：
-    - register_date_start: 注册日期起始（YYYYMMDD）
-    - register_date_end: 注册日期结束（YYYYMMDD）
+    - register_date_start: 注册日期起始（YYYYMMDD，兼容旧版）
+    - register_date_end: 注册日期结束（YYYYMMDD，兼容旧版）
+    - register_dates: 注册日期列表（YYYYMMDD数组，新版推荐）
     - view_type: 视图类型（funnel/trend，默认funnel）
     - funnel_path: 漏斗路径（normal_hard_hell/normal_copy，默认normal_hard_hell）
     - trend_path: 趋势路径（normal_hard/hard_hell/normal_copy，默认normal_hard）
@@ -1756,8 +1757,17 @@ def api_unlock_conversion_analysis():
         data = request.get_json() or {}
         
         # 获取参数
-        register_date_start = data.get('register_date_start', 20260110)
-        register_date_end = data.get('register_date_end', 20260116)
+        # 优先使用 register_dates 数组，兼容旧版的 register_date_start/end
+        register_dates = data.get('register_dates', [])
+        if register_dates:
+            # 使用具体的日期列表
+            register_date_start = min(register_dates)
+            register_date_end = max(register_dates)
+        else:
+            # 兼容旧版参数
+            register_date_start = data.get('register_date_start', 20260110)
+            register_date_end = data.get('register_date_end', 20260116)
+            
         view_type = data.get('view_type', 'funnel')
         funnel_path = data.get('funnel_path', 'normal_hard_hell')
         trend_path = data.get('trend_path', 'normal_hard')
@@ -1994,7 +2004,9 @@ def api_unlock_conversion_analysis():
             trends = []
             
             # 2. 为每个注册日期生成趋势数据
-            for reg_date in register_dates:
+            # 如果传入了具体的register_dates数组，则使用它；否则使用查询到的所有日期
+            target_dates = data.get('register_dates', register_dates)
+            for reg_date in target_dates:
                 if trend_path == 'normal_hard':
                     cursor.execute("""
                         SELECT 

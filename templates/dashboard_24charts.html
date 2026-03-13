@@ -4860,22 +4860,23 @@
         let unlockConversionData = null;
         
         async function updateUnlockConversionChart() {
-            // 获取日期范围（支持连续时间和间隔时间）
-            let registerDateStart, registerDateEnd;
+            // 获取日期列表（支持连续时间和间隔时间）
+            let registerDates = [];
 
             if (timeSelectionMode === 'interval') {
                 const selectedDates = document.getElementById('selectedDates')?.value;
                 if (!selectedDates) return;
-                const dates = selectedDates.split(',').sort();
-                registerDateStart = dates[0].replace(/-/g, '');
-                registerDateEnd = dates[dates.length - 1].replace(/-/g, '');
+                // 获取所有选中的日期，而不是只取第一个和最后一个
+                registerDates = selectedDates.split(',').map(d => parseInt(d.replace(/-/g, ''))).sort((a, b) => a - b);
             } else {
                 let startDateStr = document.getElementById('tsStartDate')?.value;
                 let endDateStr = document.getElementById('tsEndDate')?.value;
                 if (!startDateStr || !endDateStr) return;
-                registerDateStart = startDateStr.replace(/-/g, '');
-                registerDateEnd = endDateStr.replace(/-/g, '');
+                registerDates = [parseInt(startDateStr.replace(/-/g, '')), parseInt(endDateStr.replace(/-/g, ''))];
             }
+            
+            if (registerDates.length === 0) return;
+            
             const maxDayNum = parseInt(document.getElementById('unlockDaySelect')?.value || 30);
             
             // 获取选中的路径（复选框）
@@ -4898,8 +4899,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            register_date_start: parseInt(registerDateStart),
-                            register_date_end: parseInt(registerDateEnd),
+                            register_dates: registerDates,  // 传递具体的日期数组
                             view_type: 'trend',
                             trend_path: trendPath,
                             max_day_num: maxDayNum
@@ -5029,7 +5029,7 @@
                     datasets.push({
                         label: `平均 ${pathName}`,
                         data: avgData,
-                        borderColor: '#666666',
+                        borderColor: '#e74c3c',  // 红色
                         backgroundColor: 'transparent',
                         borderWidth: 3,
                         borderDash: pathDash,
