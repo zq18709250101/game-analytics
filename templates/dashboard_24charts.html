@@ -827,7 +827,7 @@
                             <!-- 树形结构动态生成 -->
                         </div>
                     </div>
-                    <select id="completionTrendDayNumSpan" onchange="updateCompletionTrendChart()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                    <select id="completionTrendDayNumSpan" onchange="onDayNumSpanChange()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
                         <option value="1">1天</option>
                         <option value="2">2天</option>
                         <option value="3">3天</option>
@@ -1510,6 +1510,20 @@
         // 辅助函数：格式化日期为YYYYMMDD
         function formatDateToInt(dateStr) {
             return dateStr.replace(/-/g, '');
+        }
+
+        // 时间范围改变时更新所有图表
+        function onDayNumSpanChange() {
+            // 更新第一个图表
+            updateCompletionTrendChart();
+            // 更新其他图表
+            updateCompletionCompareChart();
+            updateDifficultyDistChart();
+            updateScatterChart();
+            updateFunnelChart();
+            updateHeatmapChart();
+            updateLowestCompletionChart();
+            updateAdTrendChart();
         }
 
         // 图表1: 关卡完成率趋势图
@@ -3605,8 +3619,8 @@
             // 重新渲染以更新选中状态
             renderSingleLevelDropdown();
 
-            // 触发图表更新
-            updateCompletionTrendChart();
+            // 触发所有图表更新
+            onDayNumSpanChange();
         }
 
         // 全局点击事件 - 点击下拉框以外区域时收起
