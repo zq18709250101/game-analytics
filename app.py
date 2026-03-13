@@ -1240,10 +1240,10 @@ def api_user_category_distribution():
 @app.route('/api/v1/level/category-enter-ratio', methods=['POST'])
 def api_category_enter_ratio():
     """
-    关卡类别进入占比查询 - 按人数和按次数的堆叠柱状图数据
+    关卡类别进入占比查询 - 按文档SQL方式汇总所有注册日期
     
     请求参数：
-    - register_dates: 注册日期列表（YYYYMMDD），最多10个
+    - register_dates: 注册日期列表（YYYYMMDD）
     - day_num_start: 时间范围起始（1-90，默认1）
     - day_num_end: 时间范围结束（1-90，默认7）
     - categories: 关卡类别列表（默认["普通","困难","地狱","副本"]）
@@ -1272,36 +1272,35 @@ def api_category_enter_ratio():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 查询各注册日期的总用户数
-        total_users_map = {}
-        for reg_date in register_dates:
-            cursor.execute("""
-                SELECT DISTINCT total_users 
-                FROM mv_level_penetration_curve 
-                WHERE register_date = ? AND day_num = 1
-                LIMIT 1
-            """, (reg_date,))
-            row = cursor.fetchone()
-            total_users_map[str(reg_date)] = row[0] if row else 0
-        
-        # 查询数据
         placeholders_dates = ','.join(['?' for _ in register_dates])
         placeholders_categories = ','.join(['?' for _ in categories])
         
+        # 使用新的物化视图 mv_level_category_enter_ratio
+        # 查询各注册日期的总用户数
+        cursor.execute(f"""
+            SELECT 
+                register_date,
+                MAX(total_users) as total_users
+            FROM mv_level_category_enter_ratio
+            WHERE register_date IN ({placeholders_dates})
+            GROUP BY register_date
+        """, register_dates)
+        
+        total_users_map = {str(row[0]): row[1] for row in cursor.fetchall()}
+        
+        # 查询数据（按文档SQL方式）
         query = f"""
             SELECT 
                 register_date,
                 day_num,
                 level_type as category,
-                SUM(cumulative_users) as user_count,
-                ROUND(SUM(cumulative_users) * 100.0 / MAX(total_users), 2) as user_ratio,
-                SUM(cumulative_enter_count) as enter_count,
-                ROUND(SUM(cumulative_enter_count) * 100.0 / MAX(total_users), 2) as count_ratio
-            FROM mv_level_penetration_curve
+                category_users,
+                category_enter_count,
+                user_ratio
+            FROM mv_level_category_enter_ratio
             WHERE register_date IN ({placeholders_dates})
               AND day_num BETWEEN ? AND ?
               AND level_type IN ({placeholders_categories})
-            GROUP BY register_date, day_num, level_type
             ORDER BY register_date, day_num,
                 CASE level_type 
                     WHEN '普通' THEN 1 
@@ -1315,37 +1314,37 @@ def api_category_enter_ratio():
         params = register_dates + [day_num_start, day_num_end] + categories
         cursor.execute(query, params)
         
-        # 整理数据
+        # 整理数据：按(注册日期, day_num)分组
         raw_data = {}
         for row in cursor.fetchall():
             reg_date = str(row[0])
             day_num = row[1]
             category = row[2]
-            user_count = row[3]
-            enter_count = row[5]
+            category_users = row[3]
+            category_enter_count = row[4]
+            user_ratio = row[5]
             
             key = (reg_date, day_num)
             if key not in raw_data:
                 raw_data[key] = {
                     'register_date': reg_date,
                     'day_num': day_num,
-                    'categories': {}
+                    'categories': {},
+                    'total_users': total_users_map.get(reg_date, 0)
                 }
+            
             raw_data[key]['categories'][category] = {
-                'user_count': user_count,
-                'enter_count': enter_count
+                'user_count': category_users,
+                'enter_count': category_enter_count,
+                'user_ratio': user_ratio
             }
         
-        # 计算占比：该类别 / 所有类别总和
+        # 计算次数占比（需要动态计算）
         for key in raw_data:
-            total_user_count = sum(cat['user_count'] for cat in raw_data[key]['categories'].values())
             total_enter_count = sum(cat['enter_count'] for cat in raw_data[key]['categories'].values())
             
             for category in raw_data[key]['categories']:
                 cat_data = raw_data[key]['categories'][category]
-                # 人数占比 = 该类别累计进入人数 / 所有类别累计进入人数
-                cat_data['user_ratio'] = round(cat_data['user_count'] * 100.0 / total_user_count, 2) if total_user_count > 0 else 0
-                # 次数占比 = 该类别累计进入次数 / 所有类别累计进入次数
                 cat_data['count_ratio'] = round(cat_data['enter_count'] * 100.0 / total_enter_count, 2) if total_enter_count > 0 else 0
         
         conn.close()
@@ -1353,32 +1352,6 @@ def api_category_enter_ratio():
         # 构建响应数据
         day_nums = list(range(day_num_start, day_num_end + 1))
         x_axis_data = [f'D{day}' for day in day_nums]
-        
-        # 图表1：按人数占比
-        user_ratio_chart = {
-            'chart_id': 'user_ratio',
-            'chart_name': '关卡类别进入占比（按人数）',
-            'metric': 'user_ratio',
-            'unit': '%',
-            'x_axis': {
-                'name': '注册后天数',
-                'data': x_axis_data
-            },
-            'series_groups': []
-        }
-        
-        # 图表2：按次数占比
-        count_ratio_chart = {
-            'chart_id': 'count_ratio',
-            'chart_name': '关卡类别进入占比（按次数）',
-            'metric': 'count_ratio',
-            'unit': '%',
-            'x_axis': {
-                'name': '注册后天数',
-                'data': x_axis_data
-            },
-            'series_groups': []
-        }
         
         # 颜色映射
         color_map = {
@@ -1388,26 +1361,16 @@ def api_category_enter_ratio():
             '副本': '#ee6666'
         }
         
-        # 为每个注册日期构建series
+        # 为每个注册日期构建series_groups
+        user_series_groups = []
+        count_series_groups = []
+        
         for reg_date in register_dates:
             reg_date_str = str(reg_date)
-            total_users = total_users_map.get(reg_date_str, 0)
             
-            # 人数占比series group
-            user_series_group = {
-                'group_name': reg_date_str,
-                'register_date': reg_date,
-                'total_users': total_users,
-                'series': []
-            }
-            
-            # 次数占比series group
-            count_series_group = {
-                'group_name': reg_date_str,
-                'register_date': reg_date,
-                'total_users': total_users,
-                'series': []
-            }
+            # 该注册日期的series
+            user_series = []
+            count_series = []
             
             for category in categories:
                 user_data = []
@@ -1416,26 +1379,63 @@ def api_category_enter_ratio():
                 for day_num in day_nums:
                     key = (reg_date_str, day_num)
                     if key in raw_data and category in raw_data[key]['categories']:
-                        user_data.append(raw_data[key]['categories'][category]['user_ratio'])
-                        count_data.append(raw_data[key]['categories'][category]['count_ratio'])
+                        user_data.append(raw_data[key]['categories'][category]['user_count'])
+                        count_data.append(raw_data[key]['categories'][category]['enter_count'])
                     else:
                         user_data.append(0)
                         count_data.append(0)
                 
-                user_series_group['series'].append({
+                user_series.append({
                     'name': category,
                     'data': user_data,
                     'color': color_map.get(category, '#999')
                 })
                 
-                count_series_group['series'].append({
+                count_series.append({
                     'name': category,
                     'data': count_data,
                     'color': color_map.get(category, '#999')
                 })
             
-            user_ratio_chart['series_groups'].append(user_series_group)
-            count_ratio_chart['series_groups'].append(count_series_group)
+            user_series_groups.append({
+                'group_name': reg_date_str,
+                'register_date': reg_date,
+                'total_users': total_users_map.get(reg_date_str, 0),
+                'series': user_series
+            })
+            
+            count_series_groups.append({
+                'group_name': reg_date_str,
+                'register_date': reg_date,
+                'total_users': total_users_map.get(reg_date_str, 0),
+                'series': count_series
+            })
+        
+        # 图表1：按人数
+        user_chart = {
+            'chart_id': 'user_count',
+            'chart_name': '关卡类别进入占比（按人数）',
+            'metric': 'user_count',
+            'unit': '人',
+            'x_axis': {
+                'name': '注册后天数',
+                'data': x_axis_data
+            },
+            'series_groups': user_series_groups
+        }
+        
+        # 图表2：按次数
+        count_chart = {
+            'chart_id': 'enter_count',
+            'chart_name': '关卡类别进入占比（按次数）',
+            'metric': 'enter_count',
+            'unit': '次',
+            'x_axis': {
+                'name': '注册后天数',
+                'data': x_axis_data
+            },
+            'series_groups': count_series_groups
+        }
         
         return jsonify({
             'code': 0,
@@ -1448,7 +1448,7 @@ def api_category_enter_ratio():
                     'categories': categories,
                     'total_users_map': total_users_map
                 },
-                'charts': [user_ratio_chart, count_ratio_chart]
+                'charts': [user_chart, count_chart]
             }
         })
         
@@ -1458,4 +1458,4 @@ def api_category_enter_ratio():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5040, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5055, host='0.0.0.0', threaded=True)
