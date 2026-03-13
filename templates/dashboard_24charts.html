@@ -3615,15 +3615,15 @@
                                 }
                                 return true;
                             }
-                        },
-                        // 在hover时记录当前stack，供tooltip使用
-                        onHover: function(event, activeElements, chart) {
-                            if (activeElements && activeElements.length > 0) {
-                                const activeElement = activeElements[0];
-                                const datasetIndex = activeElement.datasetIndex;
-                                const currentStack = chart.data.datasets[datasetIndex].stack;
-                                chart._currentHoverStack = currentStack;
-                            }
+                        }
+                    },
+                    // 在hover时记录当前stack，供tooltip使用
+                    onHover: function(event, activeElements, chart) {
+                        if (activeElements && activeElements.length > 0) {
+                            const activeElement = activeElements[0];
+                            const datasetIndex = activeElement.datasetIndex;
+                            const currentStack = chart.data.datasets[datasetIndex].stack;
+                            chart._currentHoverStack = currentStack;
                         }
                     },
                     scales: {
