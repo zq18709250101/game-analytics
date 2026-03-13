@@ -1771,68 +1771,73 @@ def api_unlock_conversion_analysis():
             if funnel_path == 'normal_hard_hell':
                 # 普通 → 困难 → 地狱
                 cursor.execute("""
-                    SELECT 
-                        '普通' as stage,
-                        SUM(normal_users) as users,
-                        100.0 as rate
-                    FROM mv_unlock_conversion_stats
-                    WHERE register_date BETWEEN ? AND ?
-                      AND day_num = ?
-                    
-                    UNION ALL
-                    
-                    SELECT 
-                        '困难',
-                        SUM(hard_users),
-                        ROUND(SUM(hard_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
-                    FROM mv_unlock_conversion_stats
-                    WHERE register_date BETWEEN ? AND ?
-                      AND day_num = ?
-                    
-                    UNION ALL
-                    
-                    SELECT 
-                        '地狱',
-                        SUM(hell_users),
-                        ROUND(SUM(hell_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
-                    FROM mv_unlock_conversion_stats
-                    WHERE register_date BETWEEN ? AND ?
-                      AND day_num = ?
-                    
-                    ORDER BY 
-                        CASE stage WHEN '普通' THEN 1 WHEN '困难' THEN 2 WHEN '地狱' THEN 3 END
+                    SELECT * FROM (
+                        SELECT 
+                            1 as sort_order,
+                            '普通' as stage,
+                            SUM(normal_users) as users,
+                            100.0 as rate
+                        FROM mv_unlock_conversion_stats
+                        WHERE register_date BETWEEN ? AND ?
+                          AND day_num = ?
+                        
+                        UNION ALL
+                        
+                        SELECT 
+                            2,
+                            '困难',
+                            SUM(hard_users),
+                            ROUND(SUM(hard_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
+                        FROM mv_unlock_conversion_stats
+                        WHERE register_date BETWEEN ? AND ?
+                          AND day_num = ?
+                        
+                        UNION ALL
+                        
+                        SELECT 
+                            3,
+                            '地狱',
+                            SUM(hell_users),
+                            ROUND(SUM(hell_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
+                        FROM mv_unlock_conversion_stats
+                        WHERE register_date BETWEEN ? AND ?
+                          AND day_num = ?
+                    )
+                    ORDER BY sort_order
                 """, [register_date_start, register_date_end, day_num] * 3)
             else:
                 # 普通 → 副本
                 cursor.execute("""
-                    SELECT 
-                        '普通' as stage,
-                        SUM(normal_users) as users,
-                        100.0 as rate
-                    FROM mv_unlock_conversion_stats
-                    WHERE register_date BETWEEN ? AND ?
-                      AND day_num = ?
-                    
-                    UNION ALL
-                    
-                    SELECT 
-                        '副本',
-                        SUM(copy_users),
-                        ROUND(SUM(copy_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
-                    FROM mv_unlock_conversion_stats
-                    WHERE register_date BETWEEN ? AND ?
-                      AND day_num = ?
-                    
-                    ORDER BY 
-                        CASE stage WHEN '普通' THEN 1 WHEN '副本' THEN 2 END
+                    SELECT * FROM (
+                        SELECT 
+                            1 as sort_order,
+                            '普通' as stage,
+                            SUM(normal_users) as users,
+                            100.0 as rate
+                        FROM mv_unlock_conversion_stats
+                        WHERE register_date BETWEEN ? AND ?
+                          AND day_num = ?
+                        
+                        UNION ALL
+                        
+                        SELECT 
+                            2,
+                            '副本',
+                            SUM(copy_users),
+                            ROUND(SUM(copy_users) * 100.0 / NULLIF(SUM(normal_users), 0), 2)
+                        FROM mv_unlock_conversion_stats
+                        WHERE register_date BETWEEN ? AND ?
+                          AND day_num = ?
+                    )
+                    ORDER BY sort_order
                 """, [register_date_start, register_date_end, day_num] * 2)
             
             funnel_data = []
             for row in cursor.fetchall():
                 funnel_data.append({
-                    'stage': row[0],
-                    'users': row[1],
-                    'rate': row[2]
+                    'stage': row[1],
+                    'users': row[2],
+                    'rate': row[3]
                 })
             
             conn.close()
