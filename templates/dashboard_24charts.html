@@ -815,7 +815,7 @@
 
             <!-- 图表1: 各关卡完成率对比 (整行显示) -->
             <div class="chart-card full-width" data-dimension="completion">
-                <h3>各关卡完成率对比 <span class="priority p0">P0</span></h3>
+                <h3>各关卡累计完成率对比 <span class="priority p0">P0</span></h3>
                 <div class="chart-selector">
                     <!-- 类别下拉框 -->
                     <select id="completionCompareCategorySelect" onchange="onCompletionCompareChange()" style="min-width: 100px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
@@ -844,9 +844,9 @@
                 <div class="insight-box"><h4>业务意义</h4><ul><li>横向对比所有关卡的完成率</li></ul><h4>解决的问题</h4><ul><li>哪些关卡最难？需要调整难度吗？</li></ul></div>
             </div>
 
-            <!-- 图表2: 关卡完成率趋势图 -->
-            <div class="chart-card" data-dimension="completion">
-                <h3>关卡完成率趋势图 <span class="priority p0">P0</span></h3>
+            <!-- 图表2: 关卡当日完成率趋势图 -->
+            <div class="chart-card full-width" data-dimension="completion">
+                <h3>关卡当日完成率趋势图 <span class="priority p0">P0</span></h3>
                 <div class="chart-selector">
                     <!-- 树形单选下拉框 -->
                     <div class="tree-dropdown-container" style="position: relative; min-width: 200px;">
@@ -1563,12 +1563,13 @@
             updateCompletionCompareChart();
         }
 
-        // 图表1: 关卡完成率趋势图
+        // 图表1: 关卡当日完成率趋势图
         async function updateCompletionTrendChart() {
             // 使用单选关卡选择器
             const levelType = singleSelectedLevel?.type || '普通';
             const levelId = singleSelectedLevel?.id || 1;
-            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
+            // 单日查询方式 - 使用day_num而不是day_num_span
+            const dayNum = document.getElementById('completionTrendDayNumSpan')?.value || '1';
 
             // 获取当前选中的日期 - 确保是数组
             let registerDates = window.selectedRegisterDates || [window.currentDate];
@@ -1579,7 +1580,7 @@
             // 转换为YYYYMMDD格式
             registerDates = registerDates.map(d => formatDateToInt(d));
 
-            console.log('updateCompletionTrendChart: 日期=', registerDates, '关卡=', levelType, levelId, '时间范围=', dayNumSpan);
+            console.log('updateCompletionTrendChart: 日期=', registerDates, '关卡=', levelType, levelId, '当日=', dayNum);
 
             try {
                 const params = new URLSearchParams({
@@ -1587,7 +1588,7 @@
                     register_date_end: registerDates[registerDates.length - 1],
                     level_type: levelType,
                     level_id: levelId,
-                    day_num_span: dayNumSpan
+                    day_num: dayNum
                 });
 
                 console.log('updateCompletionTrendChart: API URL=', `/api/charts/level-completion-trend?${params}`);
