@@ -1156,30 +1156,33 @@
         // 加载完成与流失维度所有图表
         async function loadCompletionCharts() {
             console.log('loadCompletionCharts: 开始加载完成与流失维度图表');
-            
-            // 确保日期参数已设置
+
+            // 确保日期参数已设置 - 统一使用YYYY-MM-DD格式，由各个图表函数自行转换
             if (timeSelectionMode === 'interval') {
                 const selectedDates = document.getElementById('selectedDates').value;
                 if (selectedDates) {
-                    const dates = selectedDates.split(',');
+                    // selectedDates是YYYYMMDD格式，需要转换为YYYY-MM-DD
+                    const dates = selectedDates.split(',').map(d => {
+                        return d.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+                    });
                     window.selectedRegisterDates = dates;
                 }
             } else {
                 const startDate = document.getElementById('tsStartDate').value;
                 const endDate = document.getElementById('tsEndDate').value;
                 if (startDate && endDate) {
-                    // 生成日期范围数组
+                    // 生成日期范围数组 (YYYY-MM-DD格式)
                     const dates = [];
                     let curr = new Date(startDate);
                     const end = new Date(endDate);
                     while (curr <= end) {
-                        dates.push(curr.toISOString().split('T')[0].replace(/-/g, ''));
+                        dates.push(curr.toISOString().split('T')[0]);
                         curr.setDate(curr.getDate() + 1);
                     }
                     window.selectedRegisterDates = dates;
                 }
             }
-            
+
             // 并行加载所有图表
             await Promise.all([
                 updateCompletionTrendChart(),
@@ -1191,7 +1194,7 @@
                 updateLowestCompletionChart(),
                 updateAdTrendChart()
             ]);
-            
+
             console.log('loadCompletionCharts: 完成与流失维度图表加载完成');
         }
 
@@ -1587,6 +1590,11 @@
 
         // ==================== 完成与流失维度 - 8个图表更新函数 ====================
 
+        // 辅助函数：格式化日期为YYYYMMDD
+        function formatDateToInt(dateStr) {
+            return dateStr.replace(/-/g, '');
+        }
+
         // 图表1: 关卡完成率趋势图
         async function updateCompletionTrendChart() {
             const levelType = document.getElementById('completionTrendLevelType')?.value || '普通';
@@ -1594,12 +1602,14 @@
             const aggregateBy = document.getElementById('completionTrendAggregate')?.value || 'avg';
 
             // 获取当前选中的日期
-            const registerDates = window.selectedRegisterDates || [window.currentDate];
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            // 转换为YYYYMMDD格式
+            registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
                 const params = new URLSearchParams({
-                    register_date_start: Math.min(...registerDates),
-                    register_date_end: Math.max(...registerDates),
+                    register_date_start: registerDates[0],
+                    register_date_end: registerDates[registerDates.length - 1],
                     level_type: levelType,
                     level_id: levelId,
                     aggregate_by: aggregateBy
@@ -1662,12 +1672,13 @@
             const levelType = document.getElementById('completionCompareLevelType')?.value || '普通';
             const dayNumSpan = document.getElementById('completionCompareDayNumSpan')?.value || '30';
 
-            const registerDates = window.selectedRegisterDates || [window.currentDate];
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
                 const params = new URLSearchParams({
-                    register_date_start: Math.min(...registerDates),
-                    register_date_end: Math.max(...registerDates),
+                    register_date_start: registerDates[0],
+                    register_date_end: registerDates[registerDates.length - 1],
                     level_type: levelType,
                     day_num_span: dayNumSpan
                 });
@@ -1734,12 +1745,13 @@
             const levelType = document.getElementById('difficultyDistLevelType')?.value || '';
             const dayNumSpan = document.getElementById('difficultyDistDayNumSpan')?.value || '30';
 
-            const registerDates = window.selectedRegisterDates || [window.currentDate];
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
                 const params = new URLSearchParams({
-                    register_date_start: Math.min(...registerDates),
-                    register_date_end: Math.max(...registerDates),
+                    register_date_start: registerDates[0],
+                    register_date_end: registerDates[registerDates.length - 1],
                     day_num_span: dayNumSpan
                 });
                 if (levelType) params.append('level_type', levelType);
@@ -1789,12 +1801,13 @@
             const levelType = document.getElementById('scatterLevelType')?.value || '';
             const dayNumSpan = document.getElementById('scatterDayNumSpan')?.value || '30';
 
-            const registerDates = window.selectedRegisterDates || [window.currentDate];
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
                 const params = new URLSearchParams({
-                    register_date_start: Math.min(...registerDates),
-                    register_date_end: Math.max(...registerDates),
+                    register_date_start: registerDates[0],
+                    register_date_end: registerDates[registerDates.length - 1],
                     day_num_span: dayNumSpan
                 });
                 if (levelType) params.append('level_type', levelType);
@@ -1865,12 +1878,13 @@
             const levelId = document.getElementById('funnelLevelId')?.value || '1';
             const dayNumSpan = document.getElementById('funnelDayNumSpan')?.value || '30';
 
-            const registerDates = window.selectedRegisterDates || [window.currentDate];
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
                 const params = new URLSearchParams({
-                    register_date_start: Math.min(...registerDates),
-                    register_date_end: Math.max(...registerDates),
+                    register_date_start: registerDates[0],
+                    register_date_end: registerDates[registerDates.length - 1],
                     level_type: levelType,
                     level_id: levelId,
                     day_num_span: dayNumSpan
@@ -1927,12 +1941,13 @@
             const levelIdsSelect = document.getElementById('heatmapLevelIds');
             const levelIds = levelIdsSelect?.value || '1,2,3,4,5';
 
-            const registerDates = window.selectedRegisterDates || [window.currentDate];
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
                 const params = new URLSearchParams({
-                    register_date_start: Math.min(...registerDates),
-                    register_date_end: Math.max(...registerDates),
+                    register_date_start: registerDates[0],
+                    register_date_end: registerDates[registerDates.length - 1],
                     level_type: levelType,
                     level_ids: levelIds
                 });
@@ -2008,12 +2023,13 @@
             const levelType = document.getElementById('lowestLevelType')?.value || '';
             const dayNumSpan = document.getElementById('lowestDayNumSpan')?.value || '30';
 
-            const registerDates = window.selectedRegisterDates || [window.currentDate];
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
                 const params = new URLSearchParams({
-                    register_date_start: Math.min(...registerDates),
-                    register_date_end: Math.max(...registerDates),
+                    register_date_start: registerDates[0],
+                    register_date_end: registerDates[registerDates.length - 1],
                     day_num_span: dayNumSpan
                 });
                 if (levelType) params.append('level_type', levelType);
@@ -2074,12 +2090,13 @@
             const levelType = document.getElementById('adTrendLevelType')?.value || '普通';
             const levelId = document.getElementById('adTrendLevelId')?.value || '1';
 
-            const registerDates = window.selectedRegisterDates || [window.currentDate];
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
                 const params = new URLSearchParams({
-                    register_date_start: Math.min(...registerDates),
-                    register_date_end: Math.max(...registerDates),
+                    register_date_start: registerDates[0],
+                    register_date_end: registerDates[registerDates.length - 1],
                     level_type: levelType,
                     level_id: levelId
                 });
