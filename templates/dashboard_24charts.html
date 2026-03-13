@@ -843,48 +843,56 @@
                     </select>
                 </div>
                 <div class="chart-container"><canvas id="completionTrendChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>看单个关卡随时间的完成率变化</li></ul><h4>解决的问题</h4><ul><li>这个关卡是不是越来越难过？</li></ul></div>
             </div>
 
             <!-- 图表2: 各关卡完成率对比 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>各关卡完成率对比 <span class="priority p0">P0</span></h3>
                 <div class="chart-container"><canvas id="completionCompareChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>横向对比所有关卡的完成率</li></ul><h4>解决的问题</h4><ul><li>哪些关卡最难？需要调整难度吗？</li></ul></div>
             </div>
 
             <!-- 图表3: 难度等级分布 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>难度等级分布 <span class="priority p1">P1</span></h3>
                 <div class="chart-container"><canvas id="difficultyDistChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>看简单/中等/困难关卡的比例</li></ul><h4>解决的问题</h4><ul><li>难度分布合理吗？玩家体验平衡吗？</li></ul></div>
             </div>
 
             <!-- 图表4: 完成率 vs 卡死率散点图 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>完成率 vs 卡死率散点图 <span class="priority p1">P1</span></h3>
                 <div class="chart-container"><canvas id="scatterChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>找完成率低且卡死率高的"问题关卡"</li></ul><h4>解决的问题</h4><ul><li>哪些关卡让玩家既过不去又放弃？</li></ul></div>
             </div>
 
             <!-- 图表5: 关卡流失漏斗 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>关卡流失漏斗 <span class="priority p1">P1</span></h3>
                 <div class="chart-container"><canvas id="funnelChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>看玩家在每个关卡的流失情况</li></ul><h4>解决的问题</h4><ul><li>玩家在哪一关卡流失最多？</li></ul></div>
             </div>
 
             <!-- 图表6: 关卡-day_num完成率热力图 -->
             <div class="chart-card full-width" data-dimension="completion">
                 <h3>关卡完成率热力图 <span class="priority p2">P2</span></h3>
                 <div class="chart-container"><canvas id="completionHeatmapChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>看不同注册日期的玩家在各关卡的完成率</li></ul><h4>解决的问题</h4><ul><li>新老玩家表现差异大吗？</li></ul></div>
             </div>
 
             <!-- 图表7: 完成率最低TOP10 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>完成率最低TOP10 <span class="priority p1">P1</span></h3>
                 <div class="chart-container"><canvas id="lowestCompletionChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>快速定位最难的10个关卡</li></ul><h4>解决的问题</h4><ul><li>优先优化哪些关卡？</li></ul></div>
             </div>
 
             <!-- 图表8: 广告率趋势图 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>广告率趋势图 <span class="priority p2">P2</span></h3>
                 <div class="chart-container"><canvas id="adTrendChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>看玩家看广告复活/道具的趋势</li></ul><h4>解决的问题</h4><ul><li>广告变现点设置合理吗？</li></ul></div>
             </div>
 
             <!-- ==================== IAA收益维度 (4个图表) ==================== -->
