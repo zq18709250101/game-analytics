@@ -3694,13 +3694,13 @@
                 return;
             }
 
-            // 判断是否是人均次数图表
-            const isAvgCount = chartData.chart_id === 'cumulative_avg' || chartData.chart_id === 'daily_avg';
-
             // 获取图表类型对应的日期状态
             const chartTypeKey = canvasId === 'categoryUserRatioChart' ? 'user' :
                                 canvasId === 'categoryCountRatioChart' ? 'count' :
                                 canvasId === 'categoryCumulativeAvgChart' ? 'cumulative_avg' : 'daily_avg';
+
+            // 所有图表都使用堆叠模式（像前两个图表一样）
+            const isAvgCount = false;
             
             // 构建datasets - 每个注册日期的每个类别一个dataset
             const datasets = [];
@@ -3807,12 +3807,6 @@
                                     const dataset = item.dataset;
                                     const dataIndex = item.dataIndex;
                                     const value = item.raw;
-                                    
-                                    // 人均次数图表不显示百分比
-                                    if (isAvgCount) {
-                                        return `${dataset.label}: ${value} 次/人`;
-                                    }
-                                    
                                     const stackTotals = dataset.stackTotals;
                                     const total = stackTotals[dataIndex];
                                     const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
@@ -3820,11 +3814,6 @@
                                 },
                                 afterBody: (items) => {
                                     if (items.length === 0) return '';
-                                    
-                                    // 人均次数图表不显示总计
-                                    if (isAvgCount) {
-                                        return '';
-                                    }
                                     
                                     const dataset = items[0].dataset;
                                     const stackTotals = dataset.stackTotals;
@@ -3868,7 +3857,7 @@
                     },
                     scales: {
                         x: {
-                            stacked: !isAvgCount, // 人均次数图表不使用堆叠
+                            stacked: true,
                             grid: {
                                 display: true,
                                 color: 'rgba(0, 0, 0, 0.1)',
@@ -3876,11 +3865,11 @@
                             }
                         },
                         y: {
-                            stacked: !isAvgCount, // 人均次数图表不使用堆叠
+                            stacked: true,
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: isAvgCount ? '人均进入次数' : (isUserRatio ? '进入人数' : '进入次数')
+                                text: isUserRatio ? '进入人数' : '进入次数'
                             },
                             grid: {
                                 display: true,
