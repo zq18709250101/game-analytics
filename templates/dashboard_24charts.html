@@ -1166,6 +1166,7 @@
                         return d.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
                     });
                     window.selectedRegisterDates = dates;
+                    console.log('loadCompletionCharts: 间隔模式，日期:', dates);
                 }
             } else {
                 const startDate = document.getElementById('tsStartDate').value;
@@ -1180,7 +1181,14 @@
                         curr.setDate(curr.getDate() + 1);
                     }
                     window.selectedRegisterDates = dates;
+                    console.log('loadCompletionCharts: 连续模式，日期:', dates);
                 }
+            }
+
+            // 如果没有设置日期，使用默认日期
+            if (!window.selectedRegisterDates || window.selectedRegisterDates.length === 0) {
+                window.selectedRegisterDates = ['2026-01-10'];
+                console.log('loadCompletionCharts: 使用默认日期:', window.selectedRegisterDates);
             }
 
             // 并行加载所有图表
@@ -1606,6 +1614,8 @@
             // 转换为YYYYMMDD格式
             registerDates = registerDates.map(d => formatDateToInt(d));
 
+            console.log('updateCompletionTrendChart: 日期=', registerDates, '关卡=', levelType, levelId);
+
             try {
                 const params = new URLSearchParams({
                     register_date_start: registerDates[0],
@@ -1615,8 +1625,12 @@
                     aggregate_by: aggregateBy
                 });
 
+                console.log('updateCompletionTrendChart: API URL=', `/api/charts/level-completion-trend?${params}`);
+
                 const response = await fetch(`/api/charts/level-completion-trend?${params}`);
                 const result = await response.json();
+
+                console.log('updateCompletionTrendChart: API返回=', result);
 
                 if (result.code !== 0) {
                     console.error('API错误:', result.message);
@@ -1624,8 +1638,13 @@
                 }
 
                 const data = result.data;
+                console.log('updateCompletionTrendChart: 数据条数=', data.trends?.length);
+
                 const ctx = document.getElementById('completionTrendChart')?.getContext('2d');
-                if (!ctx) return;
+                if (!ctx) {
+                    console.error('updateCompletionTrendChart: 找不到canvas元素');
+                    return;
+                }
 
                 if (charts.completionTrend) charts.completionTrend.destroy();
 
