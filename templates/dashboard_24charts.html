@@ -480,26 +480,22 @@
             </div>
 
             <!-- P1-11: 解锁转化率分析 -->
-            <div class="chart-card" data-dimension="penetration">
+            <div class="chart-card full-width" data-dimension="penetration">
                 <h3>解锁转化率分析 <span class="priority p1">P1</span></h3>
                 <div class="chart-selector">
-                    <select id="unlockViewType" onchange="updateUnlockView()">
-                        <option value="funnel" selected>漏斗图</option>
-                        <option value="trend">趋势图</option>
-                    </select>
-                    <select id="unlockPathSelect" onchange="updateUnlockChart()">
+                    <select id="unlockPathSelect" onchange="updateUnlockConversionChart()">
                         <option value="normal_hard_hell" selected>普通→困难→地狱</option>
-                        <option value="normal_hard">普通→困难</option>
-                        <option value="hard_hell">困难→地狱</option>
                         <option value="normal_copy">普通→副本</option>
                     </select>
-                    <select id="unlockDaySelect" onchange="updateUnlockChart()">
+                    <select id="unlockDaySelect" onchange="updateUnlockConversionChart()">
                         <option value="7" selected>7天</option>
                         <option value="14">14天</option>
                         <option value="30">30天</option>
                     </select>
                 </div>
-                <div class="chart-container"><canvas id="unlockFunnelChart"></canvas></div>
+                <div id="unlockConversionContainer" style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px;">
+                    <!-- 动态生成多注册日期的漏斗图 -->
+                </div>
                 <div class="insight-box"><h4>转化目标</h4><ul><li>普通→困难：>40%、困难→地狱：>30%</li></ul></div>
             </div>
 
@@ -753,7 +749,7 @@
             console.log('loadPenetrationCharts: 开始加载渗透维度图表');
             updatePenetrationChart();
             await updateCategoryChart();
-            updateUnlockChart();
+            updateUnlockConversionChart();
             updateUserDistChart();
             console.log('loadPenetrationCharts: 渗透维度图表加载完成');
         }
@@ -4475,128 +4471,101 @@
 
         // 图表3: 解锁转化率分析
         async function updateUnlockView() {
-            const viewType = document.getElementById('unlockViewType')?.value || 'funnel';
-            updateUnlockChart();
+            updateUnlockConversionChart();
         }
 
-        async function updateUnlockChart() {
-            // 使用范围选择器的起始日期（和时间序列维度一致）
-            const registerDate = document.getElementById('tsStartDate')?.value?.replace(/-/g, '') || '20260110';
-            const maxDays = document.getElementById('unlockDaySelect')?.value || 7;
-            const viewType = document.getElementById('unlockViewType')?.value || 'funnel';
-            const path = document.getElementById('unlockPathSelect')?.value || 'normal_hard_hell';
+        // 解锁转化率分析 - 多注册日期对比
+        async function updateUnlockConversionChart() {
+            // 使用渗透维度的日期范围选择器
+            let startDateStr = document.getElementById('tsStartDate')?.value;
+            let endDateStr = document.getElementById('tsEndDate')?.value;
+            
+            if (!startDateStr || !endDateStr) {
+                startDateStr = '2026-01-10';
+                endDateStr = '2026-01-11';
+            }
+            
+            const registerDateStart = startDateStr.replace(/-/g, '');
+            const registerDateEnd = endDateStr.replace(/-/g, '');
+            const dayNum = parseInt(document.getElementById('unlockDaySelect')?.value || 7);
+            const funnelPath = document.getElementById('unlockPathSelect')?.value || 'normal_hard_hell';
 
             try {
-                const response = await fetch(`/api/unlock_conversion_stats?register_date=${registerDate}&max_days=${maxDays}`);
-                const data = await response.json();
-                if (viewType === 'funnel') {
-                    renderUnlockFunnelChart(data, path);
-                } else {
-                    renderUnlockTrendChart(data, path);
+                const response = await fetch('/api/v1/unlock/conversion-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        register_date_start: parseInt(registerDateStart),
+                        register_date_end: parseInt(registerDateEnd),
+                        day_num: dayNum,
+                        view_type: 'funnel',
+                        funnel_path: funnelPath
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.code === 0) {
+                    renderUnlockConversionComparison(result.data);
                 }
             } catch (error) {
                 console.error('加载解锁转化率分析失败:', error);
             }
         }
 
-        function renderUnlockFunnelChart(data, path) {
-            const ctx = document.getElementById('unlockFunnelChart')?.getContext('2d');
-            if (!ctx) return;
-            if (charts.unlockFunnel) charts.unlockFunnel.destroy();
-
-            // 获取最后一天的数据
-            const lastData = data.data[data.data.length - 1] || {};
+        // 渲染解锁转化率对比（多注册日期）
+        function renderUnlockConversionComparison(data) {
+            const container = document.getElementById('unlockConversionContainer');
+            if (!container) return;
             
-            let funnelData = [];
-            if (path === 'normal_hard_hell') {
-                funnelData = [
-                    { stage: '普通关卡', users: lastData.normal_users || 0, rate: 100 },
-                    { stage: '困难关卡', users: lastData.hard_users || 0, rate: lastData.normal_to_hard_rate || 0 },
-                    { stage: '地狱关卡', users: lastData.hell_users || 0, rate: lastData.hard_to_hell_rate || 0 }
-                ];
-            } else if (path === 'normal_hard') {
-                funnelData = [
-                    { stage: '普通关卡', users: lastData.normal_users || 0, rate: 100 },
-                    { stage: '困难关卡', users: lastData.hard_users || 0, rate: lastData.normal_to_hard_rate || 0 }
-                ];
-            } else if (path === 'hard_hell') {
-                funnelData = [
-                    { stage: '困难关卡', users: lastData.hard_users || 0, rate: 100 },
-                    { stage: '地狱关卡', users: lastData.hell_users || 0, rate: lastData.hard_to_hell_rate || 0 }
-                ];
-            } else if (path === 'normal_copy') {
-                funnelData = [
-                    { stage: '普通关卡', users: lastData.normal_users || 0, rate: 100 },
-                    { stage: '副本关卡', users: lastData.copy_users || 0, rate: lastData.normal_to_copy_rate || 0 }
-                ];
-            }
-
-            const labels = funnelData.map(d => d.stage);
-            const values = funnelData.map(d => d.rate);
-            const bgColors = ['#3498db', '#e67e22', '#e74c3c'];
-
-            charts.unlockFunnel = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: '转化率(%)',
-                        data: values,
-                        backgroundColor: bgColors,
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: (item) => `${item.raw}% (${funnelData[item.dataIndex].users}人)`
-                            }
-                        }
-                    },
-                    scales: {
-                        x: { beginAtZero: true, max: 100, title: { display: true, text: '转化率(%)' } }
-                    }
-                }
+            const funnelData = data.funnel_data || [];
+            const queryInfo = data.query_info || {};
+            
+            // 清空容器
+            container.innerHTML = '';
+            
+            // 为每个注册日期创建一个漏斗图
+            // 这里简化处理，显示汇总数据
+            const stages = funnelData.map(d => d.stage);
+            const users = funnelData.map(d => d.users);
+            const rates = funnelData.map(d => d.rate);
+            
+            // 创建HTML结构
+            let html = '<div style="display: flex; flex-wrap: wrap; gap: 20px; width: 100%;">';
+            
+            // 添加汇总卡片
+            html += `
+                <div style="flex: 1; min-width: 300px; background: #f8f9fa; border-radius: 8px; padding: 20px;">
+                    <h4 style="margin-bottom: 15px; color: #333;">解锁转化率对比（D${queryInfo.day_num}）</h4>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+            `;
+            
+            stages.forEach((stage, index) => {
+                const userCount = users[index];
+                const rate = rates[index];
+                const prevRate = index > 0 ? rates[index - 1] : 100;
+                const conversionRate = index > 0 ? ((userCount / users[0]) * 100).toFixed(2) : 100;
+                
+                html += `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 80px; font-weight: bold; color: #666;">${stage}</div>
+                        <div style="flex: 1; background: #e9ecef; border-radius: 4px; overflow: hidden;">
+                            <div style="width: ${rate}%; background: ${index === 0 ? '#3498db' : index === 1 ? '#e67e22' : '#e74c3c'}; 
+                                        height: 30px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">
+                                ${rate}%
+                            </div>
+                        </div>
+                        <div style="width: 80px; text-align: right; font-size: 12px; color: #666;">${userCount}人</div>
+                    </div>
+                `;
             });
-        }
-
-        function renderUnlockTrendChart(data, path) {
-            const ctx = document.getElementById('unlockFunnelChart')?.getContext('2d');
-            if (!ctx) return;
-            if (charts.unlockFunnel) charts.unlockFunnel.destroy();
-
-            const trendData = data.data || [];
-            const labels = trendData.map(d => `第${d.day_num}天`);
             
-            let values = [];
-            if (path === 'normal_hard_hell') {
-                values = trendData.map(d => d.normal_to_hard_rate || 0);
-            } else if (path === 'normal_hard') {
-                values = trendData.map(d => d.normal_to_hard_rate || 0);
-            } else if (path === 'hard_hell') {
-                values = trendData.map(d => d.hard_to_hell_rate || 0);
-            } else if (path === 'normal_copy') {
-                values = trendData.map(d => d.normal_to_copy_rate || 0);
-            }
-
-            charts.unlockFunnel = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: '转化率(%)',
-                        data: values,
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        borderWidth: 2
-                    }]
+            html += `
+                    </div>
+                </div>
+            </div>
+            `;
+            
+            container.innerHTML = html;
                 },
                 options: {
                     responsive: true,
