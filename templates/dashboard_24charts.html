@@ -1609,8 +1609,12 @@
             const levelId = document.getElementById('completionTrendLevelId')?.value || '1';
             const aggregateBy = document.getElementById('completionTrendAggregate')?.value || 'avg';
 
-            // 获取当前选中的日期
+            // 获取当前选中的日期 - 确保是数组
             let registerDates = window.selectedRegisterDates || [window.currentDate];
+            // 如果是字符串，转换为数组
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
             // 转换为YYYYMMDD格式
             registerDates = registerDates.map(d => formatDateToInt(d));
 
@@ -1692,6 +1696,9 @@
             const dayNumSpan = document.getElementById('completionCompareDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
             registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
@@ -1765,6 +1772,9 @@
             const dayNumSpan = document.getElementById('difficultyDistDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
             registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
@@ -1821,6 +1831,9 @@
             const dayNumSpan = document.getElementById('scatterDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
             registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
@@ -1898,6 +1911,9 @@
             const dayNumSpan = document.getElementById('funnelDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
             registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
@@ -1961,6 +1977,9 @@
             const levelIds = levelIdsSelect?.value || '1,2,3,4,5';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
             registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
@@ -2043,6 +2062,9 @@
             const dayNumSpan = document.getElementById('lowestDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
             registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
@@ -2110,6 +2132,9 @@
             const levelId = document.getElementById('adTrendLevelId')?.value || '1';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
             registerDates = registerDates.map(d => formatDateToInt(d));
 
             try {
