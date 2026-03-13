@@ -875,6 +875,71 @@
                 <div class="insight-box"><h4>优化建议</h4><ul><li>颜色越深流失越严重，重点关注第3波</li></ul></div>
             </div>
 
+            <!-- P1-19: 关卡深度分析 -->
+            <div class="chart-card full-width" data-dimension="completion">
+                <h3>关卡深度分析 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <!-- 关卡选择 -->
+                    <div class="tree-dropdown-container" style="position: relative; min-width: 200px; display: inline-block;">
+                        <div class="tree-dropdown-trigger" onclick="toggleLevelAnalysisTreeDropdown(event)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span id="levelAnalysisTreeText">请选择关卡...</span>
+                            <span style="color: #999;">▼</span>
+                        </div>
+                        <div id="levelAnalysisTreePanel" class="tree-dropdown-panel" onclick="event.stopPropagation()" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 350px; overflow-y: auto; z-index: 1000;">
+                            <!-- 树形结构动态生成 -->
+                        </div>
+                    </div>
+                    <!-- 时间范围 -->
+                    <select id="levelAnalysisDaySelect" onchange="updateLevelAnalysisChart()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="7">7天</option>
+                        <option value="14">14天</option>
+                        <option value="30" selected>30天</option>
+                        <option value="60">60天</option>
+                        <option value="90">90天</option>
+                    </select>
+                    <!-- 分析属性下拉框 -->
+                    <select id="levelAnalysisMetricSelect" onchange="updateLevelAnalysisChart()" style="min-width: 150px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <optgroup label="通关">
+                            <option value="completion_rate">完成率</option>
+                            <option value="avg_attempts">人均进入次数</option>
+                            <option value="first_pass_rate">首通率</option>
+                        </optgroup>
+                        <optgroup label="流失">
+                            <option value="churn_users">用户数</option>
+                            <option value="churn_7d">7天流失率</option>
+                            <option value="churn_14d">14天流失率</option>
+                            <option value="churn_high_retry">高重试后流失率</option>
+                        </optgroup>
+                        <optgroup label="失败与重试">
+                            <option value="fail_rate">失败率</option>
+                            <option value="stuck_rate">卡死率</option>
+                            <option value="retry_rate">重试率</option>
+                        </optgroup>
+                        <optgroup label="标签">
+                            <option value="difficulty_level">难度等级</option>
+                            <option value="too_easy">过于简单</option>
+                            <option value="too_hard">过于困难</option>
+                        </optgroup>
+                        <optgroup label="广告">
+                            <option value="ad_watch_rate">看广率</option>
+                            <option value="ad_per_user">人均看广个数</option>
+                        </optgroup>
+                        <optgroup label="障碍物">
+                            <option value="obstacle_usage">障碍物使用率</option>
+                            <option value="obstacle_per_user">障碍物人均次数</option>
+                        </optgroup>
+                    </select>
+                    <!-- Switch开关：显示全部 -->
+                    <label class="switch" style="margin: 0;">
+                        <input type="checkbox" id="levelAnalysisShowAllToggle" checked onchange="toggleLevelAnalysisShowAll()">
+                        <span class="slider"></span>
+                        <span class="switch-label" style="font-size: 0.8rem;">显示全部</span>
+                    </label>
+                </div>
+                <div class="chart-container"><canvas id="levelAnalysisChart"></canvas></div>
+                <div class="insight-box"><h4>分析要点</h4><ul><li>选择关卡和分析属性，查看不同注册日期的数据对比</li></ul></div>
+            </div>
+
             <!-- P2-20: 失败次数与IPU关联 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>失败次数与IPU关联 <span class="priority p2">P2</span></h3>
@@ -5467,6 +5532,209 @@
         document.getElementById('intervalModal').addEventListener('click', function(e) {
             if (e.target === this) closeIntervalModal();
         });
+
+        // ==================== 关卡深度分析图表 ====================
+        let levelAnalysisChart = null;
+        let selectedLevelAnalysisLevels = [];
+
+        function toggleLevelAnalysisTreeDropdown(event) {
+            event.stopPropagation();
+            const panel = document.getElementById('levelAnalysisTreePanel');
+            const isVisible = panel.style.display === 'block';
+            
+            // 关闭其他下拉框
+            document.querySelectorAll('.tree-dropdown-panel').forEach(p => {
+                if (p.id !== 'levelAnalysisTreePanel') p.style.display = 'none';
+            });
+            
+            if (!isVisible) {
+                panel.style.display = 'block';
+                renderLevelAnalysisTree();
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        function renderLevelAnalysisTree() {
+            const panel = document.getElementById('levelAnalysisTreePanel');
+            const categories = [
+                { name: '普通', levels: [1, 2, 3, 4, 5] },
+                { name: '困难', levels: [1, 2, 3, 4, 5] },
+                { name: '地狱', levels: [1, 2, 3] },
+                { name: '副本', levels: [1, 2, 3] }
+            ];
+            
+            let html = '<div style="padding: 10px;">';
+            categories.forEach(cat => {
+                html += `
+                    <div style="margin-bottom: 8px;">
+                        <label style="display: flex; align-items: center; gap: 5px; font-weight: bold; cursor: pointer; padding: 5px; background: #f5f5f5; border-radius: 4px;">
+                            <input type="checkbox" onchange="toggleLevelAnalysisCategory('${cat.name}', this.checked)">
+                            <span>${cat.name}</span>
+                        </label>
+                        <div style="margin-left: 20px; margin-top: 5px;">
+                            ${cat.levels.map(level => `
+                                <label style="display: inline-flex; align-items: center; gap: 3px; margin-right: 10px; cursor: pointer; padding: 2px 5px;">
+                                    <input type="checkbox" class="level-analysis-item" data-category="${cat.name}" data-level="${level}" onchange="updateLevelAnalysisSelection()">
+                                    <span style="font-size: 0.9rem;">${level}关</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            panel.innerHTML = html;
+        }
+
+        function toggleLevelAnalysisCategory(category, checked) {
+            document.querySelectorAll('.level-analysis-item[data-category="' + category + '"]').forEach(cb => {
+                cb.checked = checked;
+            });
+            updateLevelAnalysisSelection();
+        }
+
+        function updateLevelAnalysisSelection() {
+            selectedLevelAnalysisLevels = [];
+            document.querySelectorAll('.level-analysis-item:checked').forEach(cb => {
+                selectedLevelAnalysisLevels.push({
+                    category: cb.dataset.category,
+                    level: cb.dataset.level
+                });
+            });
+            
+            const text = selectedLevelAnalysisLevels.length === 0 
+                ? '请选择关卡...' 
+                : `已选${selectedLevelAnalysisLevels.length}个关卡`;
+            document.getElementById('levelAnalysisTreeText').textContent = text;
+            
+            updateLevelAnalysisChart();
+        }
+
+        async function updateLevelAnalysisChart() {
+            if (selectedLevelAnalysisLevels.length === 0) return;
+            
+            const maxDays = parseInt(document.getElementById('levelAnalysisDaySelect')?.value || 30);
+            const metric = document.getElementById('levelAnalysisMetricSelect')?.value || 'completion_rate';
+            
+            // 获取选中的注册日期
+            let registerDates = [];
+            if (timeSelectionMode === 'interval' && selectedIntervalDates.length > 0) {
+                registerDates = selectedIntervalDates.map(d => parseInt(d.replace(/-/g, '')));
+            } else {
+                const start = document.getElementById('tsStartDate')?.value;
+                const end = document.getElementById('tsEndDate')?.value;
+                if (start && end) {
+                    registerDates = [parseInt(start.replace(/-/g, '')), parseInt(end.replace(/-/g, ''))];
+                }
+            }
+            
+            if (registerDates.length === 0) return;
+            
+            try {
+                const response = await fetch('/api/v1/level/analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        levels: selectedLevelAnalysisLevels,
+                        register_dates: registerDates,
+                        metric: metric,
+                        max_day_num: maxDays
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.code === 0) {
+                    renderLevelAnalysisChart(result.data);
+                }
+            } catch (error) {
+                console.error('加载关卡深度分析失败:', error);
+            }
+        }
+
+        function renderLevelAnalysisChart(data) {
+            const ctx = document.getElementById('levelAnalysisChart')?.getContext('2d');
+            if (!ctx) return;
+            
+            if (levelAnalysisChart) {
+                levelAnalysisChart.destroy();
+            }
+            
+            const trends = data.trends || [];
+            const maxDayNum = data.max_day_num || 30;
+            const labels = Array.from({length: maxDayNum}, (_, i) => `D${i + 1}`);
+            
+            const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4'];
+            const showAll = document.getElementById('levelAnalysisShowAllToggle')?.checked ?? true;
+            
+            const datasets = trends.map((trend, index) => {
+                const dataMap = {};
+                trend.data.forEach(item => {
+                    dataMap[item.day_num] = item.value;
+                });
+                const chartData = labels.map((_, i) => dataMap[i + 1] ?? null);
+                const color = colors[index % colors.length];
+                
+                return {
+                    label: trend.label,
+                    data: chartData,
+                    borderColor: color,
+                    backgroundColor: color + '20',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.3,
+                    hidden: !showAll
+                };
+            });
+            
+            levelAnalysisChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: data.metric_name || '关卡分析',
+                            font: { size: 14 }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 10
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '注册后天数' }
+                        },
+                        y: {
+                            title: { display: true, text: data.metric_unit || '数值' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function toggleLevelAnalysisShowAll() {
+            if (!levelAnalysisChart) return;
+            const showAll = document.getElementById('levelAnalysisShowAllToggle')?.checked ?? true;
+            levelAnalysisChart.data.datasets.forEach(dataset => {
+                dataset.hidden = !showAll;
+            });
+            levelAnalysisChart.update();
+        }
 
         window.onload = init;
     </script>
