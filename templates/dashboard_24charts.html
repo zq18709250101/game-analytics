@@ -813,7 +813,38 @@
                 <span class="chart-count">8个图表</span>
             </div>
 
-            <!-- 图表1: 关卡完成率趋势图 -->
+            <!-- 图表1: 各关卡完成率对比 (整行显示) -->
+            <div class="chart-card full-width" data-dimension="completion">
+                <h3>各关卡完成率对比 <span class="priority p0">P0</span></h3>
+                <div class="chart-selector">
+                    <!-- 类别下拉框 -->
+                    <select id="completionCompareCategorySelect" onchange="onCompletionCompareChange()" style="min-width: 100px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="普通" selected>普通</option>
+                        <option value="困难">困难</option>
+                        <option value="地狱">地狱</option>
+                        <option value="副本">副本</option>
+                    </select>
+                    <!-- 时间范围下拉框 -->
+                    <select id="completionCompareDayNumSpan" onchange="onCompletionCompareChange()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="1">1天</option>
+                        <option value="2">2天</option>
+                        <option value="3">3天</option>
+                        <option value="4">4天</option>
+                        <option value="5">5天</option>
+                        <option value="6">6天</option>
+                        <option value="7">7天</option>
+                        <option value="14">14天</option>
+                        <option value="30" selected>30天</option>
+                        <option value="45">45天</option>
+                        <option value="60">60天</option>
+                        <option value="90">90天</option>
+                    </select>
+                </div>
+                <div class="chart-container"><canvas id="completionCompareChart"></canvas></div>
+                <div class="insight-box"><h4>业务意义</h4><ul><li>横向对比所有关卡的完成率</li></ul><h4>解决的问题</h4><ul><li>哪些关卡最难？需要调整难度吗？</li></ul></div>
+            </div>
+
+            <!-- 图表2: 关卡完成率趋势图 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>关卡完成率趋势图 <span class="priority p0">P0</span></h3>
                 <div class="chart-selector">
@@ -844,13 +875,6 @@
                 </div>
                 <div class="chart-container"><canvas id="completionTrendChart"></canvas></div>
                 <div class="insight-box"><h4>业务意义</h4><ul><li>看单个关卡随时间的完成率变化</li></ul><h4>解决的问题</h4><ul><li>这个关卡是不是越来越难过？</li></ul></div>
-            </div>
-
-            <!-- 图表2: 各关卡完成率对比 -->
-            <div class="chart-card" data-dimension="completion">
-                <h3>各关卡完成率对比 <span class="priority p0">P0</span></h3>
-                <div class="chart-container"><canvas id="completionCompareChart"></canvas></div>
-                <div class="insight-box"><h4>业务意义</h4><ul><li>横向对比所有关卡的完成率</li></ul><h4>解决的问题</h4><ul><li>哪些关卡最难？需要调整难度吗？</li></ul></div>
             </div>
 
             <!-- 图表3: 难度等级分布 -->
@@ -1534,6 +1558,11 @@
             updateAdTrendChart();
         }
 
+        // 各关卡完成率对比图表参数改变时更新
+        function onCompletionCompareChange() {
+            updateCompletionCompareChart();
+        }
+
         // 图表1: 关卡完成率趋势图
         async function updateCompletionTrendChart() {
             // 使用单选关卡选择器
@@ -1624,9 +1653,9 @@
 
         // 图表2: 各关卡完成率对比
         async function updateCompletionCompareChart() {
-            // 使用关卡完成率趋势图的参数
-            const levelType = singleSelectedLevel?.type || '普通';
-            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
+            // 使用自己的控件参数
+            const levelType = document.getElementById('completionCompareCategorySelect')?.value || '普通';
+            const dayNumSpan = document.getElementById('completionCompareDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
