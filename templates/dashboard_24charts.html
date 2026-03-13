@@ -3605,8 +3605,137 @@
             const chartData = data.chart;
             if (!chartData) return;
             
-            // 使用与关卡类别图表相同的渲染函数
-            renderCategoryBarChart('userCategoryDistributionChart', chartData, true);
+            const canvas = document.getElementById('userCategoryDistributionChart');
+            if (!canvas) {
+                console.error('Canvas userCategoryDistributionChart 不存在');
+                return;
+            }
+            
+            // 销毁旧图表
+            if (charts['userCategoryDistributionChart']) {
+                charts['userCategoryDistributionChart'].destroy();
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            
+            const seriesGroups = chartData.series_groups || [];
+            if (seriesGroups.length === 0) {
+                console.warn('用户类别分布：没有数据可显示');
+                return;
+            }
+            
+            // 构建datasets - 每个注册日期一个dataset组
+            const datasets = [];
+            const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#95a5a6'];
+            const categoryNames = ['普通关卡玩家', '困难关卡玩家', '地狱关卡玩家', '副本关卡玩家', '新手'];
+            
+            seriesGroups.forEach((group, groupIndex) => {
+                const stackKey = `stack_${groupIndex}`;
+                const registerDate = group.group_name;
+                
+                // 为每个类别创建dataset
+                group.series.forEach((catSeries, catIndex) => {
+                    datasets.push({
+                        label: catSeries.name,
+                        data: catSeries.data,
+                        backgroundColor: catSeries.color,
+                        borderColor: catSeries.color,
+                        borderWidth: 1,
+                        stack: stackKey,
+                        groupName: registerDate,
+                        fullLabel: `${registerDate} ${catSeries.name}`
+                    });
+                });
+            });
+            
+            // X轴标签使用类别名称
+            const xLabels = ['D' + chartData.x_axis.data[0]];
+            
+            charts['userCategoryDistributionChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: xLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: chartData.chart_name,
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                generateLabels: function(chart) {
+                                    const uniqueLabels = {};
+                                    const labels = [];
+                                    chart.data.datasets.forEach((dataset, index) => {
+                                        if (!uniqueLabels[dataset.label]) {
+                                            uniqueLabels[dataset.label] = true;
+                                            labels.push({
+                                                text: dataset.label,
+                                                fillStyle: dataset.backgroundColor,
+                                                strokeStyle: dataset.borderColor,
+                                                lineWidth: 1,
+                                                hidden: chart.getDatasetMeta(index).hidden,
+                                                datasetIndex: index
+                                            });
+                                        }
+                                    });
+                                    return labels;
+                                }
+                            },
+                            onClick: function(e, legendItem, legend) {
+                                return;
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            axis: 'x',
+                            callbacks: {
+                                title: (items) => {
+                                    const item = items[0];
+                                    if (!item) return '';
+                                    return item.dataset.groupName;
+                                },
+                                label: (item) => {
+                                    const dataset = item.dataset;
+                                    const value = item.raw;
+                                    return `${dataset.label}: ${value}人`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)',
+                                drawOnChartArea: true
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '用户数'
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
         }
         
         // 存储当前图表的日期列表和可见性状态
