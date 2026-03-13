@@ -3574,6 +3574,7 @@
         // 存储单选关卡的选中状态
         let singleSelectedLevel = { type: '普通', id: 1 };
         let singleExpandedGroups = new Set(['normal']);
+        let singleExpandedLevelGroups = new Set();
 
         // 切换单选关卡下拉框
         function toggleSingleLevelDropdown(event) {
@@ -3616,21 +3617,26 @@
                     // 每10关一组
                     for (let start = config.start; start <= config.end; start += 10) {
                         const end = Math.min(start + 9, config.end);
+                        const groupKey = `${catKey}_${start}`;
+                        const isGroupExpanded = singleExpandedLevelGroups.has(groupKey);
 
                         html += `<div class="tree-group" style="margin: 2px 0;">`;
 
-                        // 分组标题
-                        html += `<div class="tree-group-header" style="padding: 4px 8px; display: flex; align-items: center; gap: 6px;">`;
+                        // 分组标题（可点击展开/收起）
+                        html += `<div class="tree-group-header" onclick="toggleSingleGroupExpand('${catKey}', ${start})" style="padding: 4px 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;">`;
+                        html += `<span style="width: 12px; display: inline-block;">${isGroupExpanded ? '▼' : '▶'}</span>`;
                         html += `<span style="font-size: 12px; color: #666;">${config.name} ${start}-${end}</span>`;
                         html += `</div>`;
 
-                        // 关卡按钮
-                        html += `<div class="tree-levels" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0 4px 16px;">`;
-                        for (let i = start; i <= end; i++) {
-                            const isSelected = singleSelectedLevel.type === config.name && singleSelectedLevel.id === i;
-                            html += `<div class="tree-level-item" onclick="selectSingleLevel('${config.name}', ${i})" style="padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; ${isSelected ? 'background: #667eea; color: white;' : 'background: #f0f0f0; color: #333;'}">${i}</div>`;
+                        // 关卡按钮（展开时显示）
+                        if (isGroupExpanded) {
+                            html += `<div class="tree-levels" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0 4px 24px;">`;
+                            for (let i = start; i <= end; i++) {
+                                const isSelected = singleSelectedLevel.type === config.name && singleSelectedLevel.id === i;
+                                html += `<div class="tree-level-item" onclick="selectSingleLevel('${config.name}', ${i})" style="padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; ${isSelected ? 'background: #667eea; color: white;' : 'background: #f0f0f0; color: #333;'}">${i}</div>`;
+                            }
+                            html += `</div>`;
                         }
-                        html += `</div>`;
 
                         html += `</div>`;
                     }
@@ -3655,6 +3661,17 @@
             renderSingleLevelDropdown();
         }
 
+        // 切换分组展开
+        function toggleSingleGroupExpand(catKey, start) {
+            const groupKey = `${catKey}_${start}`;
+            if (singleExpandedLevelGroups.has(groupKey)) {
+                singleExpandedLevelGroups.delete(groupKey);
+            } else {
+                singleExpandedLevelGroups.add(groupKey);
+            }
+            renderSingleLevelDropdown();
+        }
+
         // 选择单个关卡
         function selectSingleLevel(levelType, levelId) {
             singleSelectedLevel = { type: levelType, id: levelId };
@@ -3665,9 +3682,9 @@
                 textEl.textContent = `${levelType}-${levelId}`;
             }
 
-            // 关闭面板
-            const panel = document.getElementById('singleLevelDropdownPanel');
-            if (panel) panel.style.display = 'none';
+            // 不关闭面板，允许用户继续选择
+            // 重新渲染以更新选中状态
+            renderSingleLevelDropdown();
 
             // 触发图表更新
             updateCompletionTrendChart();
