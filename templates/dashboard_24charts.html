@@ -817,13 +817,13 @@
             <div class="chart-card" data-dimension="completion">
                 <h3>关卡完成率趋势图 <span class="priority p0">P0</span></h3>
                 <div class="chart-selector">
-                    <!-- 单选树形关卡选择器 -->
-                    <div class="tree-dropdown-container" id="completionTrendLevelSelector" style="position: relative; min-width: 200px; display: inline-block;">
-                        <div class="tree-dropdown-trigger" onclick="toggleSingleLevelSelect(event, 'completionTrend')" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                            <span id="completionTrendLevelText">普通-1</span>
+                    <!-- 树形单选下拉框 -->
+                    <div class="tree-dropdown-container" style="position: relative; min-width: 200px;">
+                        <div class="tree-dropdown-trigger" onclick="toggleSingleLevelDropdown(event)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span id="singleLevelDropdownText">普通-1</span>
                             <span style="color: #999;">▼</span>
                         </div>
-                        <div id="completionTrendLevelPanel" class="tree-dropdown-panel" onclick="event.stopPropagation()" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 350px; overflow-y: auto; z-index: 1000;">
+                        <div id="singleLevelDropdownPanel" class="tree-dropdown-panel" onclick="event.stopPropagation()" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 350px; overflow-y: auto; z-index: 1000;">
                             <!-- 树形结构动态生成 -->
                         </div>
                     </div>
@@ -900,16 +900,19 @@
             <div class="chart-card" data-dimension="completion">
                 <h3>关卡流失漏斗 <span class="priority p1">P1</span></h3>
                 <div class="chart-selector">
-                    <!-- 单选树形关卡选择器 -->
-                    <div class="tree-dropdown-container" id="funnelLevelSelector" style="position: relative; min-width: 200px; display: inline-block;">
-                        <div class="tree-dropdown-trigger" onclick="toggleSingleLevelSelect(event, 'funnel')" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                            <span id="funnelLevelText">普通-1</span>
-                            <span style="color: #999;">▼</span>
-                        </div>
-                        <div id="funnelLevelPanel" class="tree-dropdown-panel" onclick="event.stopPropagation()" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 350px; overflow-y: auto; z-index: 1000;">
-                            <!-- 树形结构动态生成 -->
-                        </div>
-                    </div>
+                    <select id="funnelLevelType" onchange="updateFunnelChart()">
+                        <option value="普通">普通</option>
+                        <option value="困难">困难</option>
+                        <option value="地狱">地狱</option>
+                        <option value="副本">副本</option>
+                    </select>
+                    <select id="funnelLevelId" onchange="updateFunnelChart()">
+                        <option value="1">关卡 1</option>
+                        <option value="2">关卡 2</option>
+                        <option value="3">关卡 3</option>
+                        <option value="4">关卡 4</option>
+                        <option value="5">关卡 5</option>
+                    </select>
                     <select id="funnelDayNumSpan" onchange="updateFunnelChart()">
                         <option value="1">第1天</option>
                         <option value="7">7天累计</option>
@@ -961,16 +964,19 @@
             <div class="chart-card" data-dimension="completion">
                 <h3>广告率趋势图 <span class="priority p2">P2</span></h3>
                 <div class="chart-selector">
-                    <!-- 单选树形关卡选择器 -->
-                    <div class="tree-dropdown-container" id="adTrendLevelSelector" style="position: relative; min-width: 200px; display: inline-block;">
-                        <div class="tree-dropdown-trigger" onclick="toggleSingleLevelSelect(event, 'adTrend')" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                            <span id="adTrendLevelText">普通-1</span>
-                            <span style="color: #999;">▼</span>
-                        </div>
-                        <div id="adTrendLevelPanel" class="tree-dropdown-panel" onclick="event.stopPropagation()" style="display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 350px; overflow-y: auto; z-index: 1000;">
-                            <!-- 树形结构动态生成 -->
-                        </div>
-                    </div>
+                    <select id="adTrendLevelType" onchange="updateAdTrendChart()">
+                        <option value="普通">普通</option>
+                        <option value="困难">困难</option>
+                        <option value="地狱">地狱</option>
+                        <option value="副本">副本</option>
+                    </select>
+                    <select id="adTrendLevelId" onchange="updateAdTrendChart()">
+                        <option value="1">关卡 1</option>
+                        <option value="2">关卡 2</option>
+                        <option value="3">关卡 3</option>
+                        <option value="4">关卡 4</option>
+                        <option value="5">关卡 5</option>
+                    </select>
                 </div>
                 <div class="chart-container"><canvas id="adTrendChart"></canvas></div>
             </div>
@@ -1594,108 +1600,11 @@
             return dateStr.replace(/-/g, '');
         }
 
-        // ==================== 单选树形关卡选择器 ====================
-        // 存储每个图表的选中关卡 { chartId: { type: '普通', id: 1 } }
-        const singleSelectedLevels = {
-            'completionTrend': { type: '普通', id: 1 },
-            'funnel': { type: '普通', id: 1 },
-            'adTrend': { type: '普通', id: 1 }
-        };
-
-        // 类别配置
-        const levelCategoryConfig = {
-            'normal': { name: '普通', code: 'normal', start: 1, end: 20 },
-            'hard': { name: '困难', code: 'hard', start: 1, end: 15 },
-            'hell': { name: '地狱', code: 'hell', start: 1, end: 10 },
-            'copy': { name: '副本', code: 'copy', start: 1, end: 5 }
-        };
-
-        // 切换单选关卡选择下拉框
-        function toggleSingleLevelSelect(event, chartId) {
-            if (event) event.stopPropagation();
-            const panel = document.getElementById(chartId + 'LevelPanel');
-            if (panel) {
-                const isHidden = panel.style.display === 'none';
-                // 关闭所有其他面板
-                document.querySelectorAll('.tree-dropdown-panel').forEach(p => {
-                    if (p.id !== chartId + 'LevelPanel') p.style.display = 'none';
-                });
-                panel.style.display = isHidden ? 'block' : 'none';
-                if (isHidden) {
-                    renderSingleLevelPanel(chartId);
-                }
-            }
-        }
-
-        // 渲染单选关卡面板
-        function renderSingleLevelPanel(chartId) {
-            const panel = document.getElementById(chartId + 'LevelPanel');
-            if (!panel) return;
-
-            const selected = singleSelectedLevels[chartId] || { type: '普通', id: 1 };
-
-            let html = '';
-            Object.values(levelCategoryConfig).forEach(cat => {
-                html += `
-                    <div class="tree-category" style="border-bottom: 1px solid #f0f0f0;">
-                        <div class="tree-category-header" style="padding: 10px 12px; background: #f8f9fa; font-weight: 500; color: #333;">
-                            ${cat.name}
-                        </div>
-                        <div class="tree-levels" style="padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 6px;">
-                `;
-
-                for (let i = cat.start; i <= cat.end; i++) {
-                    const isSelected = selected.type === cat.name && selected.id === i;
-                    html += `
-                        <div class="tree-level-item ${isSelected ? 'selected' : ''}"
-                             onclick="selectSingleLevel('${chartId}', '${cat.name}', ${i})"
-                             style="padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
-                                    ${isSelected ? 'background: #667eea; color: white;' : 'background: #f0f0f0; color: #333;'}">
-                            ${cat.name}-${i}
-                        </div>
-                    `;
-                }
-
-                html += '</div></div>';
-            });
-
-            panel.innerHTML = html;
-        }
-
-        // 选择单个关卡
-        function selectSingleLevel(chartId, levelType, levelId) {
-            singleSelectedLevels[chartId] = { type: levelType, id: levelId };
-
-            // 更新显示文本
-            const textEl = document.getElementById(chartId + 'LevelText');
-            if (textEl) {
-                textEl.textContent = `${levelType}-${levelId}`;
-            }
-
-            // 关闭面板
-            const panel = document.getElementById(chartId + 'LevelPanel');
-            if (panel) panel.style.display = 'none';
-
-            // 触发图表更新
-            if (chartId === 'completionTrend') {
-                updateCompletionTrendChart();
-            } else if (chartId === 'funnel') {
-                updateFunnelChart();
-            } else if (chartId === 'adTrend') {
-                updateAdTrendChart();
-            }
-        }
-
-        // 获取选中的关卡
-        function getSelectedLevel(chartId) {
-            return singleSelectedLevels[chartId] || { type: '普通', id: 1 };
-        }
-
         // 图表1: 关卡完成率趋势图
         async function updateCompletionTrendChart() {
-            const levelInfo = getSelectedLevel('completionTrend');
-            const levelType = levelInfo.type;
-            const levelId = levelInfo.id;
+            // 使用单选关卡选择器
+            const levelType = singleSelectedLevel?.type || '普通';
+            const levelId = singleSelectedLevel?.id || 1;
             const aggregateBy = document.getElementById('completionTrendAggregate')?.value || 'avg';
 
             // 获取当前选中的日期 - 确保是数组
@@ -1995,9 +1904,8 @@
 
         // 图表5: 关卡流失漏斗
         async function updateFunnelChart() {
-            const levelInfo = getSelectedLevel('funnel');
-            const levelType = levelInfo.type;
-            const levelId = levelInfo.id;
+            const levelType = document.getElementById('funnelLevelType')?.value || '普通';
+            const levelId = document.getElementById('funnelLevelId')?.value || '1';
             const dayNumSpan = document.getElementById('funnelDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
@@ -2218,9 +2126,8 @@
 
         // 图表8: 广告率趋势图
         async function updateAdTrendChart() {
-            const levelInfo = getSelectedLevel('adTrend');
-            const levelType = levelInfo.type;
-            const levelId = levelInfo.id;
+            const levelType = document.getElementById('adTrendLevelType')?.value || '普通';
+            const levelId = document.getElementById('adTrendLevelId')?.value || '1';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -3661,6 +3568,109 @@
             renderTreeDropdown();
             updateTreeDropdownText();
             updatePenetrationChart();
+        }
+
+        // ==================== 单选关卡选择器（用于完成与流失维度）====================
+        // 存储单选关卡的选中状态
+        let singleSelectedLevel = { type: '普通', id: 1 };
+        let singleExpandedGroups = new Set(['normal']);
+
+        // 切换单选关卡下拉框
+        function toggleSingleLevelDropdown(event) {
+            if (event) event.stopPropagation();
+            const panel = document.getElementById('singleLevelDropdownPanel');
+            if (panel) {
+                const isHidden = panel.style.display === 'none';
+                // 关闭其他面板
+                document.querySelectorAll('.tree-dropdown-panel').forEach(p => {
+                    if (p.id !== 'singleLevelDropdownPanel') p.style.display = 'none';
+                });
+                panel.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    renderSingleLevelDropdown();
+                }
+            }
+        }
+
+        // 渲染单选关卡下拉框
+        function renderSingleLevelDropdown() {
+            const panel = document.getElementById('singleLevelDropdownPanel');
+            if (!panel) return;
+
+            let html = '<div class="tree-content" style="padding: 8px 0;">';
+
+            // 遍历所有类别
+            Object.entries(categoryConfig).forEach(([catKey, config]) => {
+                html += `<div class="tree-category" style="margin-bottom: 4px;">`;
+
+                // 类别标题
+                html += `<div class="tree-category-header" style="padding: 6px 12px; background: #f5f5f5; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="toggleSingleCategoryExpand('${catKey}')">`;
+                html += `<span style="width: 16px; display: inline-block;">${singleExpandedGroups.has(catKey) ? '▼' : '▶'}</span>`;
+                html += `<span>${config.name}</span>`;
+                html += `</div>`;
+
+                // 分组和关卡（展开时显示）
+                if (singleExpandedGroups.has(catKey)) {
+                    html += `<div class="tree-groups" style="padding-left: 12px;">`;
+
+                    // 每10关一组
+                    for (let start = config.start; start <= config.end; start += 10) {
+                        const end = Math.min(start + 9, config.end);
+
+                        html += `<div class="tree-group" style="margin: 2px 0;">`;
+
+                        // 分组标题
+                        html += `<div class="tree-group-header" style="padding: 4px 8px; display: flex; align-items: center; gap: 6px;">`;
+                        html += `<span style="font-size: 12px; color: #666;">${config.name} ${start}-${end}</span>`;
+                        html += `</div>`;
+
+                        // 关卡按钮
+                        html += `<div class="tree-levels" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0 4px 16px;">`;
+                        for (let i = start; i <= end; i++) {
+                            const isSelected = singleSelectedLevel.type === config.name && singleSelectedLevel.id === i;
+                            html += `<div class="tree-level-item" onclick="selectSingleLevel('${config.name}', ${i})" style="padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; ${isSelected ? 'background: #667eea; color: white;' : 'background: #f0f0f0; color: #333;'}">${i}</div>`;
+                        }
+                        html += `</div>`;
+
+                        html += `</div>`;
+                    }
+
+                    html += `</div>`;
+                }
+
+                html += `</div>`;
+            });
+
+            html += '</div>';
+            panel.innerHTML = html;
+        }
+
+        // 切换类别展开
+        function toggleSingleCategoryExpand(catKey) {
+            if (singleExpandedGroups.has(catKey)) {
+                singleExpandedGroups.delete(catKey);
+            } else {
+                singleExpandedGroups.add(catKey);
+            }
+            renderSingleLevelDropdown();
+        }
+
+        // 选择单个关卡
+        function selectSingleLevel(levelType, levelId) {
+            singleSelectedLevel = { type: levelType, id: levelId };
+
+            // 更新显示文本
+            const textEl = document.getElementById('singleLevelDropdownText');
+            if (textEl) {
+                textEl.textContent = `${levelType}-${levelId}`;
+            }
+
+            // 关闭面板
+            const panel = document.getElementById('singleLevelDropdownPanel');
+            if (panel) panel.style.display = 'none';
+
+            // 触发图表更新
+            updateCompletionTrendChart();
         }
 
         // 当前图表数据（用于显示全部/隐藏功能）
