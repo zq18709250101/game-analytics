@@ -1365,13 +1365,26 @@ def api_category_enter_ratio():
             '副本': '#ee6666'
         }
         
-        # 为每个注册日期构建series_groups
+        # 为每个注册日期构建series_groups（只包含有数据的日期）
         user_series_groups = []
         count_series_groups = []
         cumulative_avg_series_groups = []
         daily_avg_series_groups = []
         
+        # 过滤出有数据的注册日期
+        valid_register_dates = []
         for reg_date in register_dates:
+            reg_date_str = str(reg_date)
+            has_data = False
+            for day_num in day_nums:
+                key = (reg_date_str, day_num)
+                if key in raw_data:
+                    has_data = True
+                    break
+            if has_data:
+                valid_register_dates.append(reg_date)
+        
+        for reg_date in valid_register_dates:
             reg_date_str = str(reg_date)
             
             # 该注册日期的series

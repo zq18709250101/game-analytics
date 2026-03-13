@@ -487,29 +487,7 @@
                 <div class="insight-box"><h4>转化目标</h4><ul><li>普通→困难：>40%、困难→地狱：>30%</li></ul></div>
             </div>
 
-            <!-- P2-12: 用户类别分布 -->
-            <div class="chart-card" data-dimension="penetration">
-                <h3>用户类别分布 <span class="priority p2">P2</span></h3>
-                <div class="chart-selector">
-                    <select id="userDistDaySelect" onchange="updateUserDistChart()">
-                        <option value="7" selected>7天</option>
-                        <option value="14">14天</option>
-                        <option value="30">30天</option>
-                    </select>
-                    <select id="userDistMetricSelect" onchange="updateUserDistChart()">
-                        <option value="user_pct" selected>用户占比</option>
-                        <option value="user_count">用户人数</option>
-                    </select>
-                    <select id="userDistChartType" onchange="updateUserDistChart()">
-                        <option value="bar" selected>柱状图</option>
-                        <option value="pie">饼图</option>
-                    </select>
-                </div>
-                <div class="chart-container"><canvas id="userDistChart"></canvas></div>
-                <div class="insight-box"><h4>分析要点</h4><ul><li>新手/普通/困难/地狱/副本玩家分布</li><li>识别用户分层结构</li></ul></div>
-            </div>
-
-            <!-- P2-13: 核心用户贡献对比 -->
+            <!-- P2-12: 核心用户贡献对比 -->
             <div class="chart-card" data-dimension="penetration">
                 <h3>核心用户贡献对比 <span class="priority p2">P2</span></h3>
                 <div class="chart-container"><canvas id="coreUserChart"></canvas></div>
