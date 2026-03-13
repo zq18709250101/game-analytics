@@ -827,9 +827,19 @@
                             <!-- 树形结构动态生成 -->
                         </div>
                     </div>
-                    <select id="completionTrendAggregate" onchange="updateCompletionTrendChart()">
-                        <option value="avg">平均</option>
-                        <option value="sum">累计</option>
+                    <select id="completionTrendDayNumSpan" onchange="updateCompletionTrendChart()">
+                        <option value="1">1天</option>
+                        <option value="2">2天</option>
+                        <option value="3">3天</option>
+                        <option value="4">4天</option>
+                        <option value="5">5天</option>
+                        <option value="6">6天</option>
+                        <option value="7">7天</option>
+                        <option value="14">14天</option>
+                        <option value="30" selected>30天</option>
+                        <option value="45">45天</option>
+                        <option value="60">60天</option>
+                        <option value="90">90天</option>
                     </select>
                 </div>
                 <div class="chart-container"><canvas id="completionTrendChart"></canvas></div>
@@ -1605,7 +1615,7 @@
             // 使用单选关卡选择器
             const levelType = singleSelectedLevel?.type || '普通';
             const levelId = singleSelectedLevel?.id || 1;
-            const aggregateBy = document.getElementById('completionTrendAggregate')?.value || 'avg';
+            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
 
             // 获取当前选中的日期 - 确保是数组
             let registerDates = window.selectedRegisterDates || [window.currentDate];
@@ -1616,7 +1626,7 @@
             // 转换为YYYYMMDD格式
             registerDates = registerDates.map(d => formatDateToInt(d));
 
-            console.log('updateCompletionTrendChart: 日期=', registerDates, '关卡=', levelType, levelId);
+            console.log('updateCompletionTrendChart: 日期=', registerDates, '关卡=', levelType, levelId, '时间范围=', dayNumSpan);
 
             try {
                 const params = new URLSearchParams({
@@ -1624,7 +1634,7 @@
                     register_date_end: registerDates[registerDates.length - 1],
                     level_type: levelType,
                     level_id: levelId,
-                    aggregate_by: aggregateBy
+                    day_num_span: dayNumSpan
                 });
 
                 console.log('updateCompletionTrendChart: API URL=', `/api/charts/level-completion-trend?${params}`);
