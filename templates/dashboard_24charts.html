@@ -3837,6 +3837,32 @@
                             itemSort: function(a, b) {
                                 const order = { '新手': 1, '普通关卡玩家': 2, '困难关卡玩家': 3, '地狱关卡玩家': 4, '副本关卡玩家': 5 };
                                 return (order[a.dataset.label] || 99) - (order[b.dataset.label] || 99);
+                            },
+                            filter: function(tooltipItem, data) {
+                                const chart = tooltipItem.chart;
+                                // 使用onHover记录的当前stack
+                                const targetStack = chart._currentHoverStack;
+                                if (targetStack) {
+                                    return tooltipItem.dataset.stack === targetStack;
+                                }
+                                // 如果没有记录的stack，显示所有数据
+                                return true;
+                            }
+                        }
+                    },
+                    // 在hover时记录当前stack，供tooltip使用
+                    onHover: function(event, activeElements, chart) {
+                        if (activeElements && activeElements.length > 0) {
+                            const activeElement = activeElements[0];
+                            const datasetIndex = activeElement.datasetIndex;
+                            const currentStack = chart.data.datasets[datasetIndex].stack;
+                            // 只有当stack变化时才更新，避免不必要的重绘
+                            if (chart._currentHoverStack !== currentStack) {
+                                chart._currentHoverStack = currentStack;
+                                // 强制更新tooltip
+                                if (chart.tooltip) {
+                                    chart.tooltip.update();
+                                }
                             }
                         }
                     },
