@@ -774,11 +774,20 @@
             <div class="chart-card full-width penetration-chart" data-dimension="penetration" style="display: none;">
                 <h3>解锁转化率分析 <span class="priority p1">P1</span></h3>
                 <div class="chart-selector">
-                    <select id="unlockPathSelect" onchange="updateUnlockConversionChart()">
-                        <option value="normal_hard" selected>普通→困难</option>
-                        <option value="hard_hell">困难→地狱</option>
-                        <option value="normal_copy">普通→副本</option>
-                    </select>
+                    <div class="checkbox-group" style="display: flex; gap: 15px; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="unlockPathNormalHard" value="normal_hard" checked onchange="updateUnlockConversionChart()">
+                            <span>普通→困难</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="unlockPathHardHell" value="hard_hell" onchange="updateUnlockConversionChart()">
+                            <span>困难→地狱</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="unlockPathNormalCopy" value="normal_copy" onchange="updateUnlockConversionChart()">
+                            <span>普通→副本</span>
+                        </label>
+                    </div>
                     <select id="unlockDaySelect" onchange="updateUnlockConversionChart()">
                         <option value="7">7天</option>
                         <option value="14">14天</option>
@@ -4868,50 +4877,60 @@
                 registerDateEnd = endDateStr.replace(/-/g, '');
             }
             const maxDayNum = parseInt(document.getElementById('unlockDaySelect')?.value || 30);
-            const trendPath = document.getElementById('unlockPathSelect')?.value || 'normal_hard';
+            
+            // 获取选中的路径（复选框）
+            const selectedPaths = [];
+            if (document.getElementById('unlockPathNormalHard')?.checked) selectedPaths.push('normal_hard');
+            if (document.getElementById('unlockPathHardHell')?.checked) selectedPaths.push('hard_hell');
+            if (document.getElementById('unlockPathNormalCopy')?.checked) selectedPaths.push('normal_copy');
+            
+            // 如果没有选中任何路径，默认使用普通→困难
+            if (selectedPaths.length === 0) {
+                selectedPaths.push('normal_hard');
+                document.getElementById('unlockPathNormalHard').checked = true;
+            }
 
             try {
-                const response = await fetch('/api/v1/unlock/conversion-analysis', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        register_date_start: parseInt(registerDateStart),
-                        register_date_end: parseInt(registerDateEnd),
-                        view_type: 'trend',
-                        trend_path: trendPath,
-                        max_day_num: maxDayNum
-                    })
-                });
+                // 为每个选中的路径发起请求
+                const allData = [];
+                for (const trendPath of selectedPaths) {
+                    const response = await fetch('/api/v1/unlock/conversion-analysis', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            register_date_start: parseInt(registerDateStart),
+                            register_date_end: parseInt(registerDateEnd),
+                            view_type: 'trend',
+                            trend_path: trendPath,
+                            max_day_num: maxDayNum
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.code === 0) {
+                        allData.push({
+                            trend_path: trendPath,
+                            data: result.data
+                        });
+                    }
+                }
                 
-                const result = await response.json();
-                if (result.code === 0) {
-                    unlockConversionData = result.data;
-                    renderUnlockConversionChart(result.data);
+                if (allData.length > 0) {
+                    renderUnlockConversionChartMulti(allData);
                 }
             } catch (error) {
                 console.error('加载解锁转化率分析失败:', error);
             }
         }
 
-        // 渲染解锁转化率折线图
-        function renderUnlockConversionChart(data) {
+        // 渲染解锁转化率折线图（支持多路径）
+        function renderUnlockConversionChartMulti(allData) {
             const ctx = document.getElementById('unlockConversionChart')?.getContext('2d');
             if (!ctx) return;
             
             if (unlockConversionChart) {
                 unlockConversionChart.destroy();
             }
-            
-            const trends = data.trends || [];
-            const maxDayNum = data.max_day_num || 30;
-            const trendPath = data.trend_path || 'normal_hard';
-            
-            if (trends.length === 0) {
-                return;
-            }
-            
-            // 生成X轴标签（day_num）
-            const labels = Array.from({length: maxDayNum}, (_, i) => `D${i + 1}`);
             
             // 路径名称映射
             const pathNames = {
@@ -4920,66 +4939,84 @@
                 'normal_copy': '普通→副本'
             };
             
-            // 颜色数组
-            const colors = [
-                '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
-                '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#ff9f7f'
-            ];
+            // 路径颜色映射
+            const pathColors = {
+                'normal_hard': '#5470c6',
+                'hard_hell': '#91cc75',
+                'normal_copy': '#fac858'
+            };
             
-            // 构建数据集 - 排除"平均"数据，单独处理
+            // 获取最大天数
+            let maxDayNum = 30;
+            if (allData.length > 0 && allData[0].data) {
+                maxDayNum = allData[0].data.max_day_num || 30;
+            }
+            
+            // 生成X轴标签（day_num）
+            const labels = Array.from({length: maxDayNum}, (_, i) => `D${i + 1}`);
+            
             const showAll = document.getElementById('unlockShowAllSwitch')?.checked ?? true;
             const datasets = [];
             
-            trends.forEach((trend, index) => {
-                const registerDate = trend.register_date;
-                const trendData = trend.trend_data || [];
+            // 为每个路径创建数据集
+            allData.forEach((pathData, pathIndex) => {
+                const trendPath = pathData.trend_path;
+                const data = pathData.data;
+                const trends = data.trends || [];
+                const pathColor = pathColors[trendPath] || '#5470c6';
+                const pathName = pathNames[trendPath] || trendPath;
                 
-                // 跳过"平均"数据，后面单独添加为虚线
-                if (registerDate === '平均') return;
-                
-                const dataMap = {};
-                trendData.forEach(item => {
-                    dataMap[item.day_num] = item.conversion_rate;
+                // 为每个注册日期创建数据集
+                trends.forEach((trend, trendIndex) => {
+                    const registerDate = trend.register_date;
+                    const trendData = trend.trend_data || [];
+                    
+                    // 跳过"平均"数据
+                    if (registerDate === '平均') return;
+                    
+                    const dataMap = {};
+                    trendData.forEach(item => {
+                        dataMap[item.day_num] = item.conversion_rate;
+                    });
+                    
+                    const chartData = labels.map((_, i) => dataMap[i + 1] ?? null);
+                    
+                    datasets.push({
+                        label: `${registerDate} ${pathName}`,
+                        data: chartData,
+                        borderColor: pathColor,
+                        backgroundColor: pathColor + '20',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        tension: 0.3,
+                        hidden: !showAll
+                    });
                 });
                 
-                const data = labels.map((_, i) => dataMap[i + 1] ?? null);
-                const color = colors[index % colors.length];
-                
-                datasets.push({
-                    label: `${registerDate}`,
-                    data: data,
-                    borderColor: color,
-                    backgroundColor: color + '20',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    tension: 0.3,
-                    hidden: !showAll
-                });
+                // 添加该路径的平均数据（虚线）
+                const avgTrend = trends.find(t => t.register_date === '平均');
+                if (avgTrend) {
+                    const avgDataMap = {};
+                    avgTrend.trend_data.forEach(item => {
+                        avgDataMap[item.day_num] = item.conversion_rate;
+                    });
+                    const avgData = labels.map((_, i) => avgDataMap[i + 1] ?? null);
+                    
+                    datasets.push({
+                        label: `平均 ${pathName}`,
+                        data: avgData,
+                        borderColor: pathColor,
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        borderDash: [5, 5],
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.3,
+                        hidden: false
+                    });
+                }
             });
-            
-            // 添加平均数据（虚线，始终显示）
-            const avgTrend = trends.find(t => t.register_date === '平均');
-            if (avgTrend) {
-                const avgDataMap = {};
-                avgTrend.trend_data.forEach(item => {
-                    avgDataMap[item.day_num] = item.conversion_rate;
-                });
-                const avgData = labels.map((_, i) => avgDataMap[i + 1] ?? null);
-                
-                datasets.push({
-                    label: '平均',
-                    data: avgData,
-                    borderColor: '#e74c3c',
-                    backgroundColor: 'transparent',
-                    borderWidth: 3,
-                    borderDash: [5, 5],
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    tension: 0.3,
-                    hidden: false
-                });
-            }
             
             // 计算当前显示曲线的Y轴范围
             function calculateYRange() {
@@ -5030,7 +5067,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: `${pathNames[trendPath] || trendPath} 转化率趋势`,
+                            text: '解锁转化率趋势',
                             font: { size: 14 }
                         },
                         legend: {
@@ -5084,7 +5121,7 @@
             
             unlockConversionChart.data.datasets.forEach(dataset => {
                 // 平均曲线始终显示，其他根据开关控制
-                if (dataset.label !== '平均') {
+                if (!dataset.label.includes('平均')) {
                     dataset.hidden = !showAll;
                 }
             });
