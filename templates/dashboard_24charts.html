@@ -395,12 +395,12 @@
                         <option value="90">90天</option>
                     </select>
                     <label class="switch" style="margin-left: 15px;">
-                        <input type="checkbox" id="categoryUserShowAll" checked onchange="toggleCategoryUserDates()">
+                        <input type="checkbox" id="categoryShowAll" checked onchange="toggleCategoryShowAll()">
                         <span class="slider"></span>
                         <span class="switch-label">显示全部</span>
                     </label>
                 </div>
-                <div id="categoryUserDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                <div id="categoryDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
                 <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryUserRatioChart"></canvas></div>
                 <div class="insight-box"><h4>健康标准</h4><ul><li>普通60%、困难25%、地狱10%、副本5%</li></ul></div>
             </div>
@@ -408,30 +408,14 @@
             <!-- P1-10b: 关卡类别进入次数占比（不去重） -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别进入次数占比（不去重） <span class="priority p1">P1</span></h3>
-                <div class="chart-selector">
-                    <label class="switch">
-                        <input type="checkbox" id="categoryCountShowAll" checked onchange="toggleCategoryCountDates()">
-                        <span class="slider"></span>
-                        <span class="switch-label">显示全部</span>
-                    </label>
-                </div>
-                <div id="categoryCountDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
-                <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryCountRatioChart"></canvas></div>
+                <div class="chart-container" style="height: 350px;"><canvas id="categoryCountRatioChart"></canvas></div>
                 <div class="insight-box"><h4>健康标准</h4><ul><li>根据用户活跃度，通常普通占70%以上</li></ul></div>
             </div>
 
             <!-- P1-10c: 关卡类别人均进入次数对比（不去重） -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别人均进入次数对比（不去重） <span class="priority p1">P1</span></h3>
-                <div class="chart-selector">
-                    <label class="switch">
-                        <input type="checkbox" id="categoryAvgShowAll" checked onchange="toggleCategoryAvgDates()">
-                        <span class="slider"></span>
-                        <span class="switch-label">显示全部</span>
-                    </label>
-                </div>
-                <div id="categoryAvgDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
-                <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryAvgCountChart"></canvas></div>
+                <div class="chart-container" style="height: 350px;"><canvas id="categoryAvgCountChart"></canvas></div>
                 <div class="insight-box"><h4>健康标准</h4><ul><li>人均进入次数反映用户粘性和关卡吸引力</li></ul></div>
             </div>
 
@@ -3519,16 +3503,16 @@
             avg: { dates: [], visible: {} }
         };
 
-        // 生成日期图例HTML
-        function generateDateLegend(dates, chartType) {
+        // 生成日期图例HTML（只生成一份，控制三个图表）
+        function generateDateLegend(dates) {
             const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#ff9f7f'];
             let html = '';
             dates.forEach((date, index) => {
                 const color = colors[index % colors.length];
-                const isVisible = categoryChartDateStates[chartType].visible[date] !== false;
+                const isVisible = categoryChartDateStates.user.visible[date] !== false;
                 const dateStr = String(date);
                 const displayDate = `${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
-                html += `<div class="date-legend-item ${isVisible ? 'active' : 'hidden'}" data-date="${date}" data-chart="${chartType}" onclick="toggleCategoryDate('${date}', '${chartType}')">`;
+                html += `<div class="date-legend-item ${isVisible ? 'active' : 'hidden'}" data-date="${date}" onclick="toggleCategoryDate('${date}', 'user')">`;
                 html += `<span class="date-legend-color" style="background: ${color};"></span>`;
                 html += `<span>${displayDate}</span>`;
                 html += `</div>`;
@@ -3536,84 +3520,84 @@
             return html;
         }
 
-        // 切换单个日期的显示/隐藏
+        // 切换单个日期的显示/隐藏（同时控制三个图表）
         function toggleCategoryDate(date, chartType) {
-            const canvasId = chartType === 'user' ? 'categoryUserRatioChart' : 
-                            chartType === 'count' ? 'categoryCountRatioChart' : 'categoryAvgCountChart';
-            const chart = charts[canvasId];
-            if (!chart) return;
+            // 切换状态（所有图表类型共享相同状态）
+            const currentVisible = categoryChartDateStates.user.visible[date];
+            const newVisible = currentVisible === false ? true : false;
 
-            // 切换状态
-            const currentVisible = categoryChartDateStates[chartType].visible[date];
-            categoryChartDateStates[chartType].visible[date] = currentVisible === false ? true : false;
-            const newVisible = categoryChartDateStates[chartType].visible[date];
+            // 更新所有图表类型的状态
+            ['user', 'count', 'avg'].forEach(type => {
+                categoryChartDateStates[type].visible[date] = newVisible;
+            });
 
             // 更新图例样式
-            const legendItem = document.querySelector(`.date-legend-item[data-date="${date}"][data-chart="${chartType}"]`);
+            const legendItem = document.querySelector(`.date-legend-item[data-date="${date}"]`);
             if (legendItem) {
                 legendItem.classList.toggle('active', newVisible);
                 legendItem.classList.toggle('hidden', !newVisible);
             }
 
-            // 更新图表显示
-            const stackKey = `stack_${categoryChartDateStates[chartType].dates.indexOf(parseInt(date))}`;
-            chart.data.datasets.forEach((dataset, index) => {
-                if (dataset.stack === stackKey) {
-                    chart.setDatasetVisibility(index, newVisible);
-                }
+            // 更新三个图表的显示
+            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryAvgCountChart'];
+            const chartTypes = ['user', 'count', 'avg'];
+
+            canvasIds.forEach((canvasId, idx) => {
+                const chart = charts[canvasId];
+                if (!chart) return;
+
+                const type = chartTypes[idx];
+                const stackKey = `stack_${categoryChartDateStates[type].dates.indexOf(parseInt(date))}`;
+                chart.data.datasets.forEach((dataset, index) => {
+                    if (dataset.stack === stackKey || (dataset.stack === null && dataset.groupName === String(date))) {
+                        chart.setDatasetVisibility(index, newVisible);
+                    }
+                });
+                chart.update();
             });
-            chart.update();
 
             // 更新"显示全部"开关状态
-            updateShowAllSwitch(chartType);
+            updateShowAllSwitch();
         }
 
-        // 切换显示全部日期
-        function toggleCategoryUserDates() {
-            toggleCategoryShowAll('user', 'categoryUserShowAll');
-        }
-        function toggleCategoryCountDates() {
-            toggleCategoryShowAll('count', 'categoryCountShowAll');
-        }
-        function toggleCategoryAvgDates() {
-            toggleCategoryShowAll('avg', 'categoryAvgShowAll');
-        }
+        // 切换显示全部日期（同时控制三个图表）
+        function toggleCategoryShowAll() {
+            const showAll = document.getElementById('categoryShowAll')?.checked ?? true;
 
-        function toggleCategoryShowAll(chartType, switchId) {
-            const showAll = document.getElementById(switchId)?.checked ?? true;
-            const canvasId = chartType === 'user' ? 'categoryUserRatioChart' : 
-                            chartType === 'count' ? 'categoryCountRatioChart' : 'categoryAvgCountChart';
-            const chart = charts[canvasId];
-            if (!chart) return;
-
-            // 更新所有日期的可见性状态
-            categoryChartDateStates[chartType].dates.forEach(date => {
-                categoryChartDateStates[chartType].visible[date] = showAll;
+            // 更新所有图表类型的状态
+            ['user', 'count', 'avg'].forEach(type => {
+                categoryChartDateStates[type].dates.forEach(date => {
+                    categoryChartDateStates[type].visible[date] = showAll;
+                });
             });
 
             // 更新图例样式
-            const legendItems = document.querySelectorAll(`.date-legend-item[data-chart="${chartType}"]`);
+            const legendItems = document.querySelectorAll('.date-legend-item');
             legendItems.forEach(item => {
                 item.classList.toggle('active', showAll);
                 item.classList.toggle('hidden', !showAll);
             });
 
-            // 更新图表显示
-            chart.data.datasets.forEach((dataset, index) => {
-                chart.setDatasetVisibility(index, showAll);
+            // 更新三个图表的显示
+            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryAvgCountChart'];
+            canvasIds.forEach(canvasId => {
+                const chart = charts[canvasId];
+                if (!chart) return;
+
+                chart.data.datasets.forEach((dataset, index) => {
+                    chart.setDatasetVisibility(index, showAll);
+                });
+                chart.update();
             });
-            chart.update();
         }
 
         // 更新"显示全部"开关状态
-        function updateShowAllSwitch(chartType) {
-            const switchId = chartType === 'user' ? 'categoryUserShowAll' : 
-                            chartType === 'count' ? 'categoryCountShowAll' : 'categoryAvgShowAll';
-            const switchEl = document.getElementById(switchId);
+        function updateShowAllSwitch() {
+            const switchEl = document.getElementById('categoryShowAll');
             if (!switchEl) return;
 
-            const allVisible = categoryChartDateStates[chartType].dates.every(date => 
-                categoryChartDateStates[chartType].visible[date] !== false
+            const allVisible = categoryChartDateStates.user.dates.every(date =>
+                categoryChartDateStates.user.visible[date] !== false
             );
             switchEl.checked = allVisible;
         }
@@ -3641,10 +3625,8 @@
                 }
             });
 
-            // 生成日期图例
-            document.getElementById('categoryUserDateLegend').innerHTML = generateDateLegend(registerDates, 'user');
-            document.getElementById('categoryCountDateLegend').innerHTML = generateDateLegend(registerDates, 'count');
-            document.getElementById('categoryAvgDateLegend').innerHTML = generateDateLegend(registerDates, 'avg');
+            // 生成日期图例（只生成一份）
+            document.getElementById('categoryDateLegend').innerHTML = generateDateLegend(registerDates);
             
             // 图表1: 按人数
             const userChart = chartsData.find(c => c.chart_id === 'user_count');
