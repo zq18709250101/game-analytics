@@ -1616,6 +1616,9 @@
 
                 const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'];
 
+                // 存储原始数据供tooltip使用
+                const trendDataRaw = data.trends[0]?.trend_data || [];
+
                 const datasets = data.trends.map((trend, index) => ({
                     label: String(trend.register_date),
                     data: trend.trend_data.map(d => d.completion_rate),
@@ -1640,7 +1643,10 @@
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
-                                        return context.dataset.label + ': ' + context.parsed.y + '%';
+                                        const dataIndex = context.dataIndex;
+                                        const completionRate = context.parsed.y;
+                                        const enterUsers = trendDataRaw[dataIndex]?.enter_users || 0;
+                                        return `${context.dataset.label}: ${completionRate}% (进入人数: ${enterUsers})`;
                                     }
                                 }
                             }
