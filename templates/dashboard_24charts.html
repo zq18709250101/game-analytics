@@ -3580,7 +3580,7 @@
                                 title: (items) => {
                                     const item = items[0];
                                     if (!item) return '';
-                                    return `${item.label} - ${item.dataset.fullLabel}`;
+                                    return `${item.dataset.groupName} - ${item.label}`;
                                 },
                                 label: (item) => {
                                     const dataset = item.dataset;
@@ -3589,16 +3589,28 @@
                                     const stackTotals = dataset.stackTotals;
                                     const total = stackTotals[dataIndex];
                                     const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                    return `${isUserRatio ? '人数' : '次数'}: ${value} (${percentage}%)`;
+                                    return `${dataset.label}: ${value} (${percentage}%)`;
                                 },
-                                footer: (items) => {
+                                afterBody: (items) => {
                                     if (items.length === 0) return '';
                                     const dataset = items[0].dataset;
                                     const stackTotals = dataset.stackTotals;
                                     const dataIndex = items[0].dataIndex;
                                     const total = stackTotals[dataIndex];
-                                    return `该日期总计: ${total.toFixed(0)}`;
+                                    return `━━━━━━━━━━━━━━\n总计: ${total.toFixed(0)} ${isUserRatio ? '人' : '次'}`;
                                 }
+                            },
+                            // 获取同一stack的所有dataset
+                            filter: function(tooltipItem, data) {
+                                // 获取当前悬停的dataset的stack
+                                const currentStack = tooltipItem.dataset.stack;
+                                // 只显示同一stack的dataset
+                                return tooltipItem.dataset.stack === currentStack;
+                            },
+                            itemSort: function(a, b) {
+                                // 按类别顺序排序：普通、困难、地狱、副本
+                                const order = { '普通': 1, '困难': 2, '地狱': 3, '副本': 4 };
+                                return (order[a.dataset.label] || 99) - (order[b.dataset.label] || 99);
                             }
                         }
                     },
