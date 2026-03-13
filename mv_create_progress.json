@@ -1,0 +1,10 @@
+{
+  "completed": [
+    "mv_daily_metrics",
+    "mv_level_penetration_curve",
+    "mv_level_category_enter_ratio",
+    "mv_user_category_distribution"
+  ],
+  "failed": [],
+  "current": "mv_unlock_conversion_stats"
+}

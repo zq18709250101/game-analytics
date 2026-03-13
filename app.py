@@ -2321,5 +2321,700 @@ def calculate_metric(cursor, metric, register_date, day_num, levels):
     return round(random.uniform(10, 90), 2)
 
 
+# ==================== 完成与流失维度 API (8个图表) ====================
+
+def get_date_filter_params():
+    """获取日期过滤参数"""
+    register_date = request.args.get('register_date', type=int)
+    register_date_start = request.args.get('register_date_start', type=int)
+    register_date_end = request.args.get('register_date_end', type=int)
+    register_date_interval = request.args.get('register_date_interval', type=int, default=1)
+    return register_date, register_date_start, register_date_end, register_date_interval
+
+def build_date_where_clause(register_date, register_date_start, register_date_end):
+    """构建日期WHERE子句"""
+    if register_date:
+        return "register_date = ?", [register_date]
+    elif register_date_start and register_date_end:
+        return "register_date BETWEEN ? AND ?", [register_date_start, register_date_end]
+    else:
+        return None, []
+
+def get_day_num_range(day_num_span):
+    """根据day_num_span获取day_num范围"""
+    span_map = {
+        '1': (1, 1), '2': (1, 2), '3': (1, 3), '7': (1, 7),
+        '14': (1, 14), '30': (1, 30), '45': (1, 45), '60': (1, 60), '90': (1, 90)
+    }
+    return span_map.get(str(day_num_span), (1, 1))
+
+
+@app.route('/api/charts/level-completion-trend', methods=['GET'])
+def api_level_completion_trend():
+    """
+    图表1: 关卡完成率趋势图
+    展示指定关卡完成率随时间(day_num)的变化趋势
+    """
+    try:
+        register_date, register_date_start, register_date_end, register_date_interval = get_date_filter_params()
+        level_type = request.args.get('level_type', '')
+        level_id = request.args.get('level_id', type=int)
+        aggregate_by = request.args.get('aggregate_by', 'avg')
+        
+        if not level_type or not level_id:
+            return jsonify({'code': 400, 'message': '缺少level_type或level_id参数'}), 400
+        
+        date_where, date_params = build_date_where_clause(register_date, register_date_start, register_date_end)
+        if not date_where:
+            return jsonify({'code': 400, 'message': '缺少日期参数'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取日期列表
+        if register_date:
+            query_dates = [register_date]
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                WHERE {date_where}
+                ORDER BY register_date
+            """, date_params)
+            query_dates = [row[0] for row in cursor.fetchall()]
+            # 应用间隔
+            if register_date_interval > 1:
+                query_dates = query_dates[::register_date_interval]
+        
+        trends = []
+        for reg_date in query_dates:
+            cursor.execute("""
+                SELECT day_num, completion_rate, enter_users
+                FROM mv_completion_level_stats
+                WHERE register_date = ? AND level_type = ? AND level_id = ?
+                ORDER BY day_num
+            """, [reg_date, level_type, level_id])
+            
+            trend_data = []
+            for row in cursor.fetchall():
+                trend_data.append({
+                    'day_num': row[0],
+                    'completion_rate': round(row[1], 2) if row[1] else 0,
+                    'enter_users': row[2]
+                })
+            
+            trends.append({
+                'register_date': reg_date,
+                'trend_data': trend_data
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'query_type': 'single' if register_date else 'range',
+                'level_type': level_type,
+                'level_id': level_id,
+                'trends': trends
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/charts/level-completion-comparison', methods=['GET'])
+def api_level_completion_comparison():
+    """
+    图表2: 各关卡完成率对比
+    对比同一类型下各关卡的完成率，支持时间跨度
+    """
+    try:
+        register_date, register_date_start, register_date_end, register_date_interval = get_date_filter_params()
+        level_type = request.args.get('level_type', '')
+        day_num = request.args.get('day_num', type=int)
+        day_num_span = request.args.get('day_num_span', '1')
+        aggregate_by = request.args.get('aggregate_by', 'avg')
+        
+        if not level_type:
+            return jsonify({'code': 400, 'message': '缺少level_type参数'}), 400
+        
+        date_where, date_params = build_date_where_clause(register_date, register_date_start, register_date_end)
+        if not date_where:
+            return jsonify({'code': 400, 'message': '缺少日期参数'}), 400
+        
+        # 确定day_num范围
+        if day_num:
+            day_start, day_end = day_num, day_num
+        else:
+            day_start, day_end = get_day_num_range(day_num_span)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取日期列表
+        if register_date:
+            query_dates = [register_date]
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                WHERE {date_where}
+                ORDER BY register_date
+            """, date_params)
+            query_dates = [row[0] for row in cursor.fetchall()]
+        
+        all_levels = []
+        for reg_date in query_dates:
+            cursor.execute("""
+                SELECT level_id, 
+                       AVG(completion_rate) as avg_completion_rate,
+                       AVG(enter_users) as avg_enter_users,
+                       SUM(enter_users) as total_enter_users
+                FROM mv_completion_level_stats
+                WHERE register_date = ? AND level_type = ?
+                  AND day_num BETWEEN ? AND ?
+                GROUP BY level_id
+                ORDER BY level_id
+            """, [reg_date, level_type, day_start, day_end])
+            
+            levels = []
+            for row in cursor.fetchall():
+                levels.append({
+                    'level_id': row[0],
+                    'completion_rate': round(row[1], 2) if row[1] else 0,
+                    'avg_enter_users': round(row[2], 0) if row[2] else 0,
+                    'total_enter_users': row[3]
+                })
+            
+            all_levels.append({
+                'register_date': reg_date,
+                'levels': levels
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'query_type': 'single' if register_date else 'range',
+                'level_type': level_type,
+                'day_num_span': day_num_span,
+                'day_num_range': f"{day_start}-{day_end}",
+                'results': all_levels
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/charts/difficulty-distribution', methods=['GET'])
+def api_difficulty_distribution():
+    """
+    图表3: 难度等级分布
+    展示各难度等级的关卡数量分布
+    """
+    try:
+        register_date, register_date_start, register_date_end, register_date_interval = get_date_filter_params()
+        level_type = request.args.get('level_type', '')
+        day_num = request.args.get('day_num', type=int)
+        day_num_span = request.args.get('day_num_span', '1')
+        
+        date_where, date_params = build_date_where_clause(register_date, register_date_start, register_date_end)
+        if not date_where:
+            return jsonify({'code': 400, 'message': '缺少日期参数'}), 400
+        
+        # 确定day_num范围
+        if day_num:
+            day_start, day_end = day_num, day_num
+        else:
+            day_start, day_end = get_day_num_range(day_num_span)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取日期列表
+        if register_date:
+            query_dates = [register_date]
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                WHERE {date_where}
+                ORDER BY register_date
+            """, date_params)
+            query_dates = [row[0] for row in cursor.fetchall()]
+        
+        all_distributions = []
+        for reg_date in query_dates:
+            # 构建查询条件
+            type_condition = "AND level_type = ?" if level_type else ""
+            params = [reg_date, day_start, day_end]
+            if level_type:
+                params.insert(1, level_type)
+            
+            cursor.execute(f"""
+                SELECT difficulty_level, COUNT(DISTINCT level_id) as level_count
+                FROM mv_completion_level_stats
+                WHERE register_date = ? {type_condition}
+                  AND day_num BETWEEN ? AND ?
+                  AND difficulty_level IS NOT NULL
+                GROUP BY difficulty_level
+                ORDER BY difficulty_level
+            """, params)
+            
+            distribution = []
+            for row in cursor.fetchall():
+                distribution.append({
+                    'difficulty_level': row[0],
+                    'level_count': row[1]
+                })
+            
+            all_distributions.append({
+                'register_date': reg_date,
+                'distribution': distribution
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'query_type': 'single' if register_date else 'range',
+                'level_type': level_type or 'all',
+                'day_num_span': day_num_span,
+                'results': all_distributions
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/charts/completion-vs-stuck', methods=['GET'])
+def api_completion_vs_stuck():
+    """
+    图表4: 完成率 vs 卡死率散点图
+    识别问题关卡（高卡死率+低完成率）
+    """
+    try:
+        register_date, register_date_start, register_date_end, register_date_interval = get_date_filter_params()
+        level_type = request.args.get('level_type', '')
+        day_num = request.args.get('day_num', type=int)
+        day_num_span = request.args.get('day_num_span', '1')
+        
+        date_where, date_params = build_date_where_clause(register_date, register_date_start, register_date_end)
+        if not date_where:
+            return jsonify({'code': 400, 'message': '缺少日期参数'}), 400
+        
+        # 确定day_num范围
+        if day_num:
+            day_start, day_end = day_num, day_num
+        else:
+            day_start, day_end = get_day_num_range(day_num_span)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取日期列表
+        if register_date:
+            query_dates = [register_date]
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                WHERE {date_where}
+                ORDER BY register_date
+            """, date_params)
+            query_dates = [row[0] for row in cursor.fetchall()]
+        
+        all_scatter = []
+        for reg_date in query_dates:
+            # 构建查询条件
+            type_condition = "AND level_type = ?" if level_type else ""
+            params = [reg_date, day_start, day_end]
+            if level_type:
+                params.insert(1, level_type)
+            
+            cursor.execute(f"""
+                SELECT level_type, level_id, 
+                       AVG(completion_rate) as avg_completion_rate,
+                       AVG(stuck_rate) as avg_stuck_rate,
+                       AVG(enter_users) as avg_enter_users
+                FROM mv_completion_level_stats
+                WHERE register_date = ? {type_condition}
+                  AND day_num BETWEEN ? AND ?
+                GROUP BY level_type, level_id
+                ORDER BY level_type, level_id
+            """, params)
+            
+            points = []
+            for row in cursor.fetchall():
+                points.append({
+                    'level_type': row[0],
+                    'level_id': row[1],
+                    'completion_rate': round(row[2], 2) if row[2] else 0,
+                    'stuck_rate': round(row[3], 2) if row[3] else 0,
+                    'enter_users': round(row[4], 0) if row[4] else 0
+                })
+            
+            all_scatter.append({
+                'register_date': reg_date,
+                'points': points
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'query_type': 'single' if register_date else 'range',
+                'level_type': level_type or 'all',
+                'day_num_span': day_num_span,
+                'results': all_scatter
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/charts/level-funnel', methods=['GET'])
+def api_level_funnel():
+    """
+    图表5: 关卡流失漏斗
+    展示用户从进入到最终留存的转化漏斗
+    """
+    try:
+        register_date, register_date_start, register_date_end, register_date_interval = get_date_filter_params()
+        level_type = request.args.get('level_type', '')
+        level_id = request.args.get('level_id', type=int)
+        day_num = request.args.get('day_num', type=int)
+        day_num_span = request.args.get('day_num_span', '1')
+        
+        if not level_type or not level_id:
+            return jsonify({'code': 400, 'message': '缺少level_type或level_id参数'}), 400
+        
+        date_where, date_params = build_date_where_clause(register_date, register_date_start, register_date_end)
+        if not date_where:
+            return jsonify({'code': 400, 'message': '缺少日期参数'}), 400
+        
+        # 确定day_num范围
+        if day_num:
+            day_start, day_end = day_num, day_num
+        else:
+            day_start, day_end = get_day_num_range(day_num_span)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取日期列表
+        if register_date:
+            query_dates = [register_date]
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                WHERE {date_where}
+                ORDER BY register_date
+            """, date_params)
+            query_dates = [row[0] for row in cursor.fetchall()]
+        
+        all_funnels = []
+        for reg_date in query_dates:
+            cursor.execute("""
+                SELECT 
+                    SUM(enter_users) as total_enter,
+                    SUM(pass_users) as pass_users,
+                    SUM(abandon_users) as abandon_users,
+                    SUM(fail_users) as fail_users,
+                    SUM(stuck_users) as stuck_users
+                FROM mv_completion_level_stats
+                WHERE register_date = ? AND level_type = ? AND level_id = ?
+                  AND day_num BETWEEN ? AND ?
+            """, [reg_date, level_type, level_id, day_start, day_end])
+            
+            row = cursor.fetchone()
+            if row and row[0]:
+                total_enter = row[0]
+                pass_users = row[1] or 0
+                abandon_users = row[2] or 0
+                fail_users = row[3] or 0
+                stuck_users = row[4] or 0
+                
+                funnel = [
+                    {'stage': '进入关卡', 'users': total_enter, 'rate': 100.0},
+                    {'stage': '通关用户', 'users': pass_users, 'rate': round(pass_users * 100.0 / total_enter, 2)},
+                    {'stage': '放弃用户', 'users': abandon_users, 'rate': round(abandon_users * 100.0 / total_enter, 2)},
+                    {'stage': '失败用户', 'users': fail_users, 'rate': round(fail_users * 100.0 / total_enter, 2)},
+                    {'stage': '卡死用户', 'users': stuck_users, 'rate': round(stuck_users * 100.0 / total_enter, 2)}
+                ]
+            else:
+                funnel = []
+            
+            all_funnels.append({
+                'register_date': reg_date,
+                'funnel': funnel
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'query_type': 'single' if register_date else 'range',
+                'level_type': level_type,
+                'level_id': level_id,
+                'day_num_span': day_num_span,
+                'results': all_funnels
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/charts/completion-heatmap', methods=['GET'])
+def api_completion_heatmap():
+    """
+    图表6: 关卡-day_num完成率热力图
+    展示各关卡在各天的完成率表现
+    """
+    try:
+        register_date, register_date_start, register_date_end, register_date_interval = get_date_filter_params()
+        level_type = request.args.get('level_type', '')
+        level_ids_str = request.args.get('level_ids', '')
+        aggregate_by = request.args.get('aggregate_by', 'avg')
+        
+        if not level_type:
+            return jsonify({'code': 400, 'message': '缺少level_type参数'}), 400
+        
+        date_where, date_params = build_date_where_clause(register_date, register_date_start, register_date_end)
+        if not date_where:
+            return jsonify({'code': 400, 'message': '缺少日期参数'}), 400
+        
+        # 解析level_ids
+        if level_ids_str:
+            level_ids = [int(x.strip()) for x in level_ids_str.split(',') if x.strip()]
+        else:
+            level_ids = list(range(1, 6))  # 默认1-5
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取日期列表
+        if register_date:
+            query_dates = [register_date]
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                WHERE {date_where}
+                ORDER BY register_date
+            """, date_params)
+            query_dates = [row[0] for row in cursor.fetchall()]
+        
+        all_heatmaps = []
+        for reg_date in query_dates:
+            # 构建level_id的IN条件
+            level_placeholders = ','.join(['?' for _ in level_ids])
+            params = [reg_date, level_type] + level_ids
+            
+            cursor.execute(f"""
+                SELECT level_id, day_num, completion_rate, enter_users
+                FROM mv_completion_level_stats
+                WHERE register_date = ? AND level_type = ?
+                  AND level_id IN ({level_placeholders})
+                ORDER BY level_id, day_num
+            """, params)
+            
+            heatmap_data = {}
+            for row in cursor.fetchall():
+                lvl_id = row[0]
+                if lvl_id not in heatmap_data:
+                    heatmap_data[lvl_id] = []
+                heatmap_data[lvl_id].append({
+                    'day_num': row[1],
+                    'completion_rate': round(row[2], 2) if row[2] else 0,
+                    'enter_users': row[3]
+                })
+            
+            all_heatmaps.append({
+                'register_date': reg_date,
+                'heatmap_data': heatmap_data
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'query_type': 'single' if register_date else 'range',
+                'level_type': level_type,
+                'level_ids': level_ids,
+                'results': all_heatmaps
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/charts/lowest-completion-top10', methods=['GET'])
+def api_lowest_completion_top10():
+    """
+    图表7: 完成率最低TOP10
+    找出完成率最低的10个关卡
+    """
+    try:
+        register_date, register_date_start, register_date_end, register_date_interval = get_date_filter_params()
+        level_type = request.args.get('level_type', '')
+        day_num = request.args.get('day_num', type=int)
+        day_num_span = request.args.get('day_num_span', '1')
+        aggregate_by = request.args.get('aggregate_by', 'avg')
+        
+        date_where, date_params = build_date_where_clause(register_date, register_date_start, register_date_end)
+        if not date_where:
+            return jsonify({'code': 400, 'message': '缺少日期参数'}), 400
+        
+        # 确定day_num范围
+        if day_num:
+            day_start, day_end = day_num, day_num
+        else:
+            day_start, day_end = get_day_num_range(day_num_span)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取日期列表
+        if register_date:
+            query_dates = [register_date]
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                WHERE {date_where}
+                ORDER BY register_date
+            """, date_params)
+            query_dates = [row[0] for row in cursor.fetchall()]
+        
+        all_top10 = []
+        for reg_date in query_dates:
+            # 构建查询条件
+            type_condition = "AND level_type = ?" if level_type else ""
+            params = [reg_date, day_start, day_end]
+            if level_type:
+                params.insert(1, level_type)
+            
+            cursor.execute(f"""
+                SELECT level_type, level_id, 
+                       AVG(completion_rate) as avg_completion_rate,
+                       AVG(enter_users) as avg_enter_users
+                FROM mv_completion_level_stats
+                WHERE register_date = ? {type_condition}
+                  AND day_num BETWEEN ? AND ?
+                GROUP BY level_type, level_id
+                ORDER BY avg_completion_rate ASC
+                LIMIT 10
+            """, params)
+            
+            top10 = []
+            for row in cursor.fetchall():
+                top10.append({
+                    'level_type': row[0],
+                    'level_id': row[1],
+                    'completion_rate': round(row[2], 2) if row[2] else 0,
+                    'enter_users': round(row[3], 0) if row[3] else 0
+                })
+            
+            all_top10.append({
+                'register_date': reg_date,
+                'top10': top10
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'query_type': 'single' if register_date else 'range',
+                'level_type': level_type or 'all',
+                'day_num_span': day_num_span,
+                'results': all_top10
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/charts/ad-trend', methods=['GET'])
+def api_ad_trend():
+    """
+    图表8: 广告率趋势图
+    展示指定关卡广告率随时间的变化
+    """
+    try:
+        register_date, register_date_start, register_date_end, register_date_interval = get_date_filter_params()
+        level_type = request.args.get('level_type', '')
+        level_id = request.args.get('level_id', type=int)
+        aggregate_by = request.args.get('aggregate_by', 'avg')
+        
+        if not level_type or not level_id:
+            return jsonify({'code': 400, 'message': '缺少level_type或level_id参数'}), 400
+        
+        date_where, date_params = build_date_where_clause(register_date, register_date_start, register_date_end)
+        if not date_where:
+            return jsonify({'code': 400, 'message': '缺少日期参数'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 获取日期列表
+        if register_date:
+            query_dates = [register_date]
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                WHERE {date_where}
+                ORDER BY register_date
+            """, date_params)
+            query_dates = [row[0] for row in cursor.fetchall()]
+            if register_date_interval > 1:
+                query_dates = query_dates[::register_date_interval]
+        
+        trends = []
+        for reg_date in query_dates:
+            cursor.execute("""
+                SELECT day_num, ad_view_rate, enter_users
+                FROM mv_completion_level_stats
+                WHERE register_date = ? AND level_type = ? AND level_id = ?
+                ORDER BY day_num
+            """, [reg_date, level_type, level_id])
+            
+            trend_data = []
+            for row in cursor.fetchall():
+                trend_data.append({
+                    'day_num': row[0],
+                    'ad_view_rate': round(row[1], 2) if row[1] else 0,
+                    'enter_users': row[2]
+                })
+            
+            trends.append({
+                'register_date': reg_date,
+                'trend_data': trend_data
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'query_type': 'single' if register_date else 'range',
+                'level_type': level_type,
+                'level_id': level_id,
+                'trends': trends
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=False, port=5080, host='0.0.0.0', threaded=True)
