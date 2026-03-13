@@ -3690,6 +3690,22 @@
             updateCompletionTrendChart();
         }
 
+        // 全局点击事件 - 点击下拉框以外区域时收起
+        document.addEventListener('click', function(event) {
+            const panel = document.getElementById('singleLevelDropdownPanel');
+            const trigger = document.querySelector('.tree-dropdown-trigger[onclick*="toggleSingleLevelDropdown"]');
+
+            if (panel && panel.style.display === 'block') {
+                // 检查点击是否在下拉框或触发按钮内
+                const isClickInsidePanel = panel.contains(event.target);
+                const isClickOnTrigger = trigger && trigger.contains(event.target);
+
+                if (!isClickInsidePanel && !isClickOnTrigger) {
+                    panel.style.display = 'none';
+                }
+            }
+        });
+
         // 当前图表数据（用于显示全部/隐藏功能）
         let currentPenetrationChartData = null;
 
