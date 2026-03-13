@@ -402,21 +402,70 @@
                 </div>
                 <div id="categoryDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
                 <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryUserRatioChart"></canvas></div>
-                <div class="insight-box"><h4>健康标准</h4><ul><li>普通60%、困难25%、地狱10%、副本5%</li></ul></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>计算公式：</strong>人数进入占比 = 进入该类别的累计用户数（去重） / 注册总用户数 × 100%</li>
+                        <li><strong>统计逻辑：</strong>统计在指定天数内，至少进入过该类别1次的用户数量（同一用户多次进入只算1人），除以该注册日期的总用户数，得到百分比</li>
+                    </ul>
+                    <h4 style="margin-top: 10px;">数据价值</h4>
+                    <ul>
+                        <li>反映不同难度关卡的<strong>用户覆盖度</strong>和<strong>渗透深度</strong></li>
+                        <li>识别<strong>核心玩法偏好</strong>：高占比类别是用户主要投入的内容</li>
+                        <li>评估<strong>难度梯度设计</strong>：困难/地狱占比过低可能意味着难度曲线过陡</li>
+                        <li>指导<strong>内容投放策略</strong>：根据用户偏好调整关卡产出和资源分配</li>
+                        <li>预测<strong>用户生命周期</strong>：进入多类别的用户通常留存率更高</li>
+                    </ul>
+                    <h4 style="margin-top: 10px;">健康标准</h4>
+                    <ul><li>普通60%、困难25%、地狱10%、副本5%</li></ul>
+                </div>
             </div>
 
             <!-- P1-10b: 关卡类别进入次数占比（不去重） -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别进入次数占比（不去重） <span class="priority p1">P1</span></h3>
                 <div class="chart-container" style="height: 350px;"><canvas id="categoryCountRatioChart"></canvas></div>
-                <div class="insight-box"><h4>健康标准</h4><ul><li>根据用户活跃度，通常普通占70%以上</li></ul></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>计算公式：</strong>次数进入占比 = 进入该类别的累计次数（不去重） / 所有类别累计进入总次数 × 100%</li>
+                        <li><strong>统计逻辑：</strong>统计在指定天数内，进入该类别的总次数（同一用户多次进入分别计算），除以进入所有类别的总次数之和，得到百分比</li>
+                    </ul>
+                    <h4 style="margin-top: 10px;">数据价值</h4>
+                    <ul>
+                        <li>反映用户对不同类别的<strong>参与频次和投入程度</strong></li>
+                        <li>识别<strong>高粘性玩法</strong>：次数占比高于人数占比的类别说明用户重复参与度高</li>
+                        <li>评估<strong>内容消耗速度</strong>：高次数占比可能意味着该类别内容消耗快，需要补充</li>
+                        <li>优化<strong>广告位配置</strong>：高频次类别适合放置更多广告点</li>
+                        <li>指导<strong>活动设计</strong>：针对高频次类别设计专属活动提升付费转化</li>
+                    </ul>
+                    <h4 style="margin-top: 10px;">健康标准</h4>
+                    <ul><li>根据用户活跃度，通常普通占70%以上</li></ul>
+                </div>
             </div>
 
             <!-- P1-10c: 关卡类别人均进入次数对比（不去重） -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别人均进入次数对比（不去重） <span class="priority p1">P1</span></h3>
                 <div class="chart-container" style="height: 350px;"><canvas id="categoryAvgCountChart"></canvas></div>
-                <div class="insight-box"><h4>健康标准</h4><ul><li>人均进入次数反映用户粘性和关卡吸引力</li></ul></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>计算公式：</strong>人均进入次数 = 进入该类别的累计次数（不去重） / 进入该类别的累计用户数（去重）</li>
+                        <li><strong>统计逻辑：</strong>统计在指定天数内，平均每个进入该类别用户会进入多少次，反映用户对该类别的参与深度</li>
+                    </ul>
+                    <h4 style="margin-top: 10px;">数据价值</h4>
+                    <ul>
+                        <li>反映用户对各类别的<strong>参与深度和粘性</strong>，是衡量内容吸引力的核心指标</li>
+                        <li>识别<strong>核心玩法</strong>：人均次数高的类别是用户最愿意重复体验的内容</li>
+                        <li>评估<strong>难度平衡性</strong>：困难/地狱类别人均次数过低可能意味着难度过高导致用户放弃</li>
+                        <li>发现<strong>付费潜力</strong>：高人均次数类别的用户更愿意为相关内容付费</li>
+                        <li>优化<strong>资源投放</strong>：优先在高人均次数类别投放新内容和活动</li>
+                        <li>预警<strong>内容疲劳</strong>：人均次数持续下降预示该类别内容可能需要更新</li>
+                    </ul>
+                    <h4 style="margin-top: 10px;">健康标准</h4>
+                    <ul><li>人均进入次数反映用户粘性和关卡吸引力</li></ul>
+                </div>
             </div>
 
             <!-- P1-11: 解锁转化率分析 -->
