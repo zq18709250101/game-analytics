@@ -3576,6 +3576,7 @@
                         tooltip: {
                             mode: 'index',
                             intersect: false,
+                            axis: 'x',
                             callbacks: {
                                 title: (items) => {
                                     const item = items[0];
@@ -3606,14 +3607,13 @@
                                 return (order[a.dataset.label] || 99) - (order[b.dataset.label] || 99);
                             },
                             filter: function(tooltipItem, data) {
-                                // 获取当前激活的元素
-                                const chart = tooltipItem.chart;
-                                const activeElements = chart.getActiveElements();
-                                if (activeElements.length > 0) {
-                                    // 获取当前悬停的dataset的stack
-                                    const activeStack = activeElements[0].dataset.stack;
-                                    // 只显示同一stack的dataset
-                                    return tooltipItem.dataset.stack === activeStack;
+                                // 获取当前tooltip的所有数据点
+                                const tooltip = tooltipItem.chart.tooltip;
+                                if (tooltip.dataPoints && tooltip.dataPoints.length > 0) {
+                                    // 获取第一个数据点的stack（即当前鼠标所在位置的stack）
+                                    const targetStack = tooltip.dataPoints[0].dataset.stack;
+                                    // 只显示同一stack的数据
+                                    return tooltipItem.dataset.stack === targetStack;
                                 }
                                 return true;
                             }
