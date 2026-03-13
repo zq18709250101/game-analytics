@@ -1532,5 +1532,150 @@ def api_category_enter_ratio():
         return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
 
 
+@app.route('/api/v1/user/category-distribution', methods=['POST'])
+def api_user_category_distribution():
+    """
+    用户类别分布查询
+    
+    请求参数：
+    - register_dates: 注册日期列表（YYYYMMDD）
+    - day_num: 注册后第N天（1-90，默认7）
+    """
+    try:
+        data = request.get_json() or {}
+        
+        # 获取参数
+        register_dates = data.get('register_dates', [20260110])
+        day_num = data.get('day_num', 7)
+        
+        # 参数校验
+        if not register_dates or len(register_dates) == 0:
+            return jsonify({'code': 400, 'message': '注册日期不能为空'}), 400
+        if day_num < 1 or day_num > 90:
+            return jsonify({'code': 400, 'message': 'day_num范围必须是1-90'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        placeholders_dates = ','.join(['?' for _ in register_dates])
+        
+        # 查询用户类别分布数据
+        cursor.execute(f"""
+            SELECT 
+                register_date,
+                day_num,
+                total_users,
+                newbie_users,
+                normal_users,
+                hard_users,
+                hell_users,
+                copy_users
+            FROM mv_user_category_distribution
+            WHERE register_date IN ({placeholders_dates})
+              AND day_num = ?
+            ORDER BY register_date
+        """, register_dates + [day_num])
+        
+        # 整理数据
+        raw_data = {}
+        for row in cursor.fetchall():
+            reg_date = str(row[0])
+            raw_data[reg_date] = {
+                'register_date': reg_date,
+                'day_num': row[1],
+                'total_users': row[2],
+                'newbie_users': row[3],
+                'normal_users': row[4],
+                'hard_users': row[5],
+                'hell_users': row[6],
+                'copy_users': row[7]
+            }
+        
+        conn.close()
+        
+        # 颜色映射
+        color_map = {
+            '新手': '#95a5a6',
+            '普通关卡玩家': '#5470c6',
+            '困难关卡玩家': '#91cc75',
+            '地狱关卡玩家': '#fac858',
+            '副本关卡玩家': '#ee6666'
+        }
+        
+        # 构建series_groups（与关卡类别图表相同的结构）
+        series_groups = []
+        for reg_date in register_dates:
+            reg_date_str = str(reg_date)
+            if reg_date_str not in raw_data:
+                continue
+            
+            data_item = raw_data[reg_date_str]
+            total = data_item['total_users']
+            
+            series = [
+                {
+                    'name': '新手',
+                    'data': [data_item['newbie_users']],
+                    'color': color_map['新手']
+                },
+                {
+                    'name': '普通关卡玩家',
+                    'data': [data_item['normal_users']],
+                    'color': color_map['普通关卡玩家']
+                },
+                {
+                    'name': '困难关卡玩家',
+                    'data': [data_item['hard_users']],
+                    'color': color_map['困难关卡玩家']
+                },
+                {
+                    'name': '地狱关卡玩家',
+                    'data': [data_item['hell_users']],
+                    'color': color_map['地狱关卡玩家']
+                },
+                {
+                    'name': '副本关卡玩家',
+                    'data': [data_item['copy_users']],
+                    'color': color_map['副本关卡玩家']
+                }
+            ]
+            
+            series_groups.append({
+                'group_name': reg_date_str,
+                'register_date': reg_date,
+                'total_users': total,
+                'series': series
+            })
+        
+        # 构建图表数据
+        chart_data = {
+            'chart_id': 'user_category_distribution',
+            'chart_name': '用户类别分布',
+            'metric': 'user_count',
+            'unit': '人',
+            'x_axis': {
+                'name': '用户类别',
+                'data': ['D' + str(day_num)]
+            },
+            'series_groups': series_groups
+        }
+        
+        return jsonify({
+            'code': 0,
+            'message': 'success',
+            'data': {
+                'query_info': {
+                    'register_dates': register_dates,
+                    'day_num': day_num
+                },
+                'chart': chart_data
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=False, port=5055, host='0.0.0.0', threaded=True)

@@ -450,6 +450,19 @@
                 </div>
             </div>
 
+            <!-- P1-10e: 用户类别分布 -->
+            <div class="chart-card full-width" data-dimension="penetration">
+                <h3>用户类别分布 <span class="priority p1">P1</span></h3>
+                <div class="chart-container" style="height: 350px;"><canvas id="userCategoryDistributionChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>统计逻辑：</strong>根据用户在指定天数的通关行为，将用户分类为新手、普通关卡玩家、困难关卡玩家、地狱关卡玩家、副本关卡玩家</li>
+                        <li><strong>分类标准：</strong>地狱通关≥10次为地狱玩家；困难通关≥10次为困难玩家；副本通关≥3次且困难<10次为副本玩家；普通通关<3次为新手；其他为普通关卡玩家</li>
+                    </ul>
+                </div>
+            </div>
+
             <!-- P1-11: 解锁转化率分析 -->
             <div class="chart-card" data-dimension="penetration">
                 <h3>解锁转化率分析 <span class="priority p1">P1</span></h3>
@@ -3530,6 +3543,70 @@
                 ...emptyChartData,
                 chart_name: '关卡类别当日人均进入次数对比'
             }, false);
+            
+            // 同时加载用户类别分布图表
+            updateUserCategoryDistribution();
+        }
+        
+        // 用户类别分布图表 - 使用与关卡类别图表相同的控件
+        async function updateUserCategoryDistribution() {
+            console.log('updateUserCategoryDistribution: 开始加载用户类别分布图表');
+            
+            // 使用与关卡类别图表相同的日期范围
+            let startDateStr = document.getElementById('tsStartDate')?.value;
+            let endDateStr = document.getElementById('tsEndDate')?.value;
+            
+            if (!startDateStr || !endDateStr) {
+                startDateStr = '2026-01-10';
+                endDateStr = '2026-01-11';
+            }
+            
+            // 生成注册日期列表
+            const registerDates = [];
+            const startDate = new Date(startDateStr);
+            const endDate = new Date(endDateStr);
+            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            for (let i = 0; i < daysDiff; i++) {
+                const d = new Date(startDate);
+                d.setDate(d.getDate() + i);
+                const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
+                registerDates.push(parseInt(dateStr));
+            }
+            
+            // 使用与关卡类别图表相同的时间范围选择
+            const dayNum = parseInt(document.getElementById('categoryDaySelect')?.value || 7);
+            
+            console.log('用户类别分布查询参数:', { registerDates, dayNum });
+            
+            try {
+                const response = await fetch('/api/v1/user/category-distribution', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        register_dates: registerDates,
+                        day_num: dayNum
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('用户类别分布API响应:', result);
+                
+                if (result.code === 0) {
+                    renderUserCategoryDistributionChart(result.data);
+                }
+            } catch (error) {
+                console.error('加载用户类别分布失败:', error);
+            }
+        }
+        
+        // 渲染用户类别分布图表
+        function renderUserCategoryDistributionChart(data) {
+            const chartData = data.chart;
+            if (!chartData) return;
+            
+            // 使用与关卡类别图表相同的渲染函数
+            renderCategoryBarChart('userCategoryDistributionChart', chartData, true);
         }
         
         // 存储当前图表的日期列表和可见性状态
@@ -3575,18 +3652,16 @@
                 legendItem.classList.toggle('hidden', !newVisible);
             }
 
-            // 更新四个图表的显示
-            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryCumulativeAvgChart', 'categoryDailyAvgChart'];
-            const chartTypes = ['user', 'count', 'cumulative_avg', 'daily_avg'];
+            // 更新五个图表的显示（包括用户类别分布）
+            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryCumulativeAvgChart', 'categoryDailyAvgChart', 'userCategoryDistributionChart'];
 
-            canvasIds.forEach((canvasId, idx) => {
+            canvasIds.forEach((canvasId) => {
                 const chart = charts[canvasId];
                 if (!chart) return;
 
-                const type = chartTypes[idx];
-                const stackKey = `stack_${categoryChartDateStates[type].dates.indexOf(parseInt(date))}`;
                 chart.data.datasets.forEach((dataset, index) => {
-                    if (dataset.stack === stackKey || (dataset.stack === null && dataset.groupName === String(date))) {
+                    // 根据groupName匹配日期
+                    if (dataset.groupName === String(date)) {
                         chart.setDatasetVisibility(index, newVisible);
                     }
                 });
@@ -3615,8 +3690,8 @@
                 item.classList.toggle('hidden', !showAll);
             });
 
-            // 更新四个图表的显示
-            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryCumulativeAvgChart', 'categoryDailyAvgChart'];
+            // 更新五个图表的显示（包括用户类别分布）
+            const canvasIds = ['categoryUserRatioChart', 'categoryCountRatioChart', 'categoryCumulativeAvgChart', 'categoryDailyAvgChart', 'userCategoryDistributionChart'];
             canvasIds.forEach(canvasId => {
                 const chart = charts[canvasId];
                 if (!chart) return;
