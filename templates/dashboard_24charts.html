@@ -96,6 +96,30 @@
         .section-title { grid-column: 1 / -1; font-size: 1.4rem; color: #667eea; margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #667eea; display: flex; align-items: center; gap: 0.5rem; }
         .chart-count { font-size: 0.8rem; color: #666; font-weight: normal; margin-left: auto; }
         @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        
+        /* 日期图例样式 */
+        .date-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .date-legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 16px;
+            background: #f0f0f0;
+            border: 2px solid transparent;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .date-legend-item:hover { background: #e0e0e0; }
+        .date-legend-item.active { border-color: #667eea; background: #f0f0ff; }
+        .date-legend-item.hidden { opacity: 0.4; background: #f5f5f5; }
+        .date-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -370,7 +394,13 @@
                         <option value="60">60天</option>
                         <option value="90">90天</option>
                     </select>
+                    <label class="switch" style="margin-left: 15px;">
+                        <input type="checkbox" id="categoryUserShowAll" checked onchange="toggleCategoryUserDates()">
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
+                    </label>
                 </div>
+                <div id="categoryUserDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
                 <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryUserRatioChart"></canvas></div>
                 <div class="insight-box"><h4>健康标准</h4><ul><li>普通60%、困难25%、地狱10%、副本5%</li></ul></div>
             </div>
@@ -378,14 +408,30 @@
             <!-- P1-10b: 关卡类别进入次数占比（不去重） -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别进入次数占比（不去重） <span class="priority p1">P1</span></h3>
-                <div class="chart-container" style="height: 350px;"><canvas id="categoryCountRatioChart"></canvas></div>
+                <div class="chart-selector">
+                    <label class="switch">
+                        <input type="checkbox" id="categoryCountShowAll" checked onchange="toggleCategoryCountDates()">
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
+                    </label>
+                </div>
+                <div id="categoryCountDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryCountRatioChart"></canvas></div>
                 <div class="insight-box"><h4>健康标准</h4><ul><li>根据用户活跃度，通常普通占70%以上</li></ul></div>
             </div>
 
             <!-- P1-10c: 关卡类别人均进入次数对比（不去重） -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别人均进入次数对比（不去重） <span class="priority p1">P1</span></h3>
-                <div class="chart-container" style="height: 350px;"><canvas id="categoryAvgCountChart"></canvas></div>
+                <div class="chart-selector">
+                    <label class="switch">
+                        <input type="checkbox" id="categoryAvgShowAll" checked onchange="toggleCategoryAvgDates()">
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
+                    </label>
+                </div>
+                <div id="categoryAvgDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryAvgCountChart"></canvas></div>
                 <div class="insight-box"><h4>健康标准</h4><ul><li>人均进入次数反映用户粘性和关卡吸引力</li></ul></div>
             </div>
 
@@ -3466,9 +3512,139 @@
             }, false);
         }
         
+        // 存储当前图表的日期列表和可见性状态
+        const categoryChartDateStates = {
+            user: { dates: [], visible: {} },
+            count: { dates: [], visible: {} },
+            avg: { dates: [], visible: {} }
+        };
+
+        // 生成日期图例HTML
+        function generateDateLegend(dates, chartType) {
+            const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#ff9f7f'];
+            let html = '';
+            dates.forEach((date, index) => {
+                const color = colors[index % colors.length];
+                const isVisible = categoryChartDateStates[chartType].visible[date] !== false;
+                const dateStr = String(date);
+                const displayDate = `${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+                html += `<div class="date-legend-item ${isVisible ? 'active' : 'hidden'}" data-date="${date}" data-chart="${chartType}" onclick="toggleCategoryDate('${date}', '${chartType}')">`;
+                html += `<span class="date-legend-color" style="background: ${color};"></span>`;
+                html += `<span>${displayDate}</span>`;
+                html += `</div>`;
+            });
+            return html;
+        }
+
+        // 切换单个日期的显示/隐藏
+        function toggleCategoryDate(date, chartType) {
+            const canvasId = chartType === 'user' ? 'categoryUserRatioChart' : 
+                            chartType === 'count' ? 'categoryCountRatioChart' : 'categoryAvgCountChart';
+            const chart = charts[canvasId];
+            if (!chart) return;
+
+            // 切换状态
+            const currentVisible = categoryChartDateStates[chartType].visible[date];
+            categoryChartDateStates[chartType].visible[date] = currentVisible === false ? true : false;
+            const newVisible = categoryChartDateStates[chartType].visible[date];
+
+            // 更新图例样式
+            const legendItem = document.querySelector(`.date-legend-item[data-date="${date}"][data-chart="${chartType}"]`);
+            if (legendItem) {
+                legendItem.classList.toggle('active', newVisible);
+                legendItem.classList.toggle('hidden', !newVisible);
+            }
+
+            // 更新图表显示
+            const stackKey = `stack_${categoryChartDateStates[chartType].dates.indexOf(parseInt(date))}`;
+            chart.data.datasets.forEach((dataset, index) => {
+                if (dataset.stack === stackKey) {
+                    chart.setDatasetVisibility(index, newVisible);
+                }
+            });
+            chart.update();
+
+            // 更新"显示全部"开关状态
+            updateShowAllSwitch(chartType);
+        }
+
+        // 切换显示全部日期
+        function toggleCategoryUserDates() {
+            toggleCategoryShowAll('user', 'categoryUserShowAll');
+        }
+        function toggleCategoryCountDates() {
+            toggleCategoryShowAll('count', 'categoryCountShowAll');
+        }
+        function toggleCategoryAvgDates() {
+            toggleCategoryShowAll('avg', 'categoryAvgShowAll');
+        }
+
+        function toggleCategoryShowAll(chartType, switchId) {
+            const showAll = document.getElementById(switchId)?.checked ?? true;
+            const canvasId = chartType === 'user' ? 'categoryUserRatioChart' : 
+                            chartType === 'count' ? 'categoryCountRatioChart' : 'categoryAvgCountChart';
+            const chart = charts[canvasId];
+            if (!chart) return;
+
+            // 更新所有日期的可见性状态
+            categoryChartDateStates[chartType].dates.forEach(date => {
+                categoryChartDateStates[chartType].visible[date] = showAll;
+            });
+
+            // 更新图例样式
+            const legendItems = document.querySelectorAll(`.date-legend-item[data-chart="${chartType}"]`);
+            legendItems.forEach(item => {
+                item.classList.toggle('active', showAll);
+                item.classList.toggle('hidden', !showAll);
+            });
+
+            // 更新图表显示
+            chart.data.datasets.forEach((dataset, index) => {
+                chart.setDatasetVisibility(index, showAll);
+            });
+            chart.update();
+        }
+
+        // 更新"显示全部"开关状态
+        function updateShowAllSwitch(chartType) {
+            const switchId = chartType === 'user' ? 'categoryUserShowAll' : 
+                            chartType === 'count' ? 'categoryCountShowAll' : 'categoryAvgShowAll';
+            const switchEl = document.getElementById(switchId);
+            if (!switchEl) return;
+
+            const allVisible = categoryChartDateStates[chartType].dates.every(date => 
+                categoryChartDateStates[chartType].visible[date] !== false
+            );
+            switchEl.checked = allVisible;
+        }
+
         function renderCategoryEnterRatioCharts(data) {
             const chartsData = data.charts || [];
             const queryInfo = data.query_info || {};
+            
+            // 获取注册日期列表
+            const registerDates = queryInfo.register_dates || [];
+
+            // 保存日期列表和初始化可见性状态
+            categoryChartDateStates.user.dates = [...registerDates];
+            categoryChartDateStates.count.dates = [...registerDates];
+            categoryChartDateStates.avg.dates = [...registerDates];
+            registerDates.forEach(date => {
+                if (categoryChartDateStates.user.visible[date] === undefined) {
+                    categoryChartDateStates.user.visible[date] = true;
+                }
+                if (categoryChartDateStates.count.visible[date] === undefined) {
+                    categoryChartDateStates.count.visible[date] = true;
+                }
+                if (categoryChartDateStates.avg.visible[date] === undefined) {
+                    categoryChartDateStates.avg.visible[date] = true;
+                }
+            });
+
+            // 生成日期图例
+            document.getElementById('categoryUserDateLegend').innerHTML = generateDateLegend(registerDates, 'user');
+            document.getElementById('categoryCountDateLegend').innerHTML = generateDateLegend(registerDates, 'count');
+            document.getElementById('categoryAvgDateLegend').innerHTML = generateDateLegend(registerDates, 'avg');
             
             // 图表1: 按人数
             const userChart = chartsData.find(c => c.chart_id === 'user_count');
@@ -3493,32 +3669,36 @@
         // chartType: 'stacked' | 'line' - stacked用于人数/次数占比，line用于人均次数
         function renderCategoryBarChart(canvasId, chartData, isUserRatio, chartType = 'stacked') {
             console.log(`renderCategoryBarChart: ${canvasId}`, chartData);
-            
+
             const canvas = document.getElementById(canvasId);
             if (!canvas) {
                 console.error(`Canvas ${canvasId} 不存在`);
                 return;
             }
-            
+
             // 销毁旧图表
             if (charts[canvasId]) {
                 charts[canvasId].destroy();
             }
-            
+
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
-            
+
             const xAxisData = chartData.x_axis?.data || [];
             const seriesGroups = chartData.series_groups || [];
             const dayCount = xAxisData.length;
-            
+
             if (seriesGroups.length === 0 || dayCount === 0) {
                 console.warn('没有数据可显示');
                 return;
             }
-            
+
             // 判断是否是人均次数图表
             const isAvgCount = chartData.chart_id === 'avg_count';
+
+            // 获取图表类型对应的日期状态
+            const chartTypeKey = canvasId === 'categoryUserRatioChart' ? 'user' :
+                                canvasId === 'categoryCountRatioChart' ? 'count' : 'avg';
             
             // 构建datasets - 每个注册日期的每个类别一个dataset
             const datasets = [];
@@ -3535,6 +3715,10 @@
                     });
                 });
                 
+                // 获取该注册日期的可见性状态
+                const registerDate = group.register_date;
+                const isDateVisible = categoryChartDateStates[chartTypeKey].visible[registerDate] !== false;
+
                 // 为每个类别创建dataset
                 group.series.forEach(catSeries => {
                     const datasetConfig = {
@@ -3546,16 +3730,18 @@
                         // 自定义属性
                         groupName: group.group_name,
                         fullLabel: `${group.group_name} ${catSeries.name}`,
-                        stackTotals: dayTotals[stackKey]
+                        stackTotals: dayTotals[stackKey],
+                        // 根据日期可见性设置初始隐藏状态
+                        hidden: !isDateVisible
                     };
-                    
+
                     // 人均次数图表使用分组柱状图（非堆叠）
                     if (isAvgCount) {
                         datasetConfig.stack = null; // 不分组堆叠
                     } else {
                         datasetConfig.stack = stackKey;
                     }
-                    
+
                     datasets.push(datasetConfig);
                 });
             });
