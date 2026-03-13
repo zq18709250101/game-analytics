@@ -1548,31 +1548,37 @@ def api_category_enter_ratio():
 @app.route('/api/v1/user/category-distribution', methods=['POST'])
 def api_user_category_distribution_v1():
     """
-    用户类别分布查询
+    用户类别分布查询 - 时间序列版本（X轴为day_num）
     
     请求参数：
     - register_dates: 注册日期列表（YYYYMMDD）
-    - day_num: 注册后第N天（1-90，默认7）
+    - day_num_start: 时间范围起始（1-90，默认1）
+    - day_num_end: 时间范围结束（1-90，默认7）
     """
     try:
         data = request.get_json() or {}
         
         # 获取参数
         register_dates = data.get('register_dates', [20260110])
-        day_num = data.get('day_num', 7)
+        day_num_start = data.get('day_num_start', 1)
+        day_num_end = data.get('day_num_end', 7)
         
         # 参数校验
         if not register_dates or len(register_dates) == 0:
             return jsonify({'code': 400, 'message': '注册日期不能为空'}), 400
-        if day_num < 1 or day_num > 90:
-            return jsonify({'code': 400, 'message': 'day_num范围必须是1-90'}), 400
+        if day_num_start < 1 or day_num_start > 90:
+            return jsonify({'code': 400, 'message': 'day_num_start范围必须是1-90'}), 400
+        if day_num_end < 1 or day_num_end > 90:
+            return jsonify({'code': 400, 'message': 'day_num_end范围必须是1-90'}), 400
+        if day_num_end < day_num_start:
+            return jsonify({'code': 400, 'message': 'day_num_end必须大于等于day_num_start'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
         placeholders_dates = ','.join(['?' for _ in register_dates])
         
-        # 查询用户类别分布数据
+        # 查询用户类别分布数据 - 时间序列
         cursor.execute(f"""
             SELECT 
                 register_date,
@@ -1585,17 +1591,20 @@ def api_user_category_distribution_v1():
                 copy_users
             FROM mv_user_category_distribution
             WHERE register_date IN ({placeholders_dates})
-              AND day_num = ?
-            ORDER BY register_date
-        """, register_dates + [day_num])
+              AND day_num BETWEEN ? AND ?
+            ORDER BY register_date, day_num
+        """, register_dates + [day_num_start, day_num_end])
         
-        # 整理数据
+        # 整理数据：按(注册日期, day_num)分组
         raw_data = {}
         for row in cursor.fetchall():
             reg_date = str(row[0])
-            raw_data[reg_date] = {
+            day_num = row[1]
+            
+            key = (reg_date, day_num)
+            raw_data[key] = {
                 'register_date': reg_date,
-                'day_num': row[1],
+                'day_num': day_num,
                 'total_users': row[2],
                 'newbie_users': row[3],
                 'normal_users': row[4],
@@ -1615,40 +1624,75 @@ def api_user_category_distribution_v1():
             '副本关卡玩家': '#ee6666'
         }
         
-        # 构建series_groups（与关卡类别图表相同的结构）
+        # 构建X轴数据
+        day_nums = list(range(day_num_start, day_num_end + 1))
+        x_axis_data = [f'D{day}' for day in day_nums]
+        
+        # 为每个注册日期构建series_groups（与关卡类别图表相同的结构）
         series_groups = []
+        
+        # 过滤出有数据的注册日期
+        valid_register_dates = []
         for reg_date in register_dates:
             reg_date_str = str(reg_date)
-            if reg_date_str not in raw_data:
-                continue
+            has_data = False
+            for day_num in day_nums:
+                key = (reg_date_str, day_num)
+                if key in raw_data:
+                    has_data = True
+                    break
+            if has_data:
+                valid_register_dates.append(reg_date)
+        
+        for reg_date in valid_register_dates:
+            reg_date_str = str(reg_date)
             
-            data_item = raw_data[reg_date_str]
-            total = data_item['total_users']
+            # 该注册日期的series - 每个类别一个时间序列
+            newbie_series = []
+            normal_series = []
+            hard_series = []
+            hell_series = []
+            copy_series = []
+            
+            for day_num in day_nums:
+                key = (reg_date_str, day_num)
+                if key in raw_data:
+                    newbie_series.append(raw_data[key]['newbie_users'])
+                    normal_series.append(raw_data[key]['normal_users'])
+                    hard_series.append(raw_data[key]['hard_users'])
+                    hell_series.append(raw_data[key]['hell_users'])
+                    copy_series.append(raw_data[key]['copy_users'])
+                else:
+                    newbie_series.append(0)
+                    normal_series.append(0)
+                    hard_series.append(0)
+                    hell_series.append(0)
+                    copy_series.append(0)
             
             series = [
                 {
                     'name': '新手',
-                    'data': [data_item['newbie_users']],
+                    'data': newbie_series,
                     'color': color_map['新手']
                 },
                 {
                     'name': '普通关卡玩家',
-                    'data': [data_item['normal_users']],
+                    'data': normal_series,
                     'color': color_map['普通关卡玩家']
                 },
                 {
                     'name': '困难关卡玩家',
-                    'data': [data_item['hard_users']],
+                    'data': hard_series,
                     'color': color_map['困难关卡玩家']
                 },
                 {
                     'name': '地狱关卡玩家',
-                    'data': [data_item['hell_users']],
+                    'data': hell_series,
                     'color': color_map['地狱关卡玩家']
                 },
                 {
                     'name': '副本关卡玩家',
-                    'data': [data_item['copy_users']],
+                    'data': copy_series,
                     'color': color_map['副本关卡玩家']
                 }
             ]
@@ -1656,19 +1700,19 @@ def api_user_category_distribution_v1():
             series_groups.append({
                 'group_name': reg_date_str,
                 'register_date': reg_date,
-                'total_users': total,
+                'total_users': raw_data.get((reg_date_str, day_num_start), {}).get('total_users', 0),
                 'series': series
             })
         
-        # 构建图表数据
+        # 构建图表数据（与关卡类别图表相同的结构）
         chart_data = {
             'chart_id': 'user_category_distribution',
             'chart_name': '用户类别分布',
             'metric': 'user_count',
             'unit': '人',
             'x_axis': {
-                'name': '用户类别',
-                'data': ['D' + str(day_num)]
+                'name': '注册后天数',
+                'data': x_axis_data
             },
             'series_groups': series_groups
         }
@@ -1679,7 +1723,8 @@ def api_user_category_distribution_v1():
             'data': {
                 'query_info': {
                     'register_dates': register_dates,
-                    'day_num': day_num
+                    'day_num_start': day_num_start,
+                    'day_num_end': day_num_end
                 },
                 'chart': chart_data
             }

@@ -453,7 +453,23 @@
             <!-- P1-10e: 用户类别分布 -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>用户类别分布 <span class="priority p1">P1</span></h3>
-                <div class="chart-container" style="height: 350px;"><canvas id="userCategoryDistributionChart"></canvas></div>
+                <div class="chart-selector">
+                    <label style="font-size: 0.9rem; margin-right: 5px;">时间范围:</label>
+                    <select id="userCategoryDaySelect" onchange="updateUserCategoryDistribution()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="7" selected>7天</option>
+                        <option value="14">14天</option>
+                        <option value="30">30天</option>
+                        <option value="60">60天</option>
+                        <option value="90">90天</option>
+                    </select>
+                    <label class="switch" style="margin-left: 15px;">
+                        <input type="checkbox" id="userCategoryShowAll" checked onchange="toggleUserCategoryShowAll()">
+                        <span class="slider"></span>
+                        <span class="switch-label">显示全部</span>
+                    </label>
+                </div>
+                <div id="userCategoryDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="userCategoryDistributionChart"></canvas></div>
                 <div class="insight-box">
                     <h4>分析要点</h4>
                     <ul>
@@ -3526,59 +3542,153 @@
             updateUserCategoryDistribution();
         }
         
-        // 用户类别分布图表 - 使用与关卡类别图表相同的控件
+        // 用户类别分布图表状态
+        const userCategoryChartDateStates = {
+            dates: [],
+            visible: {}
+        };
+
+        // 用户类别分布图表 - 独立的加载函数
         async function updateUserCategoryDistribution() {
             console.log('updateUserCategoryDistribution: 开始加载用户类别分布图表');
-            
-            // 使用与关卡类别图表相同的日期范围
+
+            // 使用渗透维度的时间范围选择器
             let startDateStr = document.getElementById('tsStartDate')?.value;
             let endDateStr = document.getElementById('tsEndDate')?.value;
-            
+
             if (!startDateStr || !endDateStr) {
                 startDateStr = '2026-01-10';
                 endDateStr = '2026-01-11';
             }
-            
+
             // 生成注册日期列表
             const registerDates = [];
             const startDate = new Date(startDateStr);
             const endDate = new Date(endDateStr);
             const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-            
+
             for (let i = 0; i < daysDiff; i++) {
                 const d = new Date(startDate);
                 d.setDate(d.getDate() + i);
                 const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
                 registerDates.push(parseInt(dateStr));
             }
-            
-            // 使用与关卡类别图表相同的时间范围选择
-            const dayNum = parseInt(document.getElementById('categoryDaySelect')?.value || 7);
-            
-            console.log('用户类别分布查询参数:', { registerDates, dayNum });
-            
+
+            // 使用自己的时间范围选择
+            const maxDays = parseInt(document.getElementById('userCategoryDaySelect')?.value || 7);
+            const dayStart = 1;
+            const dayEnd = maxDays;
+
+            console.log('用户类别分布查询参数:', { registerDates, dayStart, dayEnd });
+
             try {
                 const response = await fetch('/api/v1/user/category-distribution', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         register_dates: registerDates,
-                        day_num: dayNum
+                        day_num_start: dayStart,
+                        day_num_end: dayEnd
                     })
                 });
-                
+
                 const result = await response.json();
                 console.log('用户类别分布API响应:', result);
-                
+
                 if (result.code === 0) {
                     renderUserCategoryDistributionChart(result.data);
+                } else {
+                    console.error('API错误:', result.message);
                 }
             } catch (error) {
                 console.error('加载用户类别分布失败:', error);
             }
         }
-        
-        // 渲染用户类别分布图表
+
+        // 生成用户类别分布的日期图例
+        function generateUserCategoryDateLegend(dates) {
+            const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#ff9f7f'];
+            let html = '';
+            dates.forEach((date, index) => {
+                const color = colors[index % colors.length];
+                const isVisible = userCategoryChartDateStates.visible[date] !== false;
+                const dateStr = String(date);
+                const displayDate = `${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+                html += `<div class="date-legend-item ${isVisible ? 'active' : 'hidden'}" data-date="${date}" data-chart="userCategory" onclick="toggleUserCategoryDate('${date}')">`;
+                html += `<span class="date-legend-color" style="background: ${color};"></span>`;
+                html += `<span>${displayDate}</span>`;
+                html += `</div>`;
+            });
+            return html;
+        }
+
+        // 切换用户类别分布的单个日期显示
+        function toggleUserCategoryDate(date) {
+            const chart = charts['userCategoryDistributionChart'];
+            if (!chart) return;
+
+            // 切换状态
+            const currentVisible = userCategoryChartDateStates.visible[date];
+            const newVisible = currentVisible === false ? true : false;
+            userCategoryChartDateStates.visible[date] = newVisible;
+
+            // 更新图例样式
+            const legendItem = document.querySelector(`.date-legend-item[data-date="${date}"][data-chart="userCategory"]`);
+            if (legendItem) {
+                legendItem.classList.toggle('active', newVisible);
+                legendItem.classList.toggle('hidden', !newVisible);
+            }
+
+            // 更新图表显示
+            const stackKey = `stack_${userCategoryChartDateStates.dates.indexOf(parseInt(date))}`;
+            chart.data.datasets.forEach((dataset, index) => {
+                if (dataset.stack === stackKey) {
+                    chart.setDatasetVisibility(index, newVisible);
+                }
+            });
+            chart.update();
+
+            // 更新"显示全部"开关状态
+            updateUserCategoryShowAllSwitch();
+        }
+
+        // 切换用户类别分布的显示全部
+        function toggleUserCategoryShowAll() {
+            const showAll = document.getElementById('userCategoryShowAll')?.checked ?? true;
+            const chart = charts['userCategoryDistributionChart'];
+            if (!chart) return;
+
+            // 更新所有日期的可见性状态
+            userCategoryChartDateStates.dates.forEach(date => {
+                userCategoryChartDateStates.visible[date] = showAll;
+            });
+
+            // 更新图例样式
+            const legendItems = document.querySelectorAll('.date-legend-item[data-chart="userCategory"]');
+            legendItems.forEach(item => {
+                item.classList.toggle('active', showAll);
+                item.classList.toggle('hidden', !showAll);
+            });
+
+            // 更新图表显示
+            chart.data.datasets.forEach((dataset, index) => {
+                chart.setDatasetVisibility(index, showAll);
+            });
+            chart.update();
+        }
+
+        // 更新用户类别分布的"显示全部"开关状态
+        function updateUserCategoryShowAllSwitch() {
+            const switchEl = document.getElementById('userCategoryShowAll');
+            if (!switchEl) return;
+
+            const allVisible = userCategoryChartDateStates.dates.every(date =>
+                userCategoryChartDateStates.visible[date] !== false
+            );
+            switchEl.checked = allVisible;
+        }
+
+        // 渲染用户类别分布图表 - 使用与关卡类别图表相同的渲染方式
         function renderUserCategoryDistributionChart(data) {
             const chartData = data.chart;
             if (!chartData) return;
@@ -3597,38 +3707,67 @@
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
 
+            const xAxisData = chartData.x_axis?.data || [];
             const seriesGroups = chartData.series_groups || [];
-            if (seriesGroups.length === 0) {
+            const dayCount = xAxisData.length;
+
+            if (seriesGroups.length === 0 || dayCount === 0) {
                 console.warn('用户类别分布：没有数据可显示');
                 return;
             }
 
-            // 构建datasets - 每个类别一个dataset，每个注册日期一个数据点
+            // 保存日期列表和初始化可见性状态
+            userCategoryChartDateStates.dates = seriesGroups.map(g => g.register_date);
+            seriesGroups.forEach(group => {
+                const date = group.register_date;
+                if (userCategoryChartDateStates.visible[date] === undefined) {
+                    userCategoryChartDateStates.visible[date] = true;
+                }
+            });
+
+            // 生成日期图例
+            document.getElementById('userCategoryDateLegend').innerHTML = generateUserCategoryDateLegend(userCategoryChartDateStates.dates);
+
+            // 构建datasets - 每个注册日期的每个类别一个dataset
             const datasets = [];
-            const xLabels = seriesGroups.map(g => g.group_name); // X轴显示注册日期
+            const dayTotals = {};
 
-            // 获取所有类别名称
-            const categoryNames = seriesGroups[0].series.map(s => s.name);
+            seriesGroups.forEach((group, groupIndex) => {
+                const stackKey = `stack_${groupIndex}`;
+                dayTotals[stackKey] = new Array(dayCount).fill(0);
 
-            // 为每个类别创建一个dataset
-            categoryNames.forEach((catName, catIndex) => {
-                const data = seriesGroups.map(group => group.series[catIndex].data[0]);
-                const color = seriesGroups[0].series[catIndex].color;
+                // 计算该注册日期每个day_num的总计
+                group.series.forEach(catSeries => {
+                    catSeries.data.forEach((val, idx) => {
+                        dayTotals[stackKey][idx] += val;
+                    });
+                });
 
-                datasets.push({
-                    label: catName,
-                    data: data,
-                    backgroundColor: color,
-                    borderColor: color,
-                    borderWidth: 1,
-                    stack: 'stack_0' // 所有数据在同一stack中堆叠
+                // 获取该注册日期的可见性状态
+                const registerDate = group.register_date;
+                const isDateVisible = userCategoryChartDateStates.visible[registerDate] !== false;
+
+                // 为每个类别创建dataset
+                group.series.forEach(catSeries => {
+                    datasets.push({
+                        label: catSeries.name,
+                        data: catSeries.data,
+                        backgroundColor: catSeries.color,
+                        borderColor: catSeries.color,
+                        borderWidth: 1,
+                        stack: stackKey,
+                        groupName: group.group_name,
+                        fullLabel: `${group.group_name} ${catSeries.name}`,
+                        stackTotals: dayTotals[stackKey],
+                        hidden: !isDateVisible
+                    });
                 });
             });
 
             charts['userCategoryDistributionChart'] = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: xLabels,
+                    labels: xAxisData,
                     datasets: datasets
                 },
                 options: {
@@ -3637,31 +3776,77 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: chartData.chart_name + ' (D' + chartData.x_axis.data[0] + ')',
+                            text: chartData.chart_name,
                             font: { size: 14, weight: 'bold' }
                         },
                         legend: {
-                            position: 'top'
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                generateLabels: function(chart) {
+                                    const uniqueLabels = {};
+                                    const labels = [];
+                                    chart.data.datasets.forEach((dataset, index) => {
+                                        if (!uniqueLabels[dataset.label]) {
+                                            uniqueLabels[dataset.label] = true;
+                                            labels.push({
+                                                text: dataset.label,
+                                                fillStyle: dataset.backgroundColor,
+                                                strokeStyle: dataset.borderColor,
+                                                lineWidth: 1,
+                                                hidden: chart.getDatasetMeta(index).hidden,
+                                                datasetIndex: index
+                                            });
+                                        }
+                                    });
+                                    return labels;
+                                }
+                            },
+                            onClick: function(e, legendItem, legend) {
+                                return;
+                            }
                         },
                         tooltip: {
                             mode: 'index',
                             intersect: false,
+                            axis: 'x',
                             callbacks: {
                                 title: (items) => {
-                                    return '注册日期: ' + items[0].label;
+                                    const item = items[0];
+                                    if (!item) return '';
+                                    return `${item.dataset.groupName} - ${item.label}`;
                                 },
                                 label: (item) => {
-                                    return `${item.dataset.label}: ${item.raw}人`;
+                                    const dataset = item.dataset;
+                                    const dataIndex = item.dataIndex;
+                                    const value = item.raw;
+                                    const stackTotals = dataset.stackTotals;
+                                    const total = stackTotals[dataIndex];
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    return `${dataset.label}: ${value} (${percentage}%)`;
+                                },
+                                afterBody: (items) => {
+                                    if (items.length === 0) return '';
+                                    const dataset = items[0].dataset;
+                                    const stackTotals = dataset.stackTotals;
+                                    const dataIndex = items[0].dataIndex;
+                                    const total = stackTotals[dataIndex];
+                                    return `━━━━━━━━━━━━━━\n总计: ${total.toFixed(0)} 人`;
                                 }
+                            },
+                            itemSort: function(a, b) {
+                                const order = { '新手': 1, '普通关卡玩家': 2, '困难关卡玩家': 3, '地狱关卡玩家': 4, '副本关卡玩家': 5 };
+                                return (order[a.dataset.label] || 99) - (order[b.dataset.label] || 99);
                             }
                         }
                     },
                     scales: {
                         x: {
                             stacked: true,
-                            title: {
+                            grid: {
                                 display: true,
-                                text: '注册日期'
+                                color: 'rgba(0, 0, 0, 0.1)',
+                                drawOnChartArea: true
                             }
                         },
                         y: {
@@ -3670,6 +3855,10 @@
                             title: {
                                 display: true,
                                 text: '用户数'
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
                             }
                         }
                     }
