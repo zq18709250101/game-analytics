@@ -3,7 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<<<<<<< HEAD
+    <title>游戏数据分析 Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; text-align: center; }
+        .header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: white; padding: 1.2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+        .stat-value { font-size: 1.8rem; font-weight: bold; color: #667eea; }
+        .stat-label { color: #666; margin-top: 0.3rem; font-size: 0.9rem; }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; }
+        .chart-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .chart-card h3 { margin-bottom: 1rem; color: #333; font-size: 1rem; }
+        .chart-container { position: relative; height: 300px; }
+        .full-width { grid-column: 1 / -1; }
+        .insight-box { background: #f8f9fa; border-left: 4px solid #667eea; padding: 1rem; margin-top: 1rem; border-radius: 0 8px 8px 0; font-size: 0.9rem; }
+        .insight-box h4 { color: #667eea; margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .insight-box ul { margin-left: 1.2rem; font-size: 0.85rem; }
+=======
     <title>游戏数据分析 - 五维框架完整版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -47,12 +68,22 @@
         .full-width { grid-column: 1 / -1; }
         .section-title { grid-column: 1 / -1; font-size: 1.3rem; color: #667eea; margin: 1.5rem 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid #667eea; }
         @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-
+>>>>>>> 04d2838cc620ed339e700e6b393192232e54a0ba
     </style>
 </head>
 <body>
     <div class="header">
-
+<<<<<<< HEAD
+        <h1>🎮 游戏数据分析 Dashboard</h1>
+        <p>2026年1月10日-19日 激活用户分析</p>
+    </div>
+    
+    <div class="container">
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalUsers">-</div>
+                <div class="stat-label">总用户数</div>
+=======
         <h1>🎮 游戏数据分析仪表盘</h1>
         <p>五维分析框架 v3.0 | 基于新注册用户全生命周期 | 15个图表</p>
         <div class="dimension-selector">
@@ -97,7 +128,7 @@
                 <h3>累计渗透率趋势</h3>
                 <div class="chart-container"><canvas id="penetrationChart"></canvas></div>
                 <div class="insight-box"><h4>关键洞察</h4><ul><li>60日渗透率目标：>80%</li><li>前期增长快，后期趋于平稳</li></ul></div>
-
+>>>>>>> 04d2838cc620ed339e700e6b393192232e54a0ba
             </div>
             
             <div class="chart-card" data-dimension="penetration">
@@ -117,7 +148,34 @@
                 <div class="chart-container"><canvas id="coreUserChart"></canvas></div>
                 <div class="insight-box"><h4>二八定律</h4><ul><li>20%核心用户贡献68%行为</li></ul></div>
             </div>
-
+<<<<<<< HEAD
+        </div>
+        
+        <div class="chart-grid">
+            <!-- 关卡进度分布 -->
+            <div class="chart-card">
+                <h3>📊 关卡进度分布</h3>
+                <div class="chart-container"><canvas id="chapterChart"></canvas></div>
+            </div>
+            
+            <!-- 用户留存曲线 -->
+            <div class="chart-card">
+                <h3>📈 用户留存曲线</h3>
+                <div class="chart-container"><canvas id="retentionChart"></canvas></div>
+            </div>
+            
+            <!-- 战力分层分布 (P2) -->
+            <div class="chart-card">
+                <h3>⚔️ 战力分层分布</h3>
+                <div class="chart-container"><canvas id="powerDistChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li>识别核心玩家群体分布</li>
+                        <li>评估游戏难度平衡性</li>
+                    </ul>
+                </div>
+=======
             
             <div class="section-title" data-dimension="completion">🎯 完成与流失维度</div>
             
@@ -239,13 +297,106 @@
                 <h3>关键IPU点对比</h3>
                 <div class="chart-container"><canvas id="tsKeyIpuChart"></canvas></div>
                 <div class="insight-box"><h4>关键节点</h4><ul><li>首日/次日/3日/7日/30日/60日IPU对比</li></ul></div>
-
+>>>>>>> 04d2838cc620ed339e700e6b393192232e54a0ba
             </div>
         </div>
     </div>
     
     <script>
-
+<<<<<<< HEAD
+        let charts = {};
+        
+        // 加载概览数据
+        fetch('/api/overview')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('totalUsers').textContent = data.total_users.toLocaleString();
+                document.getElementById('totalActions').textContent = data.total_actions.toLocaleString();
+                document.getElementById('adViews').textContent = data.ad_views.toLocaleString();
+                document.getElementById('adRate').textContent = data.ad_rate;
+            });
+        
+        // 加载关卡进度
+        fetch('/api/chapter_progress')
+            .then(r => r.json())
+            .then(data => {
+                const ctx = document.getElementById('chapterChart').getContext('2d');
+                charts.chapter = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(d => d.chapter),
+                        datasets: [{
+                            label: '用户数',
+                            data: data.map(d => d.users),
+                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            });
+        
+        // 加载留存数据
+        fetch('/api/retention')
+            .then(r => r.json())
+            .then(data => {
+                const ctx = document.getElementById('retentionChart').getContext('2d');
+                charts.retention = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => 'Day ' + d.day),
+                        datasets: [{
+                            label: '留存用户数',
+                            data: data.map(d => d.users),
+                            borderColor: '#764ba2',
+                            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            });
+        
+        // 战力分层分布图表
+        function renderPowerDistChart() {
+            const ctx = document.getElementById('powerDistChart').getContext('2d');
+            
+            // 战力分层数据（模拟数据）
+            const powerData = {
+                labels: ['新手 (<1000)', '初级 (1000-3000)', '中级 (3000-6000)', '高级 (6000-10000)', '精英 (>10000)'],
+                datasets: [{
+                    data: [35, 28, 20, 12, 5],
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.6)',
+                        'rgba(118, 75, 162, 0.6)',
+                        'rgba(240, 147, 251, 0.6)',
+                        'rgba(245, 87, 108, 0.6)',
+                        'rgba(79, 172, 254, 0.6)'
+                    ],
+                    borderColor: [
+                        '#667eea',
+                        '#764ba2',
+                        '#f093fb',
+                        '#f5576c',
+                        '#4facfe'
+                    ],
+                    borderWidth: 2
+                }]
+            };
+            
+            charts.powerDist = new Chart(ctx, {
+                type: 'doughnut',
+                data: powerData,
+=======
         let charts = {}, currentDimension = 'all', chartData = {}, currentDate = new Date().toISOString().split('T')[0];
 
         async function init() {
@@ -728,26 +879,10 @@
         function renderTsRetentionChart(dates, colors) {
             const ctx = document.getElementById('tsRetentionChart').getContext('2d');
             if (charts.tsRetention) charts.tsRetention.destroy();
-
+            
             // 生成1-60天的标签
             const dayLabels = Array.from({length: 60}, (_, i) => (i + 1).toString());
-            const totalDays = dayLabels.length;
-
-            // 根据总天数动态计算显示间隔
-            // 目标：X轴显示约8-12个标签
-            let interval;
-            if (totalDays <= 10) {
-                interval = 1;  // 10天以内，每天显示
-            } else if (totalDays <= 20) {
-                interval = 2;  // 11-20天，每2天显示
-            } else if (totalDays <= 30) {
-                interval = 3;  // 21-30天，每3天显示
-            } else if (totalDays <= 60) {
-                interval = 5;  // 31-60天，每5天显示
-            } else {
-                interval = 10; // 60天以上，每10天显示
-            }
-
+            
             const datasets = dates.slice(0, 5).map((date, index) => ({
                 label: date,
                 data: dayLabels.map((_, i) => {
@@ -765,17 +900,36 @@
                 pointRadius: 0,
                 pointHoverRadius: 4
             }));
-
+            
             charts.tsRetention = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: dayLabels,
                     datasets: datasets
                 },
+>>>>>>> 04d2838cc620ed339e700e6b393192232e54a0ba
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
+<<<<<<< HEAD
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 15,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value}% (${percentage}%)`;
+                                }
+=======
                         legend: { position: 'top' },
                         tooltip: {
                             mode: 'index',
@@ -791,12 +945,8 @@
                             ticks: {
                                 maxTicksLimit: 12,
                                 callback: function(value, index) {
-                                    const day = parseInt(this.getLabelForValue(value));
-                                    // 根据计算出的间隔显示标签
-                                    // 始终显示第1天
-                                    if (day === 1) return '1日';
-                                    // 按间隔显示
-                                    return day % interval === 0 ? day + '日' : '';
+                                    const day = index + 1;
+                                    return [1, 7, 14, 30, 60].includes(day) ? day + '日' : '';
                                 }
                             }
                         },
@@ -972,7 +1122,7 @@
                             callbacks: {
                                 title: (items) => `日期: ${items[0].label}`,
                                 label: (item) => `${item.dataset.label}: ${item.raw}%`
-
+>>>>>>> 04d2838cc620ed339e700e6b393192232e54a0ba
                             }
                         }
                     }
@@ -980,7 +1130,12 @@
             });
         }
         
-
+<<<<<<< HEAD
+        // 页面加载完成后渲染战力分布图表
+        window.onload = function() {
+            renderPowerDistChart();
+        };
+=======
         function renderTsKeyIpuChart(dates, colors) {
             const ctx = document.getElementById('tsKeyIpuChart').getContext('2d');
             if (charts.tsKeyIpu) charts.tsKeyIpu.destroy();
@@ -1033,7 +1188,7 @@
         }
         
         window.onload = init;
-
+>>>>>>> 04d2838cc620ed339e700e6b393192232e54a0ba
     </script>
 </body>
 </html>

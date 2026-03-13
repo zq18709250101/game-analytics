@@ -1505,19 +1505,21 @@ def api_category_enter_ratio():
             'chart_name': '关卡类别累计人均进入次数对比',
             'metric': 'cumulative_avg',
             'unit': '次/人',
+            'data_type': 'number',
             'x_axis': {
                 'name': '注册后天数',
                 'data': x_axis_data
             },
             'series_groups': cumulative_avg_series_groups
         }
-        
+
         # 图表4：当日人均进入次数
         daily_avg_chart = {
             'chart_id': 'daily_avg',
             'chart_name': '关卡类别当日人均进入次数对比',
             'metric': 'daily_avg',
             'unit': '次/人',
+            'data_type': 'number',
             'x_axis': {
                 'name': '注册后天数',
                 'data': x_axis_data
@@ -1738,38 +1740,143 @@ def api_user_category_distribution_v1():
 @app.route('/api/v1/unlock/conversion-analysis', methods=['POST'])
 def api_unlock_conversion_analysis():
     """
-    解锁转化率分析查询
+    解锁转化率分析查询 - v1.1
+    支持漏斗图（多注册日期X轴）和趋势图（时间范围X轴）切换
     
     请求参数：
     - register_date_start: 注册日期起始（YYYYMMDD）
     - register_date_end: 注册日期结束（YYYYMMDD）
-    - day_num: 时间范围天数（1-90，默认7）
     - view_type: 视图类型（funnel/trend，默认funnel）
     - funnel_path: 漏斗路径（normal_hard_hell/normal_copy，默认normal_hard_hell）
     - trend_path: 趋势路径（normal_hard/hard_hell/normal_copy，默认normal_hard）
+    - day_num: 漏斗图指定天数（1-90，默认7）
+    - max_day_num: 趋势图最大天数（1-90，默认30）
     """
     try:
         data = request.get_json() or {}
         
         # 获取参数
         register_date_start = data.get('register_date_start', 20260110)
-        register_date_end = data.get('register_date_end', 20260111)
-        day_num = data.get('day_num', 7)
+        register_date_end = data.get('register_date_end', 20260116)
         view_type = data.get('view_type', 'funnel')
         funnel_path = data.get('funnel_path', 'normal_hard_hell')
         trend_path = data.get('trend_path', 'normal_hard')
+        day_num = data.get('day_num', 7)
+        max_day_num = data.get('max_day_num', 30)
         
         # 参数校验
         if day_num < 1 or day_num > 90:
             return jsonify({'code': 400, 'message': 'day_num范围必须是1-90'}), 400
+        if max_day_num < 1 or max_day_num > 90:
+            return jsonify({'code': 400, 'message': 'max_day_num范围必须是1-90'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
         if view_type == 'funnel':
-            # 漏斗图查询
+            # ========== 漏斗图：X轴为多个注册日期 ==========
+            
+            # 1. 获取所有注册日期列表
+            cursor.execute("""
+                SELECT DISTINCT register_date
+                FROM mv_unlock_conversion_stats
+                WHERE register_date BETWEEN ? AND ?
+                ORDER BY register_date
+            """, [register_date_start, register_date_end])
+            
+            register_dates = [row[0] for row in cursor.fetchall()]
+            
+            if not register_dates:
+                conn.close()
+                return jsonify({
+                    'code': 0,
+                    'message': 'success',
+                    'data': {
+                        'view_type': 'funnel',
+                        'funnel_path': funnel_path,
+                        'day_num': day_num,
+                        'funnels': []
+                    }
+                })
+            
+            funnels = []
+            
+            # 2. 为每个注册日期生成漏斗数据
+            for reg_date in register_dates:
+                if funnel_path == 'normal_hard_hell':
+                    # 普通 → 困难 → 地狱
+                    cursor.execute("""
+                        SELECT * FROM (
+                            SELECT 
+                                1 as sort_order,
+                                '普通' as stage,
+                                normal_users as users,
+                                100.0 as rate
+                            FROM mv_unlock_conversion_stats
+                            WHERE register_date = ? AND day_num = ?
+                            
+                            UNION ALL
+                            
+                            SELECT 
+                                2,
+                                '困难',
+                                hard_users,
+                                normal_to_hard_rate
+                            FROM mv_unlock_conversion_stats
+                            WHERE register_date = ? AND day_num = ?
+                            
+                            UNION ALL
+                            
+                            SELECT 
+                                3,
+                                '地狱',
+                                hell_users,
+                                ROUND(hell_users * 100.0 / NULLIF(normal_users, 0), 2)
+                            FROM mv_unlock_conversion_stats
+                            WHERE register_date = ? AND day_num = ?
+                        )
+                        ORDER BY sort_order
+                    """, [reg_date, day_num] * 3)
+                else:
+                    # 普通 → 副本
+                    cursor.execute("""
+                        SELECT * FROM (
+                            SELECT 
+                                1 as sort_order,
+                                '普通' as stage,
+                                normal_users as users,
+                                100.0 as rate
+                            FROM mv_unlock_conversion_stats
+                            WHERE register_date = ? AND day_num = ?
+                            
+                            UNION ALL
+                            
+                            SELECT 
+                                2,
+                                '副本',
+                                copy_users,
+                                normal_to_copy_rate
+                            FROM mv_unlock_conversion_stats
+                            WHERE register_date = ? AND day_num = ?
+                        )
+                        ORDER BY sort_order
+                    """, [reg_date, day_num] * 2)
+                
+                funnel_data = []
+                for row in cursor.fetchall():
+                    funnel_data.append({
+                        'stage': row[1],
+                        'users': row[2],
+                        'rate': row[3]
+                    })
+                
+                funnels.append({
+                    'register_date': reg_date,
+                    'funnel_data': funnel_data
+                })
+            
+            # 3. 添加汇总漏斗数据
             if funnel_path == 'normal_hard_hell':
-                # 普通 → 困难 → 地狱
                 cursor.execute("""
                     SELECT * FROM (
                         SELECT 
@@ -1806,7 +1913,6 @@ def api_unlock_conversion_analysis():
                     ORDER BY sort_order
                 """, [register_date_start, register_date_end, day_num] * 3)
             else:
-                # 普通 → 副本
                 cursor.execute("""
                     SELECT * FROM (
                         SELECT 
@@ -1832,13 +1938,18 @@ def api_unlock_conversion_analysis():
                     ORDER BY sort_order
                 """, [register_date_start, register_date_end, day_num] * 2)
             
-            funnel_data = []
+            summary_funnel_data = []
             for row in cursor.fetchall():
-                funnel_data.append({
+                summary_funnel_data.append({
                     'stage': row[1],
                     'users': row[2],
                     'rate': row[3]
                 })
+            
+            funnels.append({
+                'register_date': '汇总',
+                'funnel_data': summary_funnel_data
+            })
             
             conn.close()
             
@@ -1846,20 +1957,96 @@ def api_unlock_conversion_analysis():
                 'code': 0,
                 'message': 'success',
                 'data': {
-                    'query_info': {
-                        'register_date_start': register_date_start,
-                        'register_date_end': register_date_end,
-                        'day_num': day_num,
-                        'view_type': view_type,
-                        'funnel_path': funnel_path
-                    },
                     'view_type': 'funnel',
-                    'funnel_data': funnel_data
+                    'funnel_path': funnel_path,
+                    'day_num': day_num,
+                    'compare_mode': 'multi_date',
+                    'funnels': funnels
                 }
             })
         
         else:
-            # 趋势图查询
+            # ========== 趋势图：X轴为时间范围（day_num） ==========
+            
+            # 1. 获取所有注册日期列表
+            cursor.execute("""
+                SELECT DISTINCT register_date
+                FROM mv_unlock_conversion_stats
+                WHERE register_date BETWEEN ? AND ?
+                ORDER BY register_date
+            """, [register_date_start, register_date_end])
+            
+            register_dates = [row[0] for row in cursor.fetchall()]
+            
+            if not register_dates:
+                conn.close()
+                return jsonify({
+                    'code': 0,
+                    'message': 'success',
+                    'data': {
+                        'view_type': 'trend',
+                        'trend_path': trend_path,
+                        'max_day_num': max_day_num,
+                        'trends': []
+                    }
+                })
+            
+            trends = []
+            
+            # 2. 为每个注册日期生成趋势数据
+            for reg_date in register_dates:
+                if trend_path == 'normal_hard':
+                    cursor.execute("""
+                        SELECT 
+                            day_num,
+                            normal_to_hard_rate as conversion_rate,
+                            normal_users,
+                            hard_users
+                        FROM mv_unlock_conversion_stats
+                        WHERE register_date = ?
+                          AND day_num <= ?
+                        ORDER BY day_num
+                    """, [reg_date, max_day_num])
+                elif trend_path == 'hard_hell':
+                    cursor.execute("""
+                        SELECT 
+                            day_num,
+                            hard_to_hell_rate as conversion_rate,
+                            hard_users,
+                            hell_users
+                        FROM mv_unlock_conversion_stats
+                        WHERE register_date = ?
+                          AND day_num <= ?
+                        ORDER BY day_num
+                    """, [reg_date, max_day_num])
+                else:  # normal_copy
+                    cursor.execute("""
+                        SELECT 
+                            day_num,
+                            normal_to_copy_rate as conversion_rate,
+                            normal_users,
+                            copy_users
+                        FROM mv_unlock_conversion_stats
+                        WHERE register_date = ?
+                          AND day_num <= ?
+                        ORDER BY day_num
+                    """, [reg_date, max_day_num])
+                
+                trend_data = []
+                for row in cursor.fetchall():
+                    trend_data.append({
+                        'day_num': row[0],
+                        'conversion_rate': row[1],
+                        'from_users': row[2],
+                        'to_users': row[3]
+                    })
+                
+                trends.append({
+                    'register_date': reg_date,
+                    'trend_data': trend_data
+                })
+            
+            # 3. 添加平均趋势数据
             if trend_path == 'normal_hard':
                 cursor.execute("""
                     SELECT 
@@ -1872,7 +2059,7 @@ def api_unlock_conversion_analysis():
                       AND day_num <= ?
                     GROUP BY day_num
                     ORDER BY day_num
-                """, [register_date_start, register_date_end, day_num])
+                """, [register_date_start, register_date_end, max_day_num])
             elif trend_path == 'hard_hell':
                 cursor.execute("""
                     SELECT 
@@ -1885,8 +2072,8 @@ def api_unlock_conversion_analysis():
                       AND day_num <= ?
                     GROUP BY day_num
                     ORDER BY day_num
-                """, [register_date_start, register_date_end, day_num])
-            else:
+                """, [register_date_start, register_date_end, max_day_num])
+            else:  # normal_copy
                 cursor.execute("""
                     SELECT 
                         day_num,
@@ -1898,16 +2085,21 @@ def api_unlock_conversion_analysis():
                       AND day_num <= ?
                     GROUP BY day_num
                     ORDER BY day_num
-                """, [register_date_start, register_date_end, day_num])
+                """, [register_date_start, register_date_end, max_day_num])
             
-            trend_data = []
+            avg_trend_data = []
             for row in cursor.fetchall():
-                trend_data.append({
+                avg_trend_data.append({
                     'day_num': row[0],
                     'conversion_rate': row[1],
                     'from_users': row[2],
                     'to_users': row[3]
                 })
+            
+            trends.append({
+                'register_date': '平均',
+                'trend_data': avg_trend_data
+            })
             
             conn.close()
             
@@ -1915,15 +2107,10 @@ def api_unlock_conversion_analysis():
                 'code': 0,
                 'message': 'success',
                 'data': {
-                    'query_info': {
-                        'register_date_start': register_date_start,
-                        'register_date_end': register_date_end,
-                        'day_num': day_num,
-                        'view_type': view_type,
-                        'trend_path': trend_path
-                    },
                     'view_type': 'trend',
-                    'trend_data': trend_data
+                    'trend_path': trend_path,
+                    'max_day_num': max_day_num,
+                    'trends': trends
                 }
             })
         
@@ -1933,4 +2120,4 @@ def api_unlock_conversion_analysis():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5057, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5059, host='0.0.0.0', threaded=True)
