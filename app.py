@@ -1533,7 +1533,7 @@ def api_category_enter_ratio():
 
 
 @app.route('/api/v1/user/category-distribution', methods=['POST'])
-def api_user_category_distribution():
+def api_user_category_distribution_v1():
     """
     用户类别分布查询
     
