@@ -3574,11 +3574,13 @@
                             }
                         },
                         tooltip: {
-                            mode: 'index',
-                            intersect: false,
+                            mode: 'nearest',
+                            intersect: true,
                             callbacks: {
                                 title: (items) => {
-                                    return items[0]?.label || '';
+                                    const item = items[0];
+                                    if (!item) return '';
+                                    return `${item.label} - ${item.dataset.fullLabel}`;
                                 },
                                 label: (item) => {
                                     const dataset = item.dataset;
@@ -3587,7 +3589,7 @@
                                     const stackTotals = dataset.stackTotals;
                                     const total = stackTotals[dataIndex];
                                     const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                    return `${dataset.fullLabel}: ${value} (${percentage}%)`;
+                                    return `${isUserRatio ? '人数' : '次数'}: ${value} (${percentage}%)`;
                                 },
                                 footer: (items) => {
                                     if (items.length === 0) return '';
@@ -3595,7 +3597,7 @@
                                     const stackTotals = dataset.stackTotals;
                                     const dataIndex = items[0].dataIndex;
                                     const total = stackTotals[dataIndex];
-                                    return `总计: ${total.toFixed(0)}`;
+                                    return `该日期总计: ${total.toFixed(0)}`;
                                 }
                             }
                         }
