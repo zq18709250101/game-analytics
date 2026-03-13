@@ -402,24 +402,52 @@
                 </div>
                 <div id="categoryDateLegend" class="date-legend" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;"></div>
                 <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryUserRatioChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>计算公式：</strong>人数进入占比 = 进入该类别的累计用户数（去重） / 注册总用户数 × 100%</li>
+                        <li><strong>统计逻辑：</strong>统计在指定天数内，至少进入过该类别1次的用户数量（同一用户多次进入只算1人），除以该注册日期的总用户数，得到百分比</li>
+                    </ul>
+                </div>
             </div>
 
             <!-- P1-10b: 关卡类别进入次数占比（不去重） -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别进入次数占比（不去重） <span class="priority p1">P1</span></h3>
                 <div class="chart-container" style="height: 350px;"><canvas id="categoryCountRatioChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>计算公式：</strong>次数进入占比 = 进入该类别的累计次数（不去重） / 所有类别累计进入总次数 × 100%</li>
+                        <li><strong>统计逻辑：</strong>统计在指定天数内，进入该类别的总次数（同一用户多次进入分别计算），除以所有类别累计进入总次数，得到百分比</li>
+                    </ul>
+                </div>
             </div>
 
             <!-- P1-10c: 关卡类别累计人均进入次数对比 -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别累计人均进入次数对比 <span class="priority p1">P1</span></h3>
                 <div class="chart-container" style="height: 350px;"><canvas id="categoryCumulativeAvgChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>计算公式：</strong>累计人均进入次数 = 进入该类别的累计次数（不去重） / 进入该类别的总人数（去重）</li>
+                        <li><strong>统计逻辑：</strong>统计在指定天数内，进入该类别的累计总次数除以进入该类别的总人数，得到人均次数</li>
+                    </ul>
+                </div>
             </div>
 
             <!-- P1-10d: 关卡类别当日人均进入次数对比 -->
             <div class="chart-card full-width" data-dimension="penetration">
                 <h3>关卡类别当日人均进入次数对比 <span class="priority p1">P1</span></h3>
                 <div class="chart-container" style="height: 350px;"><canvas id="categoryDailyAvgChart"></canvas></div>
+                <div class="insight-box">
+                    <h4>分析要点</h4>
+                    <ul>
+                        <li><strong>计算公式：</strong>当日人均进入次数 = 当日进入该类别的次数（不去重） / 当日进入该类别的人数（去重）</li>
+                        <li><strong>统计逻辑：</strong>统计每一天，当日进入该类别的总次数除以当日进入该类别的人数，得到当日人均次数</li>
+                    </ul>
+                </div>
             </div>
 
             <!-- P1-11: 解锁转化率分析 -->
