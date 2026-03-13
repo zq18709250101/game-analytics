@@ -1088,10 +1088,16 @@
                 }
             }
 
-            // 如果没有设置日期，使用默认日期
+            // 如果没有设置日期，尝试从currentDate生成
             if (!window.selectedRegisterDates || window.selectedRegisterDates.length === 0) {
-                window.selectedRegisterDates = ['2026-01-10'];
-                console.log('loadCompletionCharts: 使用默认日期:', window.selectedRegisterDates);
+                // 使用currentDate作为默认日期
+                if (window.currentDate) {
+                    window.selectedRegisterDates = [window.currentDate];
+                    console.log('loadCompletionCharts: 使用currentDate:', window.selectedRegisterDates);
+                } else {
+                    window.selectedRegisterDates = ['2026-01-10'];
+                    console.log('loadCompletionCharts: 使用硬编码默认日期:', window.selectedRegisterDates);
+                }
             }
 
             // 并行加载所有图表
