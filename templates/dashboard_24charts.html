@@ -358,9 +358,9 @@
                 </div>
             </div>
 
-            <!-- P1-10: 关卡类别进入占比 -->
+            <!-- P1-10: 关卡类别进入人数占比（去重） -->
             <div class="chart-card full-width" data-dimension="penetration">
-                <h3>关卡类别进入占比 <span class="priority p1">P1</span></h3>
+                <h3>关卡类别进入人数占比（去重） <span class="priority p1">P1</span></h3>
                 <div class="chart-selector">
                     <label style="font-size: 0.9rem; margin-right: 5px;">时间范围:</label>
                     <select id="categoryDaySelect" onchange="updateCategoryEnterRatio()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
@@ -371,11 +371,22 @@
                         <option value="90">90天</option>
                     </select>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px;">
-                    <div class="chart-container" style="height: 350px;"><canvas id="categoryUserRatioChart"></canvas></div>
-                    <div class="chart-container" style="height: 350px;"><canvas id="categoryCountRatioChart"></canvas></div>
-                </div>
-                <div class="insight-box"><h4>健康标准</h4><ul><li>按人数：普通60%、困难25%、地狱10%、副本5%</li><li>按次数：根据用户活跃度，通常普通占70%以上</li></ul></div>
+                <div class="chart-container" style="height: 350px; margin-top: 10px;"><canvas id="categoryUserRatioChart"></canvas></div>
+                <div class="insight-box"><h4>健康标准</h4><ul><li>普通60%、困难25%、地狱10%、副本5%</li></ul></div>
+            </div>
+
+            <!-- P1-10b: 关卡类别进入次数占比（不去重） -->
+            <div class="chart-card full-width" data-dimension="penetration">
+                <h3>关卡类别进入次数占比（不去重） <span class="priority p1">P1</span></h3>
+                <div class="chart-container" style="height: 350px;"><canvas id="categoryCountRatioChart"></canvas></div>
+                <div class="insight-box"><h4>健康标准</h4><ul><li>根据用户活跃度，通常普通占70%以上</li></ul></div>
+            </div>
+
+            <!-- P1-10c: 关卡类别人均进入次数对比（不去重） -->
+            <div class="chart-card full-width" data-dimension="penetration">
+                <h3>关卡类别人均进入次数对比（不去重） <span class="priority p1">P1</span></h3>
+                <div class="chart-container" style="height: 350px;"><canvas id="categoryAvgCountChart"></canvas></div>
+                <div class="insight-box"><h4>健康标准</h4><ul><li>人均进入次数反映用户粘性和关卡吸引力</li></ul></div>
             </div>
 
             <!-- P1-11: 解锁转化率分析 -->
@@ -3443,12 +3454,17 @@
             
             renderStackedBarChart('categoryUserRatioChart', {
                 ...emptyChartData,
-                chart_name: '关卡类别进入占比（按人数）'
+                chart_name: '关卡类别进入人数占比（去重）'
             }, true);
             
             renderStackedBarChart('categoryCountRatioChart', {
                 ...emptyChartData,
-                chart_name: '关卡类别进入占比（按次数）'
+                chart_name: '关卡类别进入次数占比（不去重）'
+            }, false);
+            
+            renderStackedBarChart('categoryAvgCountChart', {
+                ...emptyChartData,
+                chart_name: '关卡类别人均进入次数对比（不去重）'
             }, false);
         }
         
@@ -3467,10 +3483,17 @@
             if (countChart) {
                 renderCategoryBarChart('categoryCountRatioChart', countChart, false);
             }
+            
+            // 图表3: 人均进入次数
+            const avgCountChart = chartsData.find(c => c.chart_id === 'avg_count');
+            if (avgCountChart) {
+                renderCategoryBarChart('categoryAvgCountChart', avgCountChart, false);
+            }
         }
         
         // 渲染类别柱状图（每个注册日期独立显示）
-        function renderCategoryBarChart(canvasId, chartData, isUserRatio) {
+        // chartType: 'stacked' | 'line' - stacked用于人数/次数占比，line用于人均次数
+        function renderCategoryBarChart(canvasId, chartData, isUserRatio, chartType = 'stacked') {
             console.log(`renderCategoryBarChart: ${canvasId}`, chartData);
             
             const canvas = document.getElementById(canvasId);
@@ -3496,6 +3519,9 @@
                 return;
             }
             
+            // 判断是否是人均次数图表
+            const isAvgCount = chartData.chart_id === 'avg_count';
+            
             // 构建datasets - 每个注册日期的每个类别一个dataset
             const datasets = [];
             const dayTotals = {}; // 每个注册日期每个day_num的总计
@@ -3513,18 +3539,26 @@
                 
                 // 为每个类别创建dataset
                 group.series.forEach(catSeries => {
-                    datasets.push({
+                    const datasetConfig = {
                         label: catSeries.name,
                         data: catSeries.data,
                         backgroundColor: catSeries.color,
                         borderColor: catSeries.color,
-                        borderWidth: 1,
-                        stack: stackKey,
+                        borderWidth: isAvgCount ? 2 : 1,
                         // 自定义属性
                         groupName: group.group_name,
                         fullLabel: `${group.group_name} ${catSeries.name}`,
                         stackTotals: dayTotals[stackKey]
-                    });
+                    };
+                    
+                    // 人均次数图表使用分组柱状图（非堆叠）
+                    if (isAvgCount) {
+                        datasetConfig.stack = null; // 不分组堆叠
+                    } else {
+                        datasetConfig.stack = stackKey;
+                    }
+                    
+                    datasets.push(datasetConfig);
                 });
             });
             
@@ -3587,6 +3621,12 @@
                                     const dataset = item.dataset;
                                     const dataIndex = item.dataIndex;
                                     const value = item.raw;
+                                    
+                                    // 人均次数图表不显示百分比
+                                    if (isAvgCount) {
+                                        return `${dataset.label}: ${value} 次/人`;
+                                    }
+                                    
                                     const stackTotals = dataset.stackTotals;
                                     const total = stackTotals[dataIndex];
                                     const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
@@ -3594,6 +3634,12 @@
                                 },
                                 afterBody: (items) => {
                                     if (items.length === 0) return '';
+                                    
+                                    // 人均次数图表不显示总计
+                                    if (isAvgCount) {
+                                        return '';
+                                    }
+                                    
                                     const dataset = items[0].dataset;
                                     const stackTotals = dataset.stackTotals;
                                     const dataIndex = items[0].dataIndex;
@@ -3635,7 +3681,7 @@
                     },
                     scales: {
                         x: {
-                            stacked: true,
+                            stacked: !isAvgCount, // 人均次数图表不使用堆叠
                             grid: {
                                 display: true,
                                 color: 'rgba(0, 0, 0, 0.1)',
@@ -3643,11 +3689,11 @@
                             }
                         },
                         y: {
-                            stacked: true,
+                            stacked: !isAvgCount, // 人均次数图表不使用堆叠
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: isUserRatio ? '进入人数' : '进入次数'
+                                text: isAvgCount ? '人均进入次数' : (isUserRatio ? '进入人数' : '进入次数')
                             },
                             grid: {
                                 display: true,
@@ -3658,7 +3704,7 @@
                 }
             });
         }
-        
+
         function renderStackedBarChart(canvasId, chartData, isUserRatio) {
             console.log(`renderStackedBarChart: ${canvasId}`, chartData);
             

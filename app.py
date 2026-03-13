@@ -1364,6 +1364,7 @@ def api_category_enter_ratio():
         # 为每个注册日期构建series_groups
         user_series_groups = []
         count_series_groups = []
+        avg_count_series_groups = []
         
         for reg_date in register_dates:
             reg_date_str = str(reg_date)
@@ -1371,19 +1372,27 @@ def api_category_enter_ratio():
             # 该注册日期的series
             user_series = []
             count_series = []
+            avg_count_series = []
             
             for category in categories:
                 user_data = []
                 count_data = []
+                avg_count_data = []
                 
                 for day_num in day_nums:
                     key = (reg_date_str, day_num)
                     if key in raw_data and category in raw_data[key]['categories']:
-                        user_data.append(raw_data[key]['categories'][category]['user_count'])
-                        count_data.append(raw_data[key]['categories'][category]['enter_count'])
+                        user_count = raw_data[key]['categories'][category]['user_count']
+                        enter_count = raw_data[key]['categories'][category]['enter_count']
+                        user_data.append(user_count)
+                        count_data.append(enter_count)
+                        # 人均进入次数 = 进入次数 / 进入人数
+                        avg_count = round(enter_count / user_count, 2) if user_count > 0 else 0
+                        avg_count_data.append(avg_count)
                     else:
                         user_data.append(0)
                         count_data.append(0)
+                        avg_count_data.append(0)
                 
                 user_series.append({
                     'name': category,
@@ -1394,6 +1403,12 @@ def api_category_enter_ratio():
                 count_series.append({
                     'name': category,
                     'data': count_data,
+                    'color': color_map.get(category, '#999')
+                })
+                
+                avg_count_series.append({
+                    'name': category,
+                    'data': avg_count_data,
                     'color': color_map.get(category, '#999')
                 })
             
@@ -1410,11 +1425,18 @@ def api_category_enter_ratio():
                 'total_users': total_users_map.get(reg_date_str, 0),
                 'series': count_series
             })
+            
+            avg_count_series_groups.append({
+                'group_name': reg_date_str,
+                'register_date': reg_date,
+                'total_users': total_users_map.get(reg_date_str, 0),
+                'series': avg_count_series
+            })
         
         # 图表1：按人数
         user_chart = {
             'chart_id': 'user_count',
-            'chart_name': '关卡类别进入占比（按人数）',
+            'chart_name': '关卡类别进入人数占比（去重）',
             'metric': 'user_count',
             'unit': '人',
             'x_axis': {
@@ -1427,7 +1449,7 @@ def api_category_enter_ratio():
         # 图表2：按次数
         count_chart = {
             'chart_id': 'enter_count',
-            'chart_name': '关卡类别进入占比（按次数）',
+            'chart_name': '关卡类别进入次数占比（不去重）',
             'metric': 'enter_count',
             'unit': '次',
             'x_axis': {
@@ -1435,6 +1457,19 @@ def api_category_enter_ratio():
                 'data': x_axis_data
             },
             'series_groups': count_series_groups
+        }
+        
+        # 图表3：人均进入次数
+        avg_count_chart = {
+            'chart_id': 'avg_count',
+            'chart_name': '关卡类别人均进入次数对比（不去重）',
+            'metric': 'avg_count',
+            'unit': '次/人',
+            'x_axis': {
+                'name': '注册后天数',
+                'data': x_axis_data
+            },
+            'series_groups': avg_count_series_groups
         }
         
         return jsonify({
@@ -1448,7 +1483,7 @@ def api_category_enter_ratio():
                     'categories': categories,
                     'total_users_map': total_users_map
                 },
-                'charts': [user_chart, count_chart]
+                'charts': [user_chart, count_chart, avg_count_chart]
             }
         })
         
