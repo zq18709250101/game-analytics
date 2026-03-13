@@ -4939,12 +4939,18 @@
                 'normal_copy': '普通→副本'
             };
             
-            // 路径颜色映射
-            const pathColors = {
-                'normal_hard': '#5470c6',
-                'hard_hell': '#91cc75',
-                'normal_copy': '#fac858'
+            // 路径线型映射（实线、虚线、点划线）
+            const pathBorderDash = {
+                'normal_hard': [],           // 实线
+                'hard_hell': [5, 5],         // 虚线
+                'normal_copy': [10, 3, 3, 3] // 点划线
             };
+            
+            // 注册日期颜色数组
+            const dateColors = [
+                '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
+                '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#ff9f7f'
+            ];
             
             // 获取最大天数
             let maxDayNum = 30;
@@ -4958,12 +4964,24 @@
             const showAll = document.getElementById('unlockShowAllSwitch')?.checked ?? true;
             const datasets = [];
             
+            // 收集所有注册日期
+            const allRegisterDates = new Set();
+            allData.forEach(pathData => {
+                const trends = pathData.data.trends || [];
+                trends.forEach(trend => {
+                    if (trend.register_date !== '平均') {
+                        allRegisterDates.add(trend.register_date);
+                    }
+                });
+            });
+            const registerDateList = Array.from(allRegisterDates).sort();
+            
             // 为每个路径创建数据集
             allData.forEach((pathData, pathIndex) => {
                 const trendPath = pathData.trend_path;
                 const data = pathData.data;
                 const trends = data.trends || [];
-                const pathColor = pathColors[trendPath] || '#5470c6';
+                const pathDash = pathBorderDash[trendPath] || [];
                 const pathName = pathNames[trendPath] || trendPath;
                 
                 // 为每个注册日期创建数据集
@@ -4973,6 +4991,10 @@
                     
                     // 跳过"平均"数据
                     if (registerDate === '平均') return;
+                    
+                    // 根据注册日期索引选择颜色
+                    const dateIndex = registerDateList.indexOf(registerDate);
+                    const dateColor = dateColors[dateIndex % dateColors.length];
                     
                     const dataMap = {};
                     trendData.forEach(item => {
@@ -4984,9 +5006,10 @@
                     datasets.push({
                         label: `${registerDate} ${pathName}`,
                         data: chartData,
-                        borderColor: pathColor,
-                        backgroundColor: pathColor + '20',
+                        borderColor: dateColor,
+                        backgroundColor: dateColor + '20',
                         borderWidth: 2,
+                        borderDash: pathDash,
                         pointRadius: 3,
                         pointHoverRadius: 5,
                         tension: 0.3,
@@ -4994,7 +5017,7 @@
                     });
                 });
                 
-                // 添加该路径的平均数据（虚线）
+                // 添加该路径的平均数据（虚线+灰色）
                 const avgTrend = trends.find(t => t.register_date === '平均');
                 if (avgTrend) {
                     const avgDataMap = {};
@@ -5006,10 +5029,10 @@
                     datasets.push({
                         label: `平均 ${pathName}`,
                         data: avgData,
-                        borderColor: pathColor,
+                        borderColor: '#666666',
                         backgroundColor: 'transparent',
                         borderWidth: 3,
-                        borderDash: [5, 5],
+                        borderDash: pathDash,
                         pointRadius: 4,
                         pointHoverRadius: 6,
                         tension: 0.3,
