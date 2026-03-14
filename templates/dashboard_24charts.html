@@ -764,8 +764,8 @@
                 <div class="insight-box">
                     <h4>分析要点</h4>
                     <ul>
-                        <li><strong>统计逻辑：</strong>根据用户在指定天数的通关行为，将用户分类为新手、普通关卡玩家、困难关卡玩家、地狱关卡玩家、副本关卡玩家</li>
-                        <li><strong>分类标准：</strong>地狱通关≥10次为地狱玩家；困难通关≥10次为困难玩家；副本通关≥3次且困难<10次为副本玩家；普通通关<3次为新手；其他为普通关卡玩家</li>
+                        <li><strong>统计逻辑：</strong>根据用户在指定天数的通关行为，将用户分类为首关未过玩家、新手、普通关卡玩家、困难关卡玩家、地狱关卡玩家、副本关卡玩家</li>
+                        <li><strong>分类标准：</strong>地狱通关≥10次为地狱玩家；困难通关≥10次为困难玩家；副本通关≥3次且困难<10次为副本玩家；普通通关<3次为新手；普通通关<1次为首关未过玩家；其他为普通关卡玩家</li>
                     </ul>
                 </div>
             </div>
@@ -807,10 +807,10 @@
                 <div class="insight-box"><h4>转化目标</h4><ul><li>普通→困难：>40%、困难→地狱：>30%、普通→副本：>30%</li></ul></div>
             </div>
 
-            <!-- ==================== 完成与流失维度 (8个图表) ==================== -->
+            <!-- ==================== 完成与流失维度 (6个图表) ==================== -->
             <div class="section-title" data-dimension="completion">
                 🎯 完成与流失维度
-                <span class="chart-count">8个图表</span>
+                <span class="chart-count">6个图表</span>
             </div>
 
             <!-- 图表1: 各关卡完成率对比 (整行显示) -->
@@ -877,46 +877,236 @@
                 <div class="insight-box"><h4>业务意义</h4><ul><li>看单个关卡随时间的完成率变化</li></ul><h4>解决的问题</h4><ul><li>这个关卡是不是越来越难过？</li></ul></div>
             </div>
 
-            <!-- 图表3: 关卡流失漏斗 -->
-            <div class="chart-card" data-dimension="completion">
-                <h3>关卡流失漏斗 <span class="priority p1">P1</span></h3>
-                <div class="chart-container"><canvas id="funnelChart"></canvas></div>
-                <div class="insight-box"><h4>业务意义</h4><ul><li>看玩家在每个关卡的流失情况</li></ul><h4>解决的问题</h4><ul><li>玩家在哪一关卡流失最多？</li></ul></div>
-            </div>
-
-            <!-- 图表4: 完成率 vs 卡死率散点图 -->
+            <!-- 图表3: 完成率 vs 卡死率散点图 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>完成率 vs 卡死率散点图 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="scatterDayNumSpan" onchange="updateScatterChart()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="1">1天</option>
+                        <option value="2">2天</option>
+                        <option value="3">3天</option>
+                        <option value="7">7天</option>
+                        <option value="14">14天</option>
+                        <option value="30" selected>30天</option>
+                        <option value="45">45天</option>
+                        <option value="60">60天</option>
+                        <option value="90">90天</option>
+                    </select>
+                </div>
                 <div class="chart-container"><canvas id="scatterChart"></canvas></div>
                 <div class="insight-box"><h4>业务意义</h4><ul><li>找完成率低且卡死率高的"问题关卡"</li></ul><h4>解决的问题</h4><ul><li>哪些关卡让玩家既过不去又放弃？</li></ul></div>
             </div>
 
-            <!-- 图表5: 难度等级分布 -->
-            <div class="chart-card" data-dimension="completion">
-                <h3>难度等级分布 <span class="priority p1">P1</span></h3>
-                <div class="chart-container"><canvas id="difficultyDistChart"></canvas></div>
-                <div class="insight-box"><h4>业务意义</h4><ul><li>看简单/中等/困难关卡的比例</li></ul><h4>解决的问题</h4><ul><li>难度分布合理吗？玩家体验平衡吗？</li></ul></div>
-            </div>
-
-            <!-- 图表6: 关卡-day_num完成率热力图 -->
-            <div class="chart-card full-width" data-dimension="completion">
-                <h3>关卡完成率热力图 <span class="priority p2">P2</span></h3>
-                <div class="chart-container"><canvas id="completionHeatmapChart"></canvas></div>
-                <div class="insight-box"><h4>业务意义</h4><ul><li>看不同注册日期的玩家在各关卡的完成率</li></ul><h4>解决的问题</h4><ul><li>新老玩家表现差异大吗？</li></ul></div>
-            </div>
-
-            <!-- 图表7: 完成率最低TOP10 -->
+            <!-- 图表4: 完成率最低TOP10 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>完成率最低TOP10 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="lowestCompletionDayNumSpan" onchange="updateLowestCompletionChart()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="1">1天</option>
+                        <option value="2">2天</option>
+                        <option value="3">3天</option>
+                        <option value="7">7天</option>
+                        <option value="14">14天</option>
+                        <option value="30" selected>30天</option>
+                        <option value="45">45天</option>
+                        <option value="60">60天</option>
+                        <option value="90">90天</option>
+                    </select>
+                </div>
                 <div class="chart-container"><canvas id="lowestCompletionChart"></canvas></div>
                 <div class="insight-box"><h4>业务意义</h4><ul><li>快速定位最难的10个关卡</li></ul><h4>解决的问题</h4><ul><li>优先优化哪些关卡？</li></ul></div>
             </div>
 
-            <!-- 图表8: 广告率趋势图 -->
+            <!-- 图表5: 广告率趋势图 -->
             <div class="chart-card" data-dimension="completion">
                 <h3>广告率趋势图 <span class="priority p2">P2</span></h3>
                 <div class="chart-container"><canvas id="adTrendChart"></canvas></div>
                 <div class="insight-box"><h4>业务意义</h4><ul><li>看玩家看广告复活/道具的趋势</li></ul><h4>解决的问题</h4><ul><li>广告变现点设置合理吗？</li></ul></div>
+            </div>
+
+            <!-- 图表6: 关卡难度评估配置 -->
+            <div class="chart-card full-width" data-dimension="completion">
+                <h3>关卡难度评估配置 <span class="priority p1">P1</span></h3>
+                <div class="chart-selector">
+                    <select id="difficultyLevelTypeSelect" onchange="updateDifficultyAssessment()" style="min-width: 100px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="全部" selected>全部</option>
+                        <option value="普通">普通</option>
+                        <option value="困难">困难</option>
+                        <option value="地狱">地狱</option>
+                        <option value="副本">副本</option>
+                    </select>
+                    <select id="difficultyDayNumSpan" onchange="updateDifficultyAssessment()" style="min-width: 80px; padding: 8px; height: 36px; border: 1px solid #ddd; border-radius: 6px;">
+                        <option value="1">1天</option>
+                        <option value="2">2天</option>
+                        <option value="3">3天</option>
+                        <option value="7" selected>7天</option>
+                        <option value="14">14天</option>
+                        <option value="30">30天</option>
+                        <option value="45">45天</option>
+                        <option value="60">60天</option>
+                        <option value="90">90天</option>
+                    </select>
+                    <button onclick="toggleDifficultyConfig()" style="padding: 8px 16px; height: 36px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">配置面板</button>
+                </div>
+                
+                <!-- 配置面板（权重+阈值） -->
+                <div id="difficultyConfigPanel" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <!-- 权重配置 -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: #333;">十一维权重配置</h4>
+                            <span id="weightSumDisplay" style="font-weight: bold; color: #28a745;">总和: 100%</span>
+                        </div>
+                        <div id="weightConfigContainer" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                            <!-- 动态生成权重滑块 -->
+                        </div>
+                        <div style="margin-top: 10px; text-align: right;">
+                            <button onclick="resetWeights()" style="padding: 6px 12px; margin-right: 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">恢复默认</button>
+                            <button onclick="saveWeights()" style="padding: 6px 12px; margin-right: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">保存权重</button>
+                            <button onclick="previewWithWeights()" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">应用预览</button>
+                        </div>
+                    </div>
+                    
+                    <hr style="border: none; border-top: 1px solid #dee2e6; margin: 15px 0;">
+                    
+                    <!-- 阈值配置 -->
+                    <div>
+                        <h4 style="margin: 0 0 10px 0; color: #333;">难度等级阈值配置</h4>
+                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; font-size: 11px;">
+                            <div style="background: #d4edda; padding: 10px; border-radius: 6px;">
+                                <h5 style="margin: 0 0 8px 0; color: #155724; font-size: 12px;">太简单</h5>
+                                <label style="display: block; margin-bottom: 3px;">完成率 > <input type="number" id="thTooEasyCompletion" value="90" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block; margin-bottom: 3px;">通关次 < <input type="number" id="thTooEasyAttemptsPassed" value="1.5" step="0.1" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;"></label>
+                                <label style="display: block; margin-bottom: 3px;">看广率 > <input type="number" id="thTooEasyVideoRate" value="20" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block; margin-bottom: 3px;">首通率 > <input type="number" id="thTooEasyFirstPass" value="75" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block;">卡死率 < <input type="number" id="thTooEasyStuck" value="10" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                            </div>
+                            <div style="background: #e2e3e5; padding: 10px; border-radius: 6px;">
+                                <h5 style="margin: 0 0 8px 0; color: #383d41; font-size: 12px;">偏简单</h5>
+                                <label style="display: block; margin-bottom: 3px;">完成率 > <input type="number" id="thEasyCompletion" value="85" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block; margin-bottom: 3px;">通关次 < <input type="number" id="thEasyAttemptsPassed" value="2" step="0.1" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;"></label>
+                                <label style="display: block; margin-bottom: 3px;">首通率 > <input type="number" id="thEasyFirstPass" value="70" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block;">卡死率 < <input type="number" id="thEasyStuck" value="15" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                            </div>
+                            <div style="background: #cce5ff; padding: 10px; border-radius: 6px;">
+                                <h5 style="margin: 0 0 8px 0; color: #004085; font-size: 12px;">正常</h5>
+                                <label style="display: block; margin-bottom: 3px;">完成率 <input type="number" id="thNormalCompletionMin" value="60" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">-<input type="number" id="thNormalCompletionMax" value="90" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block; margin-bottom: 3px;">通关次 <input type="number" id="thNormalAttemptsPassedMin" value="1.5" step="0.1" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">-<input type="number" id="thNormalAttemptsPassedMax" value="4" step="0.1" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;"></label>
+                                <label style="display: block; margin-bottom: 3px;">未通次 <input type="number" id="thNormalAttemptsFailedMin" value="2" step="0.1" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">-<input type="number" id="thNormalAttemptsFailedMax" value="6" step="0.1" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;"></label>
+                                <label style="display: block; margin-bottom: 3px;">看广率 <input type="number" id="thNormalVideoMin" value="5" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">-<input type="number" id="thNormalVideoMax" value="25" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block;">首通率 <input type="number" id="thNormalFirstPassMin" value="40" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">-<input type="number" id="thNormalFirstPassMax" value="70" style="width: 35px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                            </div>
+                            <div style="background: #fff3cd; padding: 10px; border-radius: 6px;">
+                                <h5 style="margin: 0 0 8px 0; color: #856404; font-size: 12px;">偏难</h5>
+                                <label style="display: block; margin-bottom: 3px;">完成率 <input type="number" id="thHardCompletionMin" value="40" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">-<input type="number" id="thHardCompletionMax" value="60" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block; margin-bottom: 3px;">通关次 > <input type="number" id="thHardAttemptsPassed" value="4" step="0.1" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;"></label>
+                                <label style="display: block; margin-bottom: 3px;">未通次 > <input type="number" id="thHardAttemptsFailed" value="6" step="0.1" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;"></label>
+                                <label style="display: block; margin-bottom: 3px;">首通率 < <input type="number" id="thHardFirstPass" value="40" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block;">卡死率 > <input type="number" id="thHardStuck" value="35" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                            </div>
+                            <div style="background: #f8d7da; padding: 10px; border-radius: 6px;">
+                                <h5 style="margin: 0 0 8px 0; color: #721c24; font-size: 12px;">太难</h5>
+                                <label style="display: block; margin-bottom: 3px;">完成率 < <input type="number" id="thTooHardCompletion" value="40" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block; margin-bottom: 3px;">通关次 > <input type="number" id="thTooHardAttemptsPassed" value="5" step="0.1" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;"></label>
+                                <label style="display: block; margin-bottom: 3px;">未通次 > <input type="number" id="thTooHardAttemptsFailed" value="8" step="0.1" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;"></label>
+                                <label style="display: block; margin-bottom: 3px;">看广率 < <input type="number" id="thTooHardVideoRate" value="10" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                                <label style="display: block;">首通率 < <input type="number" id="thTooHardFirstPass" value="25" style="width: 40px; padding: 2px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px;">%</label>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; text-align: right;">
+                            <button onclick="resetThresholds()" style="padding: 6px 12px; margin-right: 10px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">恢复默认</button>
+                            <button onclick="saveThresholds()" style="padding: 6px 12px; margin-right: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">保存阈值</button>
+                            <button onclick="applyThresholds()" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">应用</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- 难度分布统计（v3.0新分类） -->
+                <div id="difficultyStats" style="background: #f8f9fa; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px;">
+                    <span><strong>总关卡:</strong> <span id="difficultyTotalLevels">-</span></span>
+                    <span style="color: #52c41a;"><strong>太简单(0-30):</strong> <span id="difficultyTooEasy">-</span></span>
+                    <span style="color: #73d13d;"><strong>偏简单(30-50):</strong> <span id="difficultyEasy">-</span></span>
+                    <span style="color: #1890ff;"><strong>正常(50-80):</strong> <span id="difficultyNormal">-</span></span>
+                    <span style="color: #fa8c16;"><strong>偏难(80-120):</strong> <span id="difficultyHard">-</span></span>
+                    <span style="color: #f5222d;"><strong>太难(120-150):</strong> <span id="difficultyTooHard">-</span></span>
+                    <span style="color: #722ed1;"><strong>极难(>150):</strong> <span id="difficultyExtreme">-</span></span>
+                </div>
+                <!-- 难度等级分布环形图 -->
+                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                    <div style="flex: 0 0 300px;">
+                        <div class="chart-container" style="height: 250px;"><canvas id="difficultyDistChart"></canvas></div>
+                    </div>
+                    <div style="flex: 1;">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">难度分布说明（v3.0 - 参考值归一化）</h4>
+                        <ul style="font-size: 12px; margin: 0; padding-left: 20px;">
+                            <li><strong style="color: #52c41a;">太简单(0-30分):</strong> 各项指标均低于参考值</li>
+                            <li><strong style="color: #73d13d;">偏简单(30-50分):</strong> 大部分指标低于参考值</li>
+                            <li><strong style="color: #1890ff;">正常(50-80分):</strong> 指标接近参考值，难度适中</li>
+                            <li><strong style="color: #fa8c16;">偏难(80-120分):</strong> 多项指标超过参考值</li>
+                            <li><strong style="color: #f5222d;">太难(120-150分):</strong> 大部分指标显著超过参考值</li>
+                            <li><strong style="color: #722ed1;">极难(>150分):</strong> 各项指标远超参考值，需重点关注</li>
+                        </ul>
+                        <p style="font-size: 11px; color: #666; margin-top: 8px;">
+                            计算公式：Σ(指标值/参考值 × 权重)，支持自定义权重和参考值
+                        </p>
+                    </div>
+                </div>
+                <!-- 关卡明细表格 - 显示11个难度判断参数 -->
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <table id="difficultyTable" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead style="position: sticky; top: 0; background: #f8f9fa;">
+                            <tr>
+                                <th rowspan="2" style="padding: 4px 2px; border-bottom: 2px solid #dee2e6; text-align: left; cursor: pointer; vertical-align: middle; font-size: 12px;" onclick="sortDifficultyTable('level_type')">类型<br>↕</th>
+                                <th rowspan="2" style="padding: 4px 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; vertical-align: middle; font-size: 12px;" onclick="sortDifficultyTable('level_id')">关卡<br>↕</th>
+                                <th colspan="11" style="padding: 4px; border-bottom: 1px solid #dee2e6; text-align: center; background: #e9ecef; font-size: 12px;">十一维难度评估参数</th>
+                                <th rowspan="2" style="padding: 4px 2px; border-bottom: 2px solid #dee2e6; text-align: center; vertical-align: middle; font-size: 12px;">综合<br>难度</th>
+                                <th rowspan="2" style="padding: 4px 2px; border-bottom: 2px solid #dee2e6; text-align: left; vertical-align: middle; font-size: 12px;">建议</th>
+                            </tr>
+                            <tr>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('avg_attempts_passed')">通关次↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('avg_attempts_failed')">未通次↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('abandon_rate')">放弃率↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('first_pass_rate')">首通率↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('obstacle_use_rate')">障碍率↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('completion_rate')">完成率↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('stuck_rate')">卡死率↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('high_attempt_churn_rate')">高尝流失↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('video_rate')">看广率↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('avg_video_per_user')">人均看广↕</th>
+                                <th style="padding: 2px; border-bottom: 2px solid #dee2e6; text-align: center; cursor: pointer; font-size: 11px; white-space: nowrap;" onclick="sortDifficultyTable('avg_obstacle_per_user')">人均障碍↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="difficultyTableBody">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- 参数说明 -->
+                <div style="background: #f8f9fa; padding: 10px 15px; border-radius: 6px; margin-top: 10px; font-size: 12px; color: #666; line-height: 1.8;">
+                    <strong style="color: #333; font-size: 13px;">参数说明：</strong><br>
+                    <span style="color: #1890ff;">通关平均尝试次数</span> = 所有通关用户的通关前尝试次数之和 ÷ 通关用户数<br>
+                    <span style="color: #1890ff;">未通关平均尝试次数</span> = 所有未通关用户的总进入次数之和 ÷ 未通关用户数<br>
+                    <span style="color: #1890ff;">首通用户</span> = 首次进入即通关的用户（首次进入时间戳 = 通关时间戳）<br>
+                    <span style="color: #1890ff;">卡死率</span> = 卡关用户数 ÷ 累计进入用户数 × 100%<br>
+                    <span style="color: #666; padding-left: 16px;">卡关用户</span> = 进入次数 ≥ 6次的用户<br>
+                    <span style="color: #1890ff;">7日流失率</span> = 7日流失用户数 ÷ 累计进入用户数 × 100%<br>
+                    <span style="color: #666; padding-left: 16px;">7日流失用户</span> = 未通关且最后行为日期 - 最后尝试日期 ≥ 7天的用户<br>
+                    <span style="color: #1890ff;">看广率</span> = 累计看广用户数 ÷ 累计进入用户数 × 100%<br>
+                    <span style="color: #1890ff;">人均看广次数</span> = 累计看广次数 ÷ 累计看广用户数<br>
+                    <span style="color: #1890ff;">人均障碍物次数</span> = 累计障碍物点击次数 ÷ 累计障碍物用户数
+                </div>
+                <div class="insight-box">
+                    <h4>业务意义</h4>
+                    <ul>
+                        <li>基于完成率、人均尝试次数、付费率等多维度综合评估关卡难度</li>
+                        <li>支持动态调整难度评估阈值参数</li>
+                    </ul>
+                    <h4>解决的问题</h4>
+                    <ul>
+                        <li>哪些关卡需要调整难度？</li>
+                        <li>付费点设计是否合理？</li>
+                        <li>如何识别"太难"和"极难但合理"的关卡？</li>
+                    </ul>
+                </div>
             </div>
 
             <!-- ==================== IAA收益维度 (4个图表) ==================== -->
@@ -1136,12 +1326,10 @@
             await Promise.all([
                 updateCompletionTrendChart(),
                 updateCompletionCompareChart(),
-                updateDifficultyDistChart(),
                 updateScatterChart(),
-                updateFunnelChart(),
-                updateHeatmapChart(),
                 updateLowestCompletionChart(),
-                updateAdTrendChart()
+                updateAdTrendChart(),
+                updateDifficultyAssessmentChart()  // 图表6: 关卡难度评估配置
             ]);
 
             console.log('loadCompletionCharts: 完成与流失维度图表加载完成');
@@ -1682,7 +1870,8 @@
                     register_date_start: registerDates[0],
                     register_date_end: registerDates[registerDates.length - 1],
                     level_type: levelType,
-                    day_num_span: dayNumSpan
+                    day_num_span: dayNumSpan,
+                    query_mode: 'cumulative'  // 使用累计完成率
                 });
 
                 const response = await fetch(`/api/charts/level-completion-comparison?${params}`);
@@ -1716,7 +1905,7 @@
                 }));
 
                 charts.completionCompare = new Chart(ctx, {
-                    type: 'bar',
+                    type: 'line',
                     data: {
                         labels: allLevelIds.map(id => `关卡${id}`),
                         datasets: datasets
@@ -1749,71 +1938,10 @@
             }
         }
 
-        // 图表3: 难度等级分布
-        async function updateDifficultyDistChart() {
-            // 使用关卡完成率趋势图的参数
-            const levelType = singleSelectedLevel?.type || '';
-            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
-
-            let registerDates = window.selectedRegisterDates || [window.currentDate];
-            if (typeof registerDates === 'string') {
-                registerDates = [registerDates];
-            }
-            registerDates = registerDates.map(d => formatDateToInt(d));
-
-            try {
-                const params = new URLSearchParams({
-                    register_date_start: registerDates[0],
-                    register_date_end: registerDates[registerDates.length - 1],
-                    day_num_span: dayNumSpan
-                });
-                if (levelType) params.append('level_type', levelType);
-
-                const response = await fetch(`/api/charts/difficulty-distribution?${params}`);
-                const result = await response.json();
-
-                if (result.code !== 0) {
-                    console.error('API错误:', result.message);
-                    return;
-                }
-
-                const data = result.data;
-                const ctx = document.getElementById('difficultyDistChart')?.getContext('2d');
-                if (!ctx) return;
-
-                if (charts.difficultyDist) charts.difficultyDist.destroy();
-
-                const dist = data.results[0]?.distribution || [];
-                const colors = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336'];
-
-                charts.difficultyDist = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: dist.map(d => `难度${d.difficulty_level}`),
-                        datasets: [{
-                            data: dist.map(d => d.level_count),
-                            backgroundColor: colors.slice(0, dist.length)
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: { display: true, text: `难度等级分布 (${dayNumSpan}天)` },
-                            legend: { position: 'right' }
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('更新难度分布图失败:', error);
-            }
-        }
-
-        // 图表4: 完成率 vs 卡死率散点图
+        // 图表3: 完成率 vs 卡死率散点图
         async function updateScatterChart() {
-            // 使用关卡完成率趋势图的参数
-            const levelType = singleSelectedLevel?.type || '';
-            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
+            // 使用自己的时间选择器
+            const dayNumSpan = document.getElementById('scatterDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -1825,9 +1953,9 @@
                 const params = new URLSearchParams({
                     register_date_start: registerDates[0],
                     register_date_end: registerDates[registerDates.length - 1],
-                    day_num_span: dayNumSpan
+                    day_num_span: dayNumSpan,
+                    query_mode: 'cumulative'  // 使用累计数据
                 });
-                if (levelType) params.append('level_type', levelType);
 
                 const response = await fetch(`/api/charts/completion-vs-stuck?${params}`);
                 const result = await response.json();
@@ -1864,7 +1992,7 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            title: { display: true, text: `完成率 vs 卡死率 (${dayNumSpan}天)` },
+                            title: { display: true, text: `完成率 vs 卡死率 (${dayNumSpan}天累计)` },
                             tooltip: {
                                 callbacks: {
                                     label: (ctx) => `${ctx.raw.level}: 完成率${ctx.raw.y.toFixed(1)}%, 卡死率${ctx.raw.x.toFixed(1)}%`
@@ -1889,165 +2017,10 @@
             }
         }
 
-        // 图表5: 关卡流失漏斗
-        async function updateFunnelChart() {
-            // 使用关卡完成率趋势图的参数
-            const levelType = singleSelectedLevel?.type || '普通';
-            const levelId = singleSelectedLevel?.id || 1;
-            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
-
-            let registerDates = window.selectedRegisterDates || [window.currentDate];
-            if (typeof registerDates === 'string') {
-                registerDates = [registerDates];
-            }
-            registerDates = registerDates.map(d => formatDateToInt(d));
-
-            try {
-                const params = new URLSearchParams({
-                    register_date_start: registerDates[0],
-                    register_date_end: registerDates[registerDates.length - 1],
-                    level_type: levelType,
-                    level_id: levelId,
-                    day_num_span: dayNumSpan
-                });
-
-                const response = await fetch(`/api/charts/level-funnel?${params}`);
-                const result = await response.json();
-
-                if (result.code !== 0) {
-                    console.error('API错误:', result.message);
-                    return;
-                }
-
-                const data = result.data;
-                const ctx = document.getElementById('funnelChart')?.getContext('2d');
-                if (!ctx) return;
-
-                if (charts.funnel) charts.funnel.destroy();
-
-                const funnel = data.results[0]?.funnel || [];
-                const colors = ['#667eea', '#43e97b', '#FFC107', '#FF9800', '#F44336'];
-
-                charts.funnel = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: funnel.map(f => f.stage),
-                        datasets: [{
-                            label: '用户数',
-                            data: funnel.map(f => f.users),
-                            backgroundColor: colors,
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
-                        plugins: {
-                            title: { display: true, text: `${levelType}关卡${levelId}流失漏斗 (${dayNumSpan}天)` }
-                        },
-                        scales: {
-                            x: { beginAtZero: true }
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('更新漏斗图失败:', error);
-            }
-        }
-
-        // 图表6: 关卡完成率热力图
-        async function updateHeatmapChart() {
-            // 使用关卡完成率趋势图的参数
-            const levelType = singleSelectedLevel?.type || '普通';
-            const levelId = singleSelectedLevel?.id || 1;
-            const levelIds = `${levelId}`;
-
-            let registerDates = window.selectedRegisterDates || [window.currentDate];
-            if (typeof registerDates === 'string') {
-                registerDates = [registerDates];
-            }
-            registerDates = registerDates.map(d => formatDateToInt(d));
-
-            try {
-                const params = new URLSearchParams({
-                    register_date_start: registerDates[0],
-                    register_date_end: registerDates[registerDates.length - 1],
-                    level_type: levelType,
-                    level_ids: levelIds
-                });
-
-                const response = await fetch(`/api/charts/completion-heatmap?${params}`);
-                const result = await response.json();
-
-                if (result.code !== 0) {
-                    console.error('API错误:', result.message);
-                    return;
-                }
-
-                const data = result.data;
-                const ctx = document.getElementById('completionHeatmapChart')?.getContext('2d');
-                if (!ctx) return;
-
-                if (charts.completionHeatmap) charts.completionHeatmap.destroy();
-
-                const heatmapData = data.results[0]?.heatmap_data || {};
-                const levelIdsList = Object.keys(heatmapData).map(Number).sort((a, b) => a - b);
-
-                // 获取所有day_num
-                const allDayNums = [...new Set(
-                    Object.values(heatmapData).flatMap(arr => arr.map(d => d.day_num))
-                )].sort((a, b) => a - b);
-
-                // 构建数据集
-                const datasets = levelIdsList.map((lid, index) => {
-                    const dataPoints = allDayNums.map(dn => {
-                        const point = heatmapData[lid]?.find(p => p.day_num === dn);
-                        return point ? point.completion_rate : 0;
-                    });
-
-                    const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe'];
-                    return {
-                        label: `关卡${lid}`,
-                        data: dataPoints,
-                        borderColor: colors[index % colors.length],
-                        backgroundColor: colors[index % colors.length] + '20',
-                        fill: false
-                    };
-                });
-
-                charts.completionHeatmap = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: allDayNums.map(d => `Day ${d}`),
-                        datasets: datasets
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: { display: true, text: `${levelType}关卡完成率热力趋势` },
-                            legend: { position: 'top' }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                title: { display: true, text: '完成率 (%)' }
-                            }
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('更新热力图失败:', error);
-            }
-        }
-
-        // 图表7: 完成率最低TOP10
+        // 图表4: 完成率最低TOP10
         async function updateLowestCompletionChart() {
-            // 使用关卡完成率趋势图的参数
-            const levelType = singleSelectedLevel?.type || '';
-            const dayNumSpan = document.getElementById('completionTrendDayNumSpan')?.value || '30';
+            // 使用自己的时间选择器
+            const dayNumSpan = document.getElementById('lowestCompletionDayNumSpan')?.value || '30';
 
             let registerDates = window.selectedRegisterDates || [window.currentDate];
             if (typeof registerDates === 'string') {
@@ -2059,9 +2032,9 @@
                 const params = new URLSearchParams({
                     register_date_start: registerDates[0],
                     register_date_end: registerDates[registerDates.length - 1],
-                    day_num_span: dayNumSpan
+                    day_num_span: dayNumSpan,
+                    query_mode: 'cumulative'  // 使用累计数据
                 });
-                if (levelType) params.append('level_type', levelType);
 
                 const response = await fetch(`/api/charts/lowest-completion-top10?${params}`);
                 const result = await response.json();
@@ -2098,7 +2071,7 @@
                         maintainAspectRatio: false,
                         indexAxis: 'y',
                         plugins: {
-                            title: { display: true, text: `完成率最低TOP10 (${dayNumSpan}天)` }
+                            title: { display: true, text: `完成率最低TOP10 (${dayNumSpan}天累计)` }
                         },
                         scales: {
                             x: {
@@ -2114,7 +2087,7 @@
             }
         }
 
-        // 图表8: 广告率趋势图
+        // 图表5: 广告率趋势图
         async function updateAdTrendChart() {
             // 使用关卡完成率趋势图的参数
             const levelType = singleSelectedLevel?.type || '普通';
@@ -2184,6 +2157,731 @@
             } catch (error) {
                 console.error('更新广告率趋势图失败:', error);
             }
+        }
+
+        // ==================== 图表7: 关卡难度评估配置 ====================
+        let difficultyAssessmentData = [];
+        let currentDifficultySort = { field: 'composite_level', asc: true };
+        
+        // 十一维权重与参考值配置（v3.0）- 按BOSS要求更新参考值
+        const DEFAULT_CONFIG_V30 = {
+            'avg_attempts_passed': {
+                weight: 0.25, weightMin: 0, weightMax: 0.5,
+                refValue: 4.0, refMin: 1.0, refMax: 10.0,
+                label: '通关平均尝试次数', isRate: false,
+                desc: '正常通关需要4次尝试'
+            },
+            'avg_attempts_failed': {
+                weight: 0.25, weightMin: 0, weightMax: 0.5,
+                refValue: 6.0, refMin: 1.0, refMax: 15.0,
+                label: '未通关平均尝试次数', isRate: false,
+                desc: '未通关用户尝试6次放弃'
+            },
+            'abandon_rate': {
+                weight: 0.15, weightMin: 0, weightMax: 0.3,
+                refValue: 20.0, refMin: 5.0, refMax: 50.0,
+                label: '放弃率', isRate: true,
+                desc: '20%用户放弃'
+            },
+            'cumulative_first_pass_rate': {
+                weight: 0.10, weightMin: 0, weightMax: 0.2,
+                refValue: 80.0, refMin: 20.0, refMax: 100.0,
+                label: '首通率', isRate: true, reverse: true,
+                desc: '首通率20%时满分(100-80)'
+            },
+            'cumulative_obstacle_use_rate': {
+                weight: 0.08, weightMin: 0, weightMax: 0.15,
+                refValue: 90.0, refMin: 10.0, refMax: 100.0,
+                label: '障碍物使用率', isRate: true,
+                desc: '90%用户进入使用障碍物'
+            },
+            'cumulative_completion_rate': {
+                weight: 0.08, weightMin: 0, weightMax: 0.15,
+                refValue: 10.0, refMin: 5.0, refMax: 50.0,
+                label: '完成率', isRate: true, reverse: true,
+                desc: '完成率90%时满分(100-10)'
+            },
+            'stuck_rate': {
+                weight: 0.05, weightMin: 0, weightMax: 0.1,
+                refValue: 50.0, refMin: 10.0, refMax: 80.0,
+                label: '卡死率', isRate: true,
+                desc: '50%用户卡死'
+            },
+            'churn_rate_7d': {
+                weight: 0.02, weightMin: 0, weightMax: 0.05,
+                refValue: 20.0, refMin: 5.0, refMax: 50.0,
+                label: '流失率', isRate: true,
+                desc: '20%用户流失'
+            },
+            'cumulative_video_rate': {
+                weight: 0.02, weightMin: 0, weightMax: 0.05,
+                refValue: 10.0, refMin: 5.0, refMax: 50.0,
+                label: '看广率', isRate: true, reverse: true,
+                desc: '看广率90%时满分(100-10)'
+            },
+            'avg_video_per_user': {
+                weight: 0.05, weightMin: 0, weightMax: 0.1,
+                refValue: 15.0, refMin: 1.0, refMax: 30.0,
+                label: '人均看广次数', isRate: false,
+                desc: '人均看广15次'
+            },
+            'cumulative_avg_obstacle_per_user': {
+                weight: 0.05, weightMin: 0, weightMax: 0.1,
+                refValue: 20.0, refMin: 1.0, refMax: 40.0,
+                label: '人均障碍物次数', isRate: false,
+                desc: '人均使用20次障碍物'
+            }
+        };
+        
+        let currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG_V30));
+        
+        // 初始化权重与参考值配置面板
+        function initWeightConfigPanel() {
+            const container = document.getElementById('weightConfigContainer');
+            if (!container) return;
+            
+            container.innerHTML = Object.entries(currentConfig).map(([key, config]) => `
+                <div style="background: white; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0;">
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px; color: #333;">${config.label}</div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 11px; width: 40px; color: #666;">权重</span>
+                        <input type="range" id="weight_${key}" min="${config.weightMin * 100}" max="${config.weightMax * 100}" 
+                               value="${config.weight * 100}" style="flex: 1;" 
+                               oninput="updateConfigDisplay('${key}', 'weight', this.value)">
+                        <span id="weightDisplay_${key}" style="width: 45px; text-align: right; font-size: 11px; font-weight: bold;">${(config.weight * 100).toFixed(0)}%</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 11px; width: 40px; color: #666;">参考值</span>
+                        <input type="range" id="ref_${key}" min="${config.refMin * 10}" max="${config.refMax * 10}" 
+                               value="${config.refValue * 10}" style="flex: 1;" 
+                               oninput="updateConfigDisplay('${key}', 'ref', this.value)">
+                        <span id="refDisplay_${key}" style="width: 45px; text-align: right; font-size: 11px; font-weight: bold;">${config.refValue.toFixed(1)}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            updateWeightSum();
+        }
+        
+        // 更新配置显示
+        function updateConfigDisplay(key, type, value) {
+            if (type === 'weight') {
+                const percent = parseInt(value);
+                document.getElementById(`weightDisplay_${key}`).textContent = percent + '%';
+                currentConfig[key].weight = percent / 100;
+                updateWeightSum();
+            } else if (type === 'ref') {
+                const refVal = parseInt(value) / 10;
+                document.getElementById(`refDisplay_${key}`).textContent = refVal.toFixed(1);
+                currentConfig[key].refValue = refVal;
+            }
+        }
+        
+        // 更新权重总和显示
+        function updateWeightSum() {
+            const sum = Object.values(currentConfig).reduce((acc, c) => acc + c.weight, 0);
+            const display = document.getElementById('weightSumDisplay');
+            if (display) {
+                display.textContent = `权重总和: ${(sum * 100).toFixed(1)}%`;
+                display.style.color = Math.abs(sum - 1.0) < 0.001 ? '#28a745' : '#dc3545';
+            }
+        }
+        
+        // 重置权重和参考值
+        function resetWeights() {
+            currentConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG_V30));
+            initWeightConfigPanel();
+        }
+        
+        // 计算综合难度评分（v3.0 - 参考值归一化）
+        function calculateDifficultyScoreV30(metrics) {
+            let score = 0;
+            
+            // 1. 通关平均尝试次数 / 参考值 × 25%
+            score += (metrics.avg_attempts_passed / currentConfig.avg_attempts_passed.refValue) * currentConfig.avg_attempts_passed.weight;
+            
+            // 2. 未通关平均尝试次数 / 参考值 × 25%
+            score += (metrics.avg_attempts_failed / currentConfig.avg_attempts_failed.refValue) * currentConfig.avg_attempts_failed.weight;
+            
+            // 3. 放弃率 / 参考值 × 15%
+            score += (metrics.abandon_rate / currentConfig.abandon_rate.refValue) * currentConfig.abandon_rate.weight;
+            
+            // 4. (100 - 首通率) / 参考值 × 10%
+            score += ((100 - metrics.cumulative_first_pass_rate) / currentConfig.cumulative_first_pass_rate.refValue) * currentConfig.cumulative_first_pass_rate.weight;
+            
+            // 5. 障碍物使用率 / 参考值 × 8%
+            score += (metrics.cumulative_obstacle_use_rate / currentConfig.cumulative_obstacle_use_rate.refValue) * currentConfig.cumulative_obstacle_use_rate.weight;
+            
+            // 6. (100 - 完成率) / 参考值 × 8%
+            score += ((100 - metrics.cumulative_completion_rate) / currentConfig.cumulative_completion_rate.refValue) * currentConfig.cumulative_completion_rate.weight;
+            
+            // 7. 卡死率 / 参考值 × 5%
+            score += (metrics.stuck_rate / currentConfig.stuck_rate.refValue) * currentConfig.stuck_rate.weight;
+            
+            // 8. 流失率 / 参考值 × 2%
+            score += (metrics.churn_rate_7d / currentConfig.churn_rate_7d.refValue) * currentConfig.churn_rate_7d.weight;
+            
+            // 9. (100 - 看广率) / 参考值 × 2%
+            score += ((100 - metrics.cumulative_video_rate) / currentConfig.cumulative_video_rate.refValue) * currentConfig.cumulative_video_rate.weight;
+            
+            // 10. 人均看广次数 / 参考值 × 5%
+            score += (metrics.avg_video_per_user / currentConfig.avg_video_per_user.refValue) * currentConfig.avg_video_per_user.weight;
+            
+            // 11. 人均障碍物次数 / 参考值 × 5%
+            score += (metrics.cumulative_avg_obstacle_per_user / currentConfig.cumulative_avg_obstacle_per_user.refValue) * currentConfig.cumulative_avg_obstacle_per_user.weight;
+            
+            return Math.round(score * 100) / 100;
+        }
+        
+        // 根据分数获取难度等级（v3.0新分类）
+        function getDifficultyLevelV30(score) {
+            if (score <= 30) return { level: '太简单', color: '#52c41a' };
+            if (score <= 50) return { level: '偏简单', color: '#73d13d' };
+            if (score <= 80) return { level: '正常', color: '#1890ff' };
+            if (score <= 120) return { level: '偏难', color: '#fa8c16' };
+            if (score <= 150) return { level: '太难', color: '#f5222d' };
+            return { level: '极难', color: '#722ed1' };
+        }
+        
+        // 保存配置到数据库
+        async function saveWeights() {
+            const sum = Object.values(currentConfig).reduce((acc, c) => acc + c.weight, 0);
+            if (Math.abs(sum - 1.0) > 0.001) {
+                alert('权重总和必须等于100%，当前为' + (sum * 100).toFixed(1) + '%');
+                return;
+            }
+            
+            const config = {
+                weights: {},
+                refValues: {}
+            };
+            Object.entries(currentConfig).forEach(([key, c]) => {
+                config.weights[key] = c.weight;
+                config.refValues[key] = c.refValue;
+            });
+            
+            try {
+                const response = await fetch('/api/v1/level-difficulty/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        config_name: '自定义权重与参考值配置',
+                        config: config,
+                        save_reason: '通过前端界面保存'
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.code === 200) {
+                    alert('配置保存成功！');
+                } else {
+                    alert('保存失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('保存配置失败:', error);
+                alert('保存失败，请检查网络连接');
+            }
+        }
+        
+        // 使用当前配置预览
+        async function previewWithWeights() {
+            const sum = Object.values(currentConfig).reduce((acc, c) => acc + c.weight, 0);
+            if (Math.abs(sum - 1.0) > 0.001) {
+                alert('权重总和必须等于100%，当前为' + (sum * 100).toFixed(1) + '%');
+                return;
+            }
+            
+            const levelType = document.getElementById('difficultyLevelTypeSelect')?.value || '全部';
+            const dayNumSpan = document.getElementById('difficultyDayNumSpan')?.value || '7';
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') registerDates = [registerDates];
+            const registerDate = formatDateToInt(registerDates[0]);
+            
+            try {
+                const response = await fetch('/api/v1/level-difficulty/evaluate-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        register_date: registerDate,
+                        level_type: levelType,
+                        day_num: parseInt(dayNumSpan)
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.code === 200) {
+                    // 使用当前配置重新计算难度
+                    difficultyAssessmentData = result.data.results.map(r => {
+                        const score = calculateDifficultyScoreV30(r.metrics);
+                        const levelInfo = getDifficultyLevelV30(score);
+                        return {
+                            level_type: levelType,
+                            level_id: r.level_id,
+                            metrics: r.metrics,
+                            difficulty: {
+                                original_score: score,
+                                original_level: levelInfo.level,
+                                composite_level: levelInfo.level,
+                                recommendation: getDifficultySuggestion(levelInfo.level)
+                            }
+                        };
+                    });
+                    renderDifficultyTable();
+                    updateDifficultyDistributionChart();
+                    alert('预览已更新！使用当前权重和参考值计算。');
+                }
+            } catch (error) {
+                console.error('预览失败:', error);
+            }
+        }
+        
+        // 获取难度建议
+        function getDifficultySuggestion(level) {
+            const suggestions = {
+                '太简单': '建议增加难度或引导付费',
+                '偏简单': '可适当增加挑战',
+                '正常': '付费点设计良好，保持现状',
+                '偏难': '监控玩家反馈',
+                '太难': '建议检查关卡设计或降低难度'
+            };
+            return suggestions[level] || '持续监控';
+        }
+        
+        // 重置阈值
+        function resetThresholds() {
+            // 太简单
+            document.getElementById('thTooEasyCompletion').value = 90;
+            document.getElementById('thTooEasyAttemptsPassed').value = 1.5;
+            document.getElementById('thTooEasyVideoRate').value = 20;
+            document.getElementById('thTooEasyFirstPass').value = 75;
+            document.getElementById('thTooEasyStuck').value = 10;
+            
+            // 偏简单
+            document.getElementById('thEasyCompletion').value = 85;
+            document.getElementById('thEasyAttemptsPassed').value = 2;
+            document.getElementById('thEasyFirstPass').value = 70;
+            document.getElementById('thEasyStuck').value = 15;
+            
+            // 正常
+            document.getElementById('thNormalCompletionMin').value = 60;
+            document.getElementById('thNormalCompletionMax').value = 90;
+            document.getElementById('thNormalAttemptsPassedMin').value = 1.5;
+            document.getElementById('thNormalAttemptsPassedMax').value = 4;
+            document.getElementById('thNormalAttemptsFailedMin').value = 2;
+            document.getElementById('thNormalAttemptsFailedMax').value = 6;
+            document.getElementById('thNormalVideoMin').value = 5;
+            document.getElementById('thNormalVideoMax').value = 25;
+            document.getElementById('thNormalFirstPassMin').value = 40;
+            document.getElementById('thNormalFirstPassMax').value = 70;
+            
+            // 偏难
+            document.getElementById('thHardCompletionMin').value = 40;
+            document.getElementById('thHardCompletionMax').value = 60;
+            document.getElementById('thHardAttemptsPassed').value = 4;
+            document.getElementById('thHardAttemptsFailed').value = 6;
+            document.getElementById('thHardFirstPass').value = 40;
+            document.getElementById('thHardStuck').value = 35;
+            
+            // 太难
+            document.getElementById('thTooHardCompletion').value = 40;
+            document.getElementById('thTooHardAttemptsPassed').value = 5;
+            document.getElementById('thTooHardAttemptsFailed').value = 8;
+            document.getElementById('thTooHardVideoRate').value = 10;
+            document.getElementById('thTooHardFirstPass').value = 25;
+        }
+        
+        // 保存阈值到数据库
+        async function saveThresholds() {
+            const thresholds = {
+                too_easy: {
+                    completion_rate: { min: 90, max: 100 },
+                    avg_attempts_passed: { min: 0, max: parseFloat(document.getElementById('thTooEasyAttemptsPassed').value) },
+                    video_rate: { min: parseFloat(document.getElementById('thTooEasyVideoRate').value), max: 100 },
+                    first_pass_rate: { min: parseFloat(document.getElementById('thTooEasyFirstPass').value), max: 100 },
+                    stuck_rate: { min: 0, max: parseFloat(document.getElementById('thTooEasyStuck').value) }
+                },
+                easy: {
+                    completion_rate: { min: parseFloat(document.getElementById('thEasyCompletion').value), max: 100 },
+                    avg_attempts_passed: { min: 0, max: parseFloat(document.getElementById('thEasyAttemptsPassed').value) },
+                    first_pass_rate: { min: parseFloat(document.getElementById('thEasyFirstPass').value), max: 100 },
+                    stuck_rate: { min: 0, max: parseFloat(document.getElementById('thEasyStuck').value) }
+                },
+                normal: {
+                    completion_rate: { min: parseFloat(document.getElementById('thNormalCompletionMin').value), max: parseFloat(document.getElementById('thNormalCompletionMax').value) },
+                    avg_attempts_passed: { min: parseFloat(document.getElementById('thNormalAttemptsPassedMin').value), max: parseFloat(document.getElementById('thNormalAttemptsPassedMax').value) },
+                    avg_attempts_failed: { min: parseFloat(document.getElementById('thNormalAttemptsFailedMin').value), max: parseFloat(document.getElementById('thNormalAttemptsFailedMax').value) },
+                    video_rate: { min: parseFloat(document.getElementById('thNormalVideoMin').value), max: parseFloat(document.getElementById('thNormalVideoMax').value) },
+                    first_pass_rate: { min: parseFloat(document.getElementById('thNormalFirstPassMin').value), max: parseFloat(document.getElementById('thNormalFirstPassMax').value) }
+                },
+                hard: {
+                    completion_rate: { min: parseFloat(document.getElementById('thHardCompletionMin').value), max: parseFloat(document.getElementById('thHardCompletionMax').value) },
+                    avg_attempts_passed: { min: parseFloat(document.getElementById('thHardAttemptsPassed').value), max: 100 },
+                    avg_attempts_failed: { min: parseFloat(document.getElementById('thHardAttemptsFailed').value), max: 100 },
+                    first_pass_rate: { min: 0, max: parseFloat(document.getElementById('thHardFirstPass').value) },
+                    stuck_rate: { min: parseFloat(document.getElementById('thHardStuck').value), max: 100 }
+                },
+                too_hard: {
+                    completion_rate: { min: 0, max: parseFloat(document.getElementById('thTooHardCompletion').value) },
+                    avg_attempts_passed: { min: parseFloat(document.getElementById('thTooHardAttemptsPassed').value), max: 100 },
+                    avg_attempts_failed: { min: parseFloat(document.getElementById('thTooHardAttemptsFailed').value), max: 100 },
+                    video_rate: { min: 0, max: parseFloat(document.getElementById('thTooHardVideoRate').value) },
+                    first_pass_rate: { min: 0, max: parseFloat(document.getElementById('thTooHardFirstPass').value) }
+                }
+            };
+            
+            try {
+                const response = await fetch('/api/v1/level-difficulty/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        config_name: '自定义阈值配置',
+                        thresholds: thresholds,
+                        save_reason: '通过前端界面保存阈值'
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.code === 200) {
+                    alert('阈值配置保存成功！');
+                } else {
+                    alert('保存失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('保存阈值失败:', error);
+                alert('保存失败，请检查网络连接');
+            }
+        }
+        
+        // 应用阈值
+        function applyThresholds() {
+            updateDifficultyAssessmentChart();
+            alert('阈值已应用！');
+        }
+
+        // 从localStorage加载阈值配置
+        function loadDifficultyThresholds() {
+            try {
+                const saved = localStorage.getItem('difficultyThresholds');
+                if (saved) {
+                    const thresholds = JSON.parse(saved);
+                    document.getElementById('thEasyCompletion').value = thresholds.easy_completion || 90;
+                    document.getElementById('thEasyAttempt').value = thresholds.easy_attempt || 1.5;
+                    document.getElementById('thEasyPay').value = thresholds.easy_pay || 5;
+                    document.getElementById('thNormalCompletionMin').value = thresholds.normal_completion_min || 60;
+                    document.getElementById('thNormalCompletionMax').value = thresholds.normal_completion_max || 90;
+                    document.getElementById('thNormalAttemptMin').value = thresholds.normal_attempt_min || 2;
+                    document.getElementById('thNormalAttemptMax').value = thresholds.normal_attempt_max || 5;
+                    document.getElementById('thNormalPayMin').value = thresholds.normal_pay_min || 5;
+                    document.getElementById('thNormalPayMax').value = thresholds.normal_pay_max || 30;
+                    document.getElementById('thHardAttempt').value = thresholds.hard_attempt || 5;
+                    document.getElementById('thHardPay').value = thresholds.hard_pay || 10;
+                }
+            } catch (e) {
+                console.log('加载阈值配置失败:', e);
+            }
+        }
+
+        // 保存阈值配置到localStorage
+        function saveDifficultyThresholds() {
+            try {
+                const thresholds = {
+                    easy_completion: document.getElementById('thEasyCompletion').value,
+                    easy_attempt: document.getElementById('thEasyAttempt').value,
+                    easy_pay: document.getElementById('thEasyPay').value,
+                    normal_completion_min: document.getElementById('thNormalCompletionMin').value,
+                    normal_completion_max: document.getElementById('thNormalCompletionMax').value,
+                    normal_attempt_min: document.getElementById('thNormalAttemptMin').value,
+                    normal_attempt_max: document.getElementById('thNormalAttemptMax').value,
+                    normal_pay_min: document.getElementById('thNormalPayMin').value,
+                    normal_pay_max: document.getElementById('thNormalPayMax').value,
+                    hard_attempt: document.getElementById('thHardAttempt').value,
+                    hard_pay: document.getElementById('thHardPay').value
+                };
+                localStorage.setItem('difficultyThresholds', JSON.stringify(thresholds));
+            } catch (e) {
+                console.log('保存阈值配置失败:', e);
+            }
+        }
+
+        // 切换配置面板显示
+        function toggleDifficultyConfig() {
+            const panel = document.getElementById('difficultyConfigPanel');
+            if (panel.style.display === 'none' || !panel.style.display) {
+                panel.style.display = 'block';
+                // 初始化权重配置面板
+                initWeightConfigPanel();
+                // 加载保存的阈值
+                loadDifficultyThresholds();
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // 重置阈值到默认值
+        function resetDifficultyThresholds() {
+            document.getElementById('thEasyCompletion').value = 90;
+            document.getElementById('thEasyAttempt').value = 1.5;
+            document.getElementById('thEasyPay').value = 5;
+            document.getElementById('thNormalCompletionMin').value = 60;
+            document.getElementById('thNormalCompletionMax').value = 90;
+            document.getElementById('thNormalAttemptMin').value = 2;
+            document.getElementById('thNormalAttemptMax').value = 5;
+            document.getElementById('thNormalPayMin').value = 5;
+            document.getElementById('thNormalPayMax').value = 30;
+            document.getElementById('thHardAttempt').value = 5;
+            document.getElementById('thHardPay').value = 10;
+            // 清除保存的配置
+            localStorage.removeItem('difficultyThresholds');
+        }
+
+        // 应用阈值并刷新数据
+        async function applyDifficultyThresholds() {
+            // 保存配置
+            saveDifficultyThresholds();
+            // 刷新数据
+            await updateDifficultyAssessmentChart();
+        }
+
+        // 更新难度评估图表
+        async function updateDifficultyAssessmentChart() {
+            const levelType = document.getElementById('difficultyLevelTypeSelect')?.value || '全部';
+            const dayNumSpan = document.getElementById('difficultyDayNumSpan')?.value || '7';
+
+            let registerDates = window.selectedRegisterDates || [window.currentDate];
+            if (typeof registerDates === 'string') {
+                registerDates = [registerDates];
+            }
+            const registerDate = formatDateToInt(registerDates[0]);
+
+            // 获取阈值参数
+            const params = new URLSearchParams({
+                register_date: registerDate,
+                level_type: levelType,
+                day_num_span: dayNumSpan,
+                th_easy_completion: document.getElementById('thEasyCompletion')?.value || 90,
+                th_easy_attempt: document.getElementById('thEasyAttempt')?.value || 1.5,
+                th_easy_pay: document.getElementById('thEasyPay')?.value || 5,
+                th_normal_completion_min: document.getElementById('thNormalCompletionMin')?.value || 60,
+                th_normal_completion_max: document.getElementById('thNormalCompletionMax')?.value || 90,
+                th_normal_attempt_min: document.getElementById('thNormalAttemptMin')?.value || 2,
+                th_normal_attempt_max: document.getElementById('thNormalAttemptMax')?.value || 5,
+                th_normal_pay_min: document.getElementById('thNormalPayMin')?.value || 5,
+                th_normal_pay_max: document.getElementById('thNormalPayMax')?.value || 30,
+                th_hard_attempt: document.getElementById('thHardAttempt')?.value || 5,
+                th_hard_pay: document.getElementById('thHardPay')?.value || 10
+            });
+
+            try {
+                const response = await fetch(`/api/charts/level-difficulty-assessment?${params}`);
+                const result = await response.json();
+
+                if (result.code !== 0) {
+                    console.error('API错误:', result.message);
+                    return;
+                }
+
+                const data = result.data;
+                difficultyAssessmentData = data.levels || [];
+
+                // 使用v3.0方式重新计算难度并更新统计
+                const v30Data = data.levels.map(level => {
+                    const score = calculateDifficultyScoreV30(level.metrics);
+                    const levelInfo = getDifficultyLevelV30(score);
+                    return {
+                        ...level,
+                        difficulty: {
+                            original_score: score,
+                            original_level: levelInfo.level,
+                            composite_level: levelInfo.level,
+                            recommendation: getDifficultySuggestion(levelInfo.level)
+                        }
+                    };
+                });
+                difficultyAssessmentData = v30Data;
+
+                // 统计v3.0难度分布
+                const v30Dist = { '太简单': 0, '偏简单': 0, '正常': 0, '偏难': 0, '太难': 0, '极难': 0 };
+                v30Data.forEach(d => {
+                    const level = d.difficulty.composite_level;
+                    v30Dist[level] = (v30Dist[level] || 0) + 1;
+                });
+
+                // 更新统计信息（v3.0新分类）
+                document.getElementById('difficultyTotalLevels').textContent = v30Data.length;
+                document.getElementById('difficultyTooEasy').textContent = v30Dist['太简单'] || 0;
+                document.getElementById('difficultyEasy').textContent = v30Dist['偏简单'] || 0;
+                document.getElementById('difficultyNormal').textContent = v30Dist['正常'] || 0;
+                document.getElementById('difficultyHard').textContent = v30Dist['偏难'] || 0;
+                document.getElementById('difficultyTooHard').textContent = v30Dist['太难'] || 0;
+                document.getElementById('difficultyExtreme').textContent = v30Dist['极难'] || 0;
+
+                // 渲染难度分布环形图（v3.0）
+                renderDifficultyDistChartV30(v30Dist);
+
+                // 渲染表格
+                renderDifficultyTable();
+            } catch (error) {
+                console.error('更新难度评估图表失败:', error);
+            }
+        }
+
+        // 渲染难度评估表格
+        function renderDifficultyTable() {
+            const tbody = document.getElementById('difficultyTableBody');
+            if (!tbody) return;
+
+            // 排序数据
+            const sortedData = [...difficultyAssessmentData].sort((a, b) => {
+                let valA, valB;
+                const mA = a.metrics;
+                const mB = b.metrics;
+                switch (currentDifficultySort.field) {
+                    case 'level_type': valA = a.level_type; valB = b.level_type; break;
+                    case 'level_id': valA = a.level_id; valB = b.level_id; break;
+                    case 'avg_attempts_passed': valA = mA.avg_attempts_passed || 0; valB = mB.avg_attempts_passed || 0; break;
+                    case 'avg_attempts_failed': valA = mA.avg_attempts_failed || 0; valB = mB.avg_attempts_failed || 0; break;
+                    case 'abandon_rate': valA = mA.abandon_rate || 0; valB = mB.abandon_rate || 0; break;
+                    case 'first_pass_rate': valA = mA.cumulative_first_pass_rate || 0; valB = mB.cumulative_first_pass_rate || 0; break;
+                    case 'obstacle_use_rate': valA = mA.cumulative_obstacle_use_rate || 0; valB = mB.cumulative_obstacle_use_rate || 0; break;
+                    case 'completion_rate': valA = mA.cumulative_completion_rate || 0; valB = mB.cumulative_completion_rate || 0; break;
+                    case 'stuck_rate': valA = mA.stuck_rate || 0; valB = mB.stuck_rate || 0; break;
+                    case 'high_attempt_churn_rate': valA = mA.high_attempt_churn_rate || 0; valB = mB.high_attempt_churn_rate || 0; break;
+                    case 'video_rate': valA = mA.cumulative_video_rate || 0; valB = mB.cumulative_video_rate || 0; break;
+                    case 'avg_video_per_user': valA = mA.avg_video_per_user || 0; valB = mB.avg_video_per_user || 0; break;
+                    case 'avg_obstacle_per_user': valA = mA.cumulative_avg_obstacle_per_user || 0; valB = mB.cumulative_avg_obstacle_per_user || 0; break;
+                    default: valA = a.difficulty.composite_level; valB = b.difficulty.composite_level;
+                }
+
+                if (typeof valA === 'string') {
+                    return currentDifficultySort.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return currentDifficultySort.asc ? valA - valB : valB - valA;
+            });
+
+            // 难度等级颜色映射（v3.0新分类）
+            const levelColors = {
+                '太简单': '#52c41a',
+                '偏简单': '#73d13d',
+                '正常': '#1890ff',
+                '偏难': '#fa8c16',
+                '太难': '#f5222d',
+                '极难': '#722ed1'
+            };
+
+            tbody.innerHTML = sortedData.map(level => {
+                const m = level.metrics;
+                const d = level.difficulty;
+                const levelColor = levelColors[d.composite_level] || '#999';
+
+                return `
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 3px 2px; font-size: 12px;">${level.level_type}</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${level.level_id}</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.avg_attempts_passed || 0).toFixed(1)}</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.avg_attempts_failed || 0).toFixed(1)}</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.abandon_rate || 0).toFixed(1)}%</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.cumulative_first_pass_rate || 0).toFixed(1)}%</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.cumulative_obstacle_use_rate || 0).toFixed(1)}%</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.cumulative_completion_rate || 0).toFixed(1)}%</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.stuck_rate || 0).toFixed(1)}%</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.high_attempt_churn_rate || 0).toFixed(1)}%</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.cumulative_video_rate || 0).toFixed(1)}%</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.avg_video_per_user || 0).toFixed(1)}</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px;">${(m.cumulative_avg_obstacle_per_user || 0).toFixed(1)}</td>
+                        <td style="padding: 3px 2px; text-align: center; font-size: 12px; color: ${levelColor};">${d.composite_level}</td>
+                        <td style="padding: 3px 2px; font-size: 11px;">${d.recommendation}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 排序表格
+        function sortDifficultyTable(field) {
+            if (currentDifficultySort.field === field) {
+                currentDifficultySort.asc = !currentDifficultySort.asc;
+            } else {
+                currentDifficultySort.field = field;
+                currentDifficultySort.asc = true;
+            }
+            renderDifficultyTable();
+        }
+
+        // 更新难度评估（供选择器调用）
+        function updateDifficultyAssessment() {
+            updateDifficultyAssessmentChart();
+        }
+
+        // 渲染难度分布环形图（v3.0新分类）
+        function renderDifficultyDistChartV30(dist) {
+            const ctx = document.getElementById('difficultyDistChart')?.getContext('2d');
+            if (!ctx) return;
+
+            if (charts.difficultyDist) charts.difficultyDist.destroy();
+
+            // v3.0难度等级顺序和颜色
+            const levelConfig = [
+                { key: '太简单', color: '#52c41a', label: '太简单(0-30)' },
+                { key: '偏简单', color: '#73d13d', label: '偏简单(30-50)' },
+                { key: '正常', color: '#1890ff', label: '正常(50-80)' },
+                { key: '偏难', color: '#fa8c16', label: '偏难(80-120)' },
+                { key: '太难', color: '#f5222d', label: '太难(120-150)' },
+                { key: '极难', color: '#722ed1', label: '极难(>150)' }
+            ];
+
+            const labels = [];
+            const data = [];
+            const colors = [];
+
+            levelConfig.forEach(cfg => {
+                const count = dist[cfg.key] || 0;
+                if (count > 0) {
+                    labels.push(cfg.label);
+                    data.push(count);
+                    colors.push(cfg.color);
+                }
+            });
+
+            charts.difficultyDist = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 15,
+                                font: { size: 11 }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: '综合难度分布',
+                            font: { size: 14 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    return `${label}: ${value}关 (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         // 关键留存点配置（不含首日，对应day_num: 2, 3, 8, 15, 31, 46, 61, 76, 91）

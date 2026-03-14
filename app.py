@@ -9,7 +9,14 @@ app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
+# 注册关卡难度评估配置API
+from difficulty_config_api import difficulty_config_bp
+app.register_blueprint(difficulty_config_bp)
+
 DB_PATH = os.path.join(BASE_DIR, 'game_analytics_local.db')
+
+# 表名配置 - 使用v3_3版本
+MV_TABLE = 'mv_completion_level_stats'
 
 def get_db_connection():
     """获取数据库连接"""
@@ -1190,7 +1197,7 @@ def api_unlock_conversion_stats():
 @app.route('/api/user_category_distribution')
 def api_user_category_distribution():
     """
-    用户类别分布 - 新手/普通/困难/地狱/副本玩家的分布情况
+    用户类别分布 - 首关未过/新手/普通/困难/地狱/副本玩家的分布情况
     
     参数：
     - register_date: 注册日期（格式：YYYYMMDD，默认20260110）
@@ -1206,7 +1213,7 @@ def api_user_category_distribution():
         cursor.execute("""
             SELECT 
                 day_num, total_users,
-                newbie_users, normal_users, hard_users, hell_users, copy_users
+                newbie_users, normal_users, hard_users, hell_users, copy_users, uncleared_users
             FROM mv_user_category_distribution
             WHERE register_date = ?
                 AND day_num <= ?
@@ -1222,7 +1229,8 @@ def api_user_category_distribution():
                 'normal_users': row[3],
                 'hard_users': row[4],
                 'hell_users': row[5],
-                'copy_users': row[6]
+                'copy_users': row[6],
+                'uncleared_users': row[7]
             })
         
         conn.close()
@@ -1590,7 +1598,8 @@ def api_user_category_distribution_v1():
                 normal_users,
                 hard_users,
                 hell_users,
-                copy_users
+                copy_users,
+                uncleared_users
             FROM mv_user_category_distribution
             WHERE register_date IN ({placeholders_dates})
               AND day_num BETWEEN ? AND ?
@@ -1612,7 +1621,8 @@ def api_user_category_distribution_v1():
                 'normal_users': row[4],
                 'hard_users': row[5],
                 'hell_users': row[6],
-                'copy_users': row[7]
+                'copy_users': row[7],
+                'uncleared_users': row[8]
             }
         
         conn.close()
@@ -1623,7 +1633,8 @@ def api_user_category_distribution_v1():
             '普通关卡玩家': '#5470c6',
             '困难关卡玩家': '#91cc75',
             '地狱关卡玩家': '#fac858',
-            '副本关卡玩家': '#ee6666'
+            '副本关卡玩家': '#ee6666',
+            '首关未过用户': '#d3d3d3'
         }
         
         # 构建X轴数据
@@ -1650,6 +1661,7 @@ def api_user_category_distribution_v1():
             reg_date_str = str(reg_date)
             
             # 该注册日期的series - 每个类别一个时间序列
+            uncleared_series = []
             newbie_series = []
             normal_series = []
             hard_series = []
@@ -1659,12 +1671,14 @@ def api_user_category_distribution_v1():
             for day_num in day_nums:
                 key = (reg_date_str, day_num)
                 if key in raw_data:
+                    uncleared_series.append(raw_data[key]['uncleared_users'])
                     newbie_series.append(raw_data[key]['newbie_users'])
                     normal_series.append(raw_data[key]['normal_users'])
                     hard_series.append(raw_data[key]['hard_users'])
                     hell_series.append(raw_data[key]['hell_users'])
                     copy_series.append(raw_data[key]['copy_users'])
                 else:
+                    uncleared_series.append(0)
                     newbie_series.append(0)
                     normal_series.append(0)
                     hard_series.append(0)
@@ -1672,6 +1686,11 @@ def api_user_category_distribution_v1():
                     copy_series.append(0)
             
             series = [
+                {
+                    'name': '首关未过用户',
+                    'data': uncleared_series,
+                    'color': color_map['首关未过用户']
+                },
                 {
                     'name': '新手',
                     'data': newbie_series,
@@ -2376,7 +2395,7 @@ def api_level_completion_trend():
             query_dates = [register_date]
         else:
             cursor.execute(f"""
-                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                SELECT DISTINCT register_date FROM {MV_TABLE}
                 WHERE {date_where}
                 ORDER BY register_date
             """, date_params)
@@ -2385,22 +2404,45 @@ def api_level_completion_trend():
             if register_date_interval > 1:
                 query_dates = query_dates[::register_date_interval]
         
+        # 查询模式：单日完成率 vs 累计完成率
+        query_mode = request.args.get('query_mode', 'daily')  # daily: 单日完成率, cumulative: 累计完成率
+        
         trends = []
         for reg_date in query_dates:
-            cursor.execute("""
-                SELECT day_num, completion_rate, enter_users
-                FROM mv_completion_level_stats
-                WHERE register_date = ? AND level_type = ? AND level_id = ?
-                ORDER BY day_num
-            """, [reg_date, level_type, level_id])
-            
-            trend_data = []
-            for row in cursor.fetchall():
-                trend_data.append({
-                    'day_num': row[0],
-                    'completion_rate': round(row[1], 2) if row[1] else 0,
-                    'enter_users': row[2]
-                })
+            if query_mode == 'cumulative':
+                # 累计完成率模式
+                cursor.execute(f"""
+                    SELECT day_num, cumulative_completion_rate, enter_users, avg_enter_times
+                    FROM {MV_TABLE}
+                    WHERE register_date = ? AND level_type = ? AND level_id = ?
+                    ORDER BY day_num
+                """, [reg_date, level_type, level_id])
+                
+                trend_data = []
+                for row in cursor.fetchall():
+                    trend_data.append({
+                        'day_num': row[0],
+                        'completion_rate': round(row[1], 2) if row[1] else 0,
+                        'enter_users': row[2],
+                        'avg_attempts': round(row[3], 2) if row[3] else 0
+                    })
+            else:
+                # 单日完成率模式（默认）
+                cursor.execute(f"""
+                    SELECT day_num, cumulative_completion_rate, cumulative_enter_users, avg_enter_times
+                    FROM {MV_TABLE}
+                    WHERE register_date = ? AND level_type = ? AND level_id = ?
+                    ORDER BY day_num
+                """, [reg_date, level_type, level_id])
+
+                trend_data = []
+                for row in cursor.fetchall():
+                    trend_data.append({
+                        'day_num': row[0],
+                        'completion_rate': round(row[1], 2) if row[1] else 0,
+                        'enter_users': row[2],
+                        'avg_attempts': round(row[3], 2) if row[3] else 0
+                    })
             
             trends.append({
                 'register_date': reg_date,
@@ -2413,6 +2455,7 @@ def api_level_completion_trend():
             'code': 0,
             'data': {
                 'query_type': 'single' if register_date else 'range',
+                'query_mode': query_mode,
                 'level_type': level_type,
                 'level_id': level_id,
                 'trends': trends
@@ -2457,33 +2500,60 @@ def api_level_completion_comparison():
             query_dates = [register_date]
         else:
             cursor.execute(f"""
-                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                SELECT DISTINCT register_date FROM {MV_TABLE}
                 WHERE {date_where}
                 ORDER BY register_date
             """, date_params)
             query_dates = [row[0] for row in cursor.fetchall()]
         
+        # 查询模式：单日完成率 vs 累计完成率
+        query_mode = request.args.get('query_mode', 'daily')  # daily: 单日完成率, cumulative: 累计完成率
+        
         all_levels = []
         for reg_date in query_dates:
-            cursor.execute("""
-                SELECT level_id, 
-                       AVG(completion_rate) as avg_completion_rate,
-                       AVG(enter_users) as avg_enter_users,
-                       SUM(enter_users) as total_enter_users
-                FROM mv_completion_level_stats
-                WHERE register_date = ? AND level_type = ?
-                  AND day_num BETWEEN ? AND ?
-                GROUP BY level_id
-                ORDER BY level_id
-            """, [reg_date, level_type, day_start, day_end])
+            if query_mode == 'cumulative':
+                # 累计完成率模式 - 取最后一天（最大day_num）的累计值
+                cursor.execute(f"""
+                    SELECT
+                        m.level_id,
+                        m.cumulative_completion_rate,
+                        m.avg_enter_times,
+                        m.cumulative_enter_users as avg_enter_users,
+                        m.cumulative_enter_users as total_enter_users
+                    FROM {MV_TABLE} m
+                    INNER JOIN (
+                        SELECT level_id, MAX(day_num) as max_day
+                        FROM {MV_TABLE}
+                        WHERE register_date = ? AND level_type = ?
+                          AND day_num BETWEEN ? AND ?
+                        GROUP BY level_id
+                    ) t ON m.level_id = t.level_id AND m.day_num = t.max_day
+                    WHERE m.register_date = ? AND m.level_type = ?
+                    ORDER BY m.level_id
+                """, [reg_date, level_type, day_start, day_end, reg_date, level_type])
+            else:
+                # 单日完成率模式（默认）
+                cursor.execute(f"""
+                    SELECT level_id,
+                           AVG(cumulative_completion_rate) as avg_completion_rate,
+                           AVG(avg_enter_times) as avg_attempts,
+                           AVG(cumulative_enter_users) as avg_enter_users,
+                           SUM(cumulative_enter_users) as total_enter_users
+                    FROM {MV_TABLE}
+                    WHERE register_date = ? AND level_type = ?
+                      AND day_num BETWEEN ? AND ?
+                    GROUP BY level_id
+                    ORDER BY level_id
+                """, [reg_date, level_type, day_start, day_end])
             
             levels = []
             for row in cursor.fetchall():
                 levels.append({
                     'level_id': row[0],
                     'completion_rate': round(row[1], 2) if row[1] else 0,
-                    'avg_enter_users': round(row[2], 0) if row[2] else 0,
-                    'total_enter_users': row[3]
+                    'avg_attempts': round(row[2], 2) if row[2] else 0,
+                    'avg_enter_users': round(row[3], 0) if row[3] else 0,
+                    'total_enter_users': row[4]
                 })
             
             all_levels.append({
@@ -2497,6 +2567,7 @@ def api_level_completion_comparison():
             'code': 0,
             'data': {
                 'query_type': 'single' if register_date else 'range',
+                'query_mode': query_mode,
                 'level_type': level_type,
                 'day_num_span': day_num_span,
                 'day_num_range': f"{day_start}-{day_end}",
@@ -2538,7 +2609,7 @@ def api_difficulty_distribution():
             query_dates = [register_date]
         else:
             cursor.execute(f"""
-                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                SELECT DISTINCT register_date FROM {MV_TABLE}
                 WHERE {date_where}
                 ORDER BY register_date
             """, date_params)
@@ -2554,7 +2625,7 @@ def api_difficulty_distribution():
             
             cursor.execute(f"""
                 SELECT difficulty_level, COUNT(DISTINCT level_id) as level_count
-                FROM mv_completion_level_stats
+                FROM {MV_TABLE}
                 WHERE register_date = ? {type_condition}
                   AND day_num BETWEEN ? AND ?
                   AND difficulty_level IS NOT NULL
@@ -2620,31 +2691,62 @@ def api_completion_vs_stuck():
             query_dates = [register_date]
         else:
             cursor.execute(f"""
-                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                SELECT DISTINCT register_date FROM {MV_TABLE}
                 WHERE {date_where}
                 ORDER BY register_date
             """, date_params)
             query_dates = [row[0] for row in cursor.fetchall()]
         
+        # 查询模式：单日完成率 vs 累计完成率
+        query_mode = request.args.get('query_mode', 'daily')  # daily: 单日完成率, cumulative: 累计完成率
+        
         all_scatter = []
         for reg_date in query_dates:
             # 构建查询条件
             type_condition = "AND level_type = ?" if level_type else ""
-            params = [reg_date, day_start, day_end]
-            if level_type:
-                params.insert(1, level_type)
             
-            cursor.execute(f"""
-                SELECT level_type, level_id, 
-                       AVG(completion_rate) as avg_completion_rate,
-                       AVG(stuck_rate) as avg_stuck_rate,
-                       AVG(enter_users) as avg_enter_users
-                FROM mv_completion_level_stats
-                WHERE register_date = ? {type_condition}
-                  AND day_num BETWEEN ? AND ?
-                GROUP BY level_type, level_id
-                ORDER BY level_type, level_id
-            """, params)
+            if query_mode == 'cumulative':
+                # 累计完成率模式 - 取最后一天的数据
+                params = [reg_date, day_start, day_end, reg_date]
+                if level_type:
+                    params.insert(1, level_type)
+                    params.append(level_type)
+                
+                cursor.execute(f"""
+                    SELECT 
+                        m.level_type,
+                        m.level_id,
+                        m.cumulative_completion_rate as completion_rate,
+                        m.stuck_rate,
+                        m.cumulative_enter_users as enter_users
+                    FROM {MV_TABLE} m
+                    INNER JOIN (
+                        SELECT level_type, level_id, MAX(day_num) as max_day
+                        FROM {MV_TABLE}
+                        WHERE register_date = ? {type_condition}
+                          AND day_num BETWEEN ? AND ?
+                        GROUP BY level_type, level_id
+                    ) t ON m.level_type = t.level_type AND m.level_id = t.level_id AND m.day_num = t.max_day
+                    WHERE m.register_date = ? {type_condition}
+                    ORDER BY m.level_type, m.level_id
+                """, params)
+            else:
+                # 单日完成率模式（默认）- 取平均值
+                params = [reg_date, day_start, day_end]
+                if level_type:
+                    params.insert(1, level_type)
+                
+                cursor.execute(f"""
+                    SELECT level_type, level_id, 
+                           AVG(cumulative_completion_rate) as avg_completion_rate,
+                           AVG(stuck_rate) as avg_stuck_rate,
+                           AVG(cumulative_enter_users) as avg_enter_users
+                    FROM {MV_TABLE}
+                    WHERE register_date = ? {type_condition}
+                      AND day_num BETWEEN ? AND ?
+                    GROUP BY level_type, level_id
+                    ORDER BY level_type, level_id
+                """, params)
             
             points = []
             for row in cursor.fetchall():
@@ -2711,7 +2813,7 @@ def api_level_funnel():
             query_dates = [register_date]
         else:
             cursor.execute(f"""
-                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                SELECT DISTINCT register_date FROM {MV_TABLE}
                 WHERE {date_where}
                 ORDER BY register_date
             """, date_params)
@@ -2719,14 +2821,14 @@ def api_level_funnel():
         
         all_funnels = []
         for reg_date in query_dates:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT 
-                    SUM(enter_users) as total_enter,
-                    SUM(pass_users) as pass_users,
+                    SUM(cumulative_enter_users) as total_enter,
+                    SUM(cumulative_pass_users) as pass_users,
                     SUM(abandon_users) as abandon_users,
-                    SUM(fail_users) as fail_users,
+                    SUM(cumulative_enter_users - cumulative_pass_users) as fail_users,
                     SUM(stuck_users) as stuck_users
-                FROM mv_completion_level_stats
+                FROM {MV_TABLE}
                 WHERE register_date = ? AND level_type = ? AND level_id = ?
                   AND day_num BETWEEN ? AND ?
             """, [reg_date, level_type, level_id, day_start, day_end])
@@ -2804,7 +2906,7 @@ def api_completion_heatmap():
             query_dates = [register_date]
         else:
             cursor.execute(f"""
-                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                SELECT DISTINCT register_date FROM {MV_TABLE}
                 WHERE {date_where}
                 ORDER BY register_date
             """, date_params)
@@ -2817,8 +2919,8 @@ def api_completion_heatmap():
             params = [reg_date, level_type] + level_ids
             
             cursor.execute(f"""
-                SELECT level_id, day_num, completion_rate, enter_users
-                FROM mv_completion_level_stats
+                SELECT level_id, day_num, cumulative_completion_rate, cumulative_enter_users
+                FROM {MV_TABLE}
                 WHERE register_date = ? AND level_type = ?
                   AND level_id IN ({level_placeholders})
                 ORDER BY level_id, day_num
@@ -2887,31 +2989,62 @@ def api_lowest_completion_top10():
             query_dates = [register_date]
         else:
             cursor.execute(f"""
-                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                SELECT DISTINCT register_date FROM {MV_TABLE}
                 WHERE {date_where}
                 ORDER BY register_date
             """, date_params)
             query_dates = [row[0] for row in cursor.fetchall()]
         
+        # 查询模式：单日完成率 vs 累计完成率
+        query_mode = request.args.get('query_mode', 'daily')  # daily: 单日完成率, cumulative: 累计完成率
+        
         all_top10 = []
         for reg_date in query_dates:
             # 构建查询条件
             type_condition = "AND level_type = ?" if level_type else ""
-            params = [reg_date, day_start, day_end]
-            if level_type:
-                params.insert(1, level_type)
             
-            cursor.execute(f"""
-                SELECT level_type, level_id, 
-                       AVG(completion_rate) as avg_completion_rate,
-                       AVG(enter_users) as avg_enter_users
-                FROM mv_completion_level_stats
-                WHERE register_date = ? {type_condition}
-                  AND day_num BETWEEN ? AND ?
-                GROUP BY level_type, level_id
-                ORDER BY avg_completion_rate ASC
-                LIMIT 10
-            """, params)
+            if query_mode == 'cumulative':
+                # 累计完成率模式 - 取最后一天的数据
+                params = [reg_date, day_start, day_end, reg_date]
+                if level_type:
+                    params.insert(1, level_type)
+                    params.append(level_type)
+                
+                cursor.execute(f"""
+                    SELECT 
+                        m.level_type,
+                        m.level_id,
+                        m.cumulative_completion_rate as completion_rate,
+                        m.cumulative_enter_users as enter_users
+                    FROM {MV_TABLE} m
+                    INNER JOIN (
+                        SELECT level_type, level_id, MAX(day_num) as max_day
+                        FROM {MV_TABLE}
+                        WHERE register_date = ? {type_condition}
+                          AND day_num BETWEEN ? AND ?
+                        GROUP BY level_type, level_id
+                    ) t ON m.level_type = t.level_type AND m.level_id = t.level_id AND m.day_num = t.max_day
+                    WHERE m.register_date = ? {type_condition}
+                    ORDER BY m.cumulative_completion_rate ASC
+                    LIMIT 10
+                """, params)
+            else:
+                # 单日完成率模式（默认）- 取平均值
+                params = [reg_date, day_start, day_end]
+                if level_type:
+                    params.insert(1, level_type)
+                
+                cursor.execute(f"""
+                    SELECT level_type, level_id, 
+                           AVG(cumulative_completion_rate) as avg_completion_rate,
+                           AVG(cumulative_enter_users) as avg_enter_users
+                    FROM {MV_TABLE}
+                    WHERE register_date = ? {type_condition}
+                      AND day_num BETWEEN ? AND ?
+                    GROUP BY level_type, level_id
+                    ORDER BY avg_completion_rate ASC
+                    LIMIT 10
+                """, params)
             
             top10 = []
             for row in cursor.fetchall():
@@ -2970,7 +3103,7 @@ def api_ad_trend():
             query_dates = [register_date]
         else:
             cursor.execute(f"""
-                SELECT DISTINCT register_date FROM mv_completion_level_stats
+                SELECT DISTINCT register_date FROM {MV_TABLE}
                 WHERE {date_where}
                 ORDER BY register_date
             """, date_params)
@@ -2980,9 +3113,9 @@ def api_ad_trend():
         
         trends = []
         for reg_date in query_dates:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT day_num, ad_view_rate, enter_users
-                FROM mv_completion_level_stats
+                FROM {MV_TABLE}
                 WHERE register_date = ? AND level_type = ? AND level_id = ?
                 ORDER BY day_num
             """, [reg_date, level_type, level_id])
@@ -3016,5 +3149,257 @@ def api_ad_trend():
         return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
 
 
+# ==================== 图表9: 关卡难度评估配置 ====================
+
+@app.route('/api/charts/level-difficulty-assessment', methods=['GET'])
+def api_level_difficulty_assessment():
+    """
+    图表9: 关卡难度评估配置
+    基于完成率、人均尝试次数、付费率等多维度综合评估关卡难度
+    支持动态调整难度评估阈值参数
+    
+    参数：
+    - register_date: 注册日期（YYYYMMDD，必填）
+    - level_type: 关卡类型（普通/困难/地狱/副本/全部，默认'全部'）
+    - day_num: 分析第N天数据（默认7）
+    - day_num_span: 时间跨度（1/2/3/7/14/30/45/60/90，默认'7'）
+    
+    难度阈值参数（前端可调）：
+    - th_easy_completion: 太简单完成率阈值（默认90）
+    - th_easy_attempt: 太简单人均次阈值（默认1.5）
+    - th_easy_pay: 太简单付费率阈值（默认5）
+    - th_normal_completion_min: 正常难度完成率下限（默认60）
+    - th_normal_completion_max: 正常难度完成率上限（默认90）
+    - th_normal_attempt_min: 正常难度人均次下限（默认2）
+    - th_normal_attempt_max: 正常难度人均次上限（默认5）
+    - th_normal_pay_min: 正常难度付费率下限（默认5）
+    - th_normal_pay_max: 正常难度付费率上限（默认30）
+    - th_hard_attempt: 太难人均次阈值（默认5）
+    - th_hard_pay: 太难付费率阈值（默认10）
+    """
+    try:
+        # 基础参数
+        register_date = request.args.get('register_date', type=int)
+        level_type = request.args.get('level_type', '全部')
+        day_num = request.args.get('day_num', type=int)
+        day_num_span = request.args.get('day_num_span', '7')
+        
+        if not register_date:
+            return jsonify({'code': 400, 'message': '缺少register_date参数'}), 400
+        
+        # 确定day_num范围
+        if day_num:
+            day_start, day_end = day_num, day_num
+            query_day_num = day_num
+        else:
+            day_start, day_end = get_day_num_range(day_num_span)
+            query_day_num = day_end  # 使用跨度最后一天的数据
+        
+        # 难度阈值参数（带默认值）
+        thresholds = {
+            'easy': {
+                'completion_rate': request.args.get('th_easy_completion', 90, type=float),
+                'avg_attempts': request.args.get('th_easy_attempt', 1.5, type=float),
+                'pay_rate': request.args.get('th_easy_pay', 5, type=float)
+            },
+            'normal': {
+                'completion_rate_min': request.args.get('th_normal_completion_min', 60, type=float),
+                'completion_rate_max': request.args.get('th_normal_completion_max', 90, type=float),
+                'avg_attempts_min': request.args.get('th_normal_attempt_min', 2, type=float),
+                'avg_attempts_max': request.args.get('th_normal_attempt_max', 5, type=float),
+                'pay_rate_min': request.args.get('th_normal_pay_min', 5, type=float),
+                'pay_rate_max': request.args.get('th_normal_pay_max', 30, type=float)
+            },
+            'hard': {
+                'avg_attempts': request.args.get('th_hard_attempt', 5, type=float),
+                'pay_rate': request.args.get('th_hard_pay', 10, type=float)
+            }
+        }
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 构建查询条件
+        type_condition = "AND level_type = ?" if level_type != '全部' else ""
+        params = [register_date, query_day_num]
+        if level_type != '全部':
+            params.append(level_type)
+        
+        # 查询关卡数据 - 使用视图中存在的字段（v5.2版本字段名）
+        cursor.execute(f"""
+            SELECT
+                level_type,
+                level_id,
+                cumulative_completion_rate as completion_rate,
+                avg_enter_times,
+                cumulative_video_rate as pay_rate,
+                abandon_rate,
+                stuck_rate,
+                cumulative_enter_users as enter_users,
+                cumulative_pass_users as pass_users,
+                difficulty_score_v2 as difficulty_score,
+                avg_attempts_passed,
+                avg_attempts_failed,
+                cumulative_first_pass_rate,
+                cumulative_obstacle_use_rate,
+                churn_rate_7d,
+                avg_video_per_user,
+                cumulative_avg_obstacle_per_user,
+                high_attempt_churn_rate
+            FROM {MV_TABLE}
+            WHERE register_date = ?
+              AND day_num = ?
+              {type_condition}
+            ORDER BY level_type, level_id
+        """, params)
+        
+        levels = []
+        difficulty_distribution = {
+            '太简单': 0,
+            '简单': 0,
+            '正常难度': 0,
+            '适中': 0,
+            '偏难': 0,
+            '困难': 0,
+            '太难': 0,
+            '极难但合理': 0
+        }
+        
+        for row in cursor.fetchall():
+            level_type_val = row[0]
+            level_id = row[1]
+            completion_rate = row[2] or 0
+            avg_attempts = row[3] or 0
+            pay_rate = row[4] or 0
+            abandon_rate = row[5] or 0
+            stuck_rate = row[6] or 0
+            enter_users = row[7] or 0
+            pass_users = row[8] or 0
+            difficulty_score = row[9] or 0
+            avg_attempts_passed = row[10] or 0
+            avg_attempts_failed = row[11] or 0
+            cumulative_first_pass_rate = row[12] or 0
+            cumulative_obstacle_use_rate = row[13] or 0
+            churn_rate_7d = row[14] or 0
+            avg_video_per_user = row[15] or 0
+            cumulative_avg_obstacle_per_user = row[16] or 0
+            high_attempt_churn_rate = row[17] or 0
+            
+            # 原难度等级
+            if difficulty_score < 1.5:
+                original_level = '简单'
+            elif difficulty_score < 2.5:
+                original_level = '适中'
+            elif difficulty_score < 4.0:
+                original_level = '困难'
+            else:
+                original_level = '极难'
+            
+            # 综合难度指数计算
+            th = thresholds
+            
+            # 太简单：高完成 + 低尝试 + 低付费
+            if (completion_rate > th['easy']['completion_rate'] and 
+                avg_attempts < th['easy']['avg_attempts'] and 
+                pay_rate < th['easy']['pay_rate']):
+                composite_level = '太简单'
+                recommendation = '建议增加难度或引导付费'
+            # 正常难度：中等完成 + 适中尝试 + 有付费
+            elif (th['normal']['completion_rate_min'] <= completion_rate <= th['normal']['completion_rate_max'] and
+                  th['normal']['avg_attempts_min'] <= avg_attempts <= th['normal']['avg_attempts_max'] and
+                  th['normal']['pay_rate_min'] <= pay_rate <= th['normal']['pay_rate_max']):
+                composite_level = '正常难度'
+                recommendation = '付费点设计良好，保持现状'
+            # 偏难：完成率尚可但尝试次数多
+            elif (40 <= completion_rate < th['normal']['completion_rate_min'] and
+                  avg_attempts > th['normal']['avg_attempts_max'] and
+                  pay_rate > th['normal']['pay_rate_min']):
+                composite_level = '偏难'
+                recommendation = '监控玩家反馈'
+            # 太难：低完成 + 高尝试 + 低付费（挫败感）
+            elif (completion_rate < 50 and 
+                  avg_attempts > th['hard']['avg_attempts'] and 
+                  pay_rate < th['hard']['pay_rate']):
+                composite_level = '太难'
+                recommendation = '建议检查关卡设计或降低难度'
+            # 极难但合理：低完成 + 高尝试 + 高付费（硬核玩家）
+            elif (completion_rate < 50 and 
+                  avg_attempts > th['hard']['avg_attempts'] and 
+                  pay_rate >= th['hard']['pay_rate']):
+                composite_level = '极难但合理'
+                recommendation = '硬核关卡，监控留存'
+            # 其他情况使用原难度评分
+            else:
+                if difficulty_score < 1.5:
+                    composite_level = '简单'
+                    recommendation = '可适当增加挑战'
+                elif difficulty_score < 2.5:
+                    composite_level = '适中'
+                    recommendation = '正常范围'
+                elif difficulty_score < 4.0:
+                    composite_level = '困难'
+                    recommendation = '关注流失率'
+                else:
+                    composite_level = '极难'
+                    recommendation = '持续监控'
+            
+            # 统计难度分布
+            difficulty_distribution[composite_level] = difficulty_distribution.get(composite_level, 0) + 1
+            
+            levels.append({
+                'level_type': level_type_val,
+                'level_id': level_id,
+                'metrics': {
+                    'completion_rate': round(completion_rate, 2),
+                    'avg_attempts': round(avg_attempts, 2),
+                    'pay_rate': round(pay_rate, 2),
+                    'abandon_rate': round(abandon_rate, 2),
+                    'stuck_rate': round(stuck_rate, 2),
+                    'enter_users': enter_users,
+                    'pass_users': pass_users,
+                    # 新增11维参数
+                    'avg_attempts_passed': round(avg_attempts_passed, 2),
+                    'avg_attempts_failed': round(avg_attempts_failed, 2),
+                    'cumulative_first_pass_rate': round(cumulative_first_pass_rate, 2),
+                    'cumulative_obstacle_use_rate': round(cumulative_obstacle_use_rate, 2),
+                    'churn_rate_7d': round(churn_rate_7d, 2),
+                    'cumulative_video_rate': round(pay_rate, 2),  # 看广率
+                    'avg_video_per_user': round(avg_video_per_user, 2),
+                    'cumulative_avg_obstacle_per_user': round(cumulative_avg_obstacle_per_user, 2),
+                    'high_attempt_churn_rate': round(high_attempt_churn_rate, 2)
+                },
+                'difficulty': {
+                    'original_score': round(difficulty_score, 2),
+                    'original_level': original_level,
+                    'composite_level': composite_level,
+                    'recommendation': recommendation
+                }
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'config': {
+                    'register_date': register_date,
+                    'day_num': query_day_num,
+                    'day_num_span': day_num_span if not day_num else None,
+                    'level_type': level_type,
+                    'thresholds': thresholds
+                },
+                'summary': {
+                    'total_levels': len(levels),
+                    'difficulty_distribution': difficulty_distribution
+                },
+                'levels': levels
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({'code': 500, 'message': str(e), 'traceback': traceback.format_exc()}), 500
+
+
 if __name__ == '__main__':
-    app.run(debug=False, port=5090, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5080, host='0.0.0.0', threaded=True)
