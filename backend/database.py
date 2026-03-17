@@ -1,10 +1,19 @@
-import sqlite3
+import pymysql
 from contextlib import contextmanager
 from functools import lru_cache
 import os
 import time
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'game_analysis.db')
+# MySQL数据库配置
+MYSQL_CONFIG = {
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': '',
+    'database': 'game_analysis_local',
+    'charset': 'utf8mb4',
+    'cursorclass': pymysql.cursors.DictCursor
+}
 
 # 连接池（简单实现）
 class ConnectionPool:
@@ -24,11 +33,7 @@ class ConnectionPool:
         
         # 创建新连接
         if len(self.connections) < self.max_connections:
-            conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-            conn.row_factory = sqlite3.Row
-            # 启用 WAL 模式提高并发性能
-            conn.execute('PRAGMA journal_mode=WAL')
-            conn.execute('PRAGMA synchronous=NORMAL')
+            conn = pymysql.connect(**MYSQL_CONFIG)
             self.connections.append(conn)
             self.in_use.add(conn)
             return conn
@@ -41,7 +46,8 @@ class ConnectionPool:
     
     def _is_valid(self, conn):
         try:
-            conn.execute("SELECT 1")
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
             return True
         except:
             return False
@@ -72,19 +78,18 @@ def execute_query(sql, params=None, use_cache=True):
             return cached_result['data']
     
     with get_db_connection() as conn:
-        cursor = conn.cursor()
-        if params:
-            cursor.execute(sql, params)
-        else:
-            cursor.execute(sql)
-        
-        columns = [description[0] for description in cursor.description]
-        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-        
-        if use_cache and cache_key:
-            _query_cache[cache_key] = {'data': results, 'time': time.time()}
-        
-        return results
+        with conn.cursor() as cursor:
+            if params:
+                cursor.execute(sql, params)
+            else:
+                cursor.execute(sql)
+            
+            results = cursor.fetchall()
+            
+            if use_cache and cache_key:
+                _query_cache[cache_key] = {'data': results, 'time': time.time()}
+            
+            return results
 
 # 简单内存缓存
 _query_cache = {}
@@ -97,8 +102,8 @@ def test_connection():
     """测试数据库连接"""
     try:
         with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
             return True
     except Exception as e:
         print(f"连接测试失败: {e}")
@@ -107,18 +112,18 @@ def test_connection():
 def execute_many(sql, params_list):
     """批量执行 SQL"""
     with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.executemany(sql, params_list)
-        conn.commit()
-        return cursor.rowcount
+        with conn.cursor() as cursor:
+            cursor.executemany(sql, params_list)
+            conn.commit()
+            return cursor.rowcount
 
 def execute_write(sql, params=None):
     """执行写入操作"""
     with get_db_connection() as conn:
-        cursor = conn.cursor()
-        if params:
-            cursor.execute(sql, params)
-        else:
-            cursor.execute(sql)
-        conn.commit()
-        return cursor.lastrowid
+        with conn.cursor() as cursor:
+            if params:
+                cursor.execute(sql, params)
+            else:
+                cursor.execute(sql)
+            conn.commit()
+            return cursor.lastrowid

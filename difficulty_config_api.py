@@ -7,7 +7,7 @@
 """
 
 from flask import Blueprint, request, jsonify
-import sqlite3
+import pymysql
 import json
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -15,8 +15,16 @@ from typing import Dict, List, Optional
 # 创建蓝图
 difficulty_config_bp = Blueprint('difficulty_config', __name__, url_prefix='/api/v1/level-difficulty')
 
-# 数据库路径
-DB_PATH = '/Users/zhangqi/.openclaw/agents/programmer/game_analytics/game_analytics_local.db'
+# MySQL数据库配置
+MYSQL_CONFIG = {
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': '',
+    'database': 'game_analysis_local',
+    'charset': 'utf8mb4',
+    'cursorclass': pymysql.cursors.DictCursor
+}
 
 # ============================================================
 # 默认配置（十一维评估 v2.3）
@@ -49,9 +57,8 @@ SCORE_RANGES = {
 # ============================================================
 
 def get_db_connection():
-    """获取数据库连接"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    """获取MySQL数据库连接"""
+    conn = pymysql.connect(**MYSQL_CONFIG)
     return conn
 
 # ============================================================

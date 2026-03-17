@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-import sqlite3
+import pymysql
 import os
 
 # 获取当前文件所在目录的绝对路径
@@ -13,15 +13,23 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 from difficulty_config_api import difficulty_config_bp
 app.register_blueprint(difficulty_config_bp)
 
-DB_PATH = os.path.join(BASE_DIR, 'game_analytics_local.db')
+# MySQL数据库配置
+MYSQL_CONFIG = {
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': '',
+    'database': 'game_analysis_local',
+    'charset': 'utf8mb4',
+    'cursorclass': pymysql.cursors.DictCursor
+}
 
 # 表名配置 - 使用v3_3版本
 MV_TABLE = 'mv_completion_level_stats'
 
 def get_db_connection():
-    """获取数据库连接"""
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
+    """获取MySQL数据库连接"""
+    conn = pymysql.connect(**MYSQL_CONFIG)
     return conn
 
 @app.route('/')
@@ -3402,4 +3410,4 @@ def api_level_difficulty_assessment():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5080, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=5030, host='0.0.0.0', threaded=True)
